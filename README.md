@@ -7,6 +7,8 @@
 <p align="center">A macOS app that brings Windows features to the Mac.<br>Taskbar previews, window switching, snap, and clipboard history.</p>
 
 <p align="center">
+  <a href="https://rept0rix.github.io/show-bar/"><strong>Website</strong></a>
+  ·
   <a href="https://github.com/rept0rix/show-bar/releases/latest"><strong>Download Show Bar</strong></a>
 </p>
 
