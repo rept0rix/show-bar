@@ -590,8 +590,8 @@ enum ShowBarSupport {
     static let storeURL: URL? = nil
     static let askForRateKey = "ShowBar.askForRate"
     // Replace these with your own pages before you publish.
-    static let donateURL = URL(string: "https://www.buymeacoffee.com")!
-    static let adURL = URL(string: "https://www.buymeacoffee.com")!
+    static let donateURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
+    static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.3" // showbar-version
@@ -837,9 +837,9 @@ struct PermissionsView: View {
                 Button(action: { NSWorkspace.shared.open(ShowBarSupport.adURL) }) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Sponsor Show Bar")
+                            Text("Buy me a coffee")
                                 .font(.headline)
-                            Text("This is the ad slot. It stays in this window and never covers the previews.")
+                            Text("Show Bar stays free. A coffee supports the next version.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)

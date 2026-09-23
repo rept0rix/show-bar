@@ -63,6 +63,7 @@ between(
     "<!-- /showbar:download -->",
     "\n".join([
         f'          <a class="download" href="{url}">Install for Mac</a>',
+        '          <a class="coffee" href="https://buymeacoffee.com/na0ryank0r">Buy me a coffee</a>',
         f'          <p class="note">Version {version}. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>',
     ]),
 )
