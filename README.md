@@ -1,27 +1,45 @@
-# Show Bar
+<p align="center">
+  <img src="docs/logo.png" width="132" alt="Show Bar logo">
+</p>
 
-שייך ל-Naor Yanko (`na0ryank0@gmail.com`).
+<h1 align="center">Show Bar</h1>
 
-Show Bar היא אפליקציה ל-Mac שמוסיפה תצוגת חלונות כמו בווינדוס: עומדים עם העכבר על אייקון ב-Dock, ונפתחת תמונה קטנה של החלונות של האפליקציה. לחיצה על תמונה מביאה את החלון קדימה. לחיצה על ה-X סוגרת אותו.
+<p align="center">Window previews for the Mac Dock.<br>Hover an icon. See the windows. Click the one you want.</p>
 
-**אין לה עמוד ב-Mac App Store.** החנות של אפל לא מתאימה לאפליקציה שצריכה נגישות, הקלטת מסך, ומעקב אחרי העכבר מעל ה-Dock. ההורדה היא מהקישור כאן, לא מחנות.
+<p align="center">
+  <a href="https://github.com/rept0rix/show-bar/releases/latest"><strong>Download Show Bar</strong></a>
+</p>
 
-הורדה: [הגרסה האחרונה](https://github.com/rept0rix/show-bar/releases/latest)
+<p align="center">
+  <img src="docs/hero.png" alt="Show Bar. Windows on the Dock, with the window under the pointer highlighted.">
+</p>
 
-הקובץ חתום כרגע בחתימת פיתוח. הוא נפתח על המק שבו נבנה. במק אחר macOS חוסם אותו עד שיש חתימת Developer ID ונוטריזציה (תוכנית המפתחים של אפל, 99 דולר לשנה).
+Show Bar is a menu-bar app by Naor Yanko. It adds Windows-style previews to the Mac Dock.
 
-## מה צריך כדי שזה יעבוד
+<p align="center">
+  <img src="docs/product.png" alt="A Dock icon open into window previews. The window under the pointer has a yellow frame.">
+</p>
 
-1. להעתיק את `Show Bar.app` לתיקיית היישומים ולפתוח אותה.
-2. בהגדרות הפרטיות להדליק את Show Bar תחת Accessibility.
-3. להדליק גם Screen Recording, כדי שהתמונות של החלונות יופיעו ולא רק השמות.
+<p align="center">
+  <img src="docs/features.png" alt="Highlight the window under the pointer, close or quit from the card, and keep the Dock visible while the preview is open.">
+</p>
 
-חלון ההגדרות נפתח מהסמיילי בשורת התפריטים: Settings.
+## Download
 
-## English
+The latest build is on [GitHub Releases](https://github.com/rept0rix/show-bar/releases/latest).
 
-Show Bar is a menu-bar app. Hover a Dock icon and it shows that app's windows, the way Windows does. Click a thumbnail to focus the window. Click the X to close it.
+Show Bar is not on the Mac App Store. Accessibility, Screen Recording, and Dock hover do not fit App Store rules.
 
-It is not listed on the Mac App Store. Accessibility, Screen Recording, and Dock hover do not fit App Store rules. Download the latest build from [GitHub Releases](https://github.com/rept0rix/show-bar/releases/latest).
+This build is signed for development. It opens on the Mac it was built for. Other Macs need a notarized Developer ID build.
 
-Made by Naor Yanko.
+## Setup
+
+1. Move `Show Bar.app` into Applications and open it.
+2. Turn on Show Bar under Privacy & Security → Accessibility.
+3. Turn on Screen Recording so the previews show the pages, not only the names.
+
+Settings opens from the smiley in the menu bar.
+
+## Who
+
+Naor Yanko · na0ryank0@gmail.com
