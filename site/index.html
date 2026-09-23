@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Show Bar — Windows features on your Mac</title>
-  <meta name="description" content="Show Bar is a macOS app. It brings Windows capabilities to the Mac: taskbar window previews, window switching, snap, and clipboard history.">
+  <meta name="description" content="Show Bar is a macOS app. It brings Windows capabilities to the Mac: Dock window previews, Command-Tab windows, snap, clipboard history, and screenshots that copy.">
   <style>
     :root {
       --paper: #efe4cf;
@@ -35,6 +35,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
+    header nav { display: flex; gap: 18px; }
     header a { text-decoration: none; border-bottom: 1px solid var(--ink); }
     .hero {
       display: grid;
@@ -43,9 +44,11 @@
       align-items: end;
       margin-top: 54px;
     }
-    h1 {
+    h1, h2, h3 {
       font-family: Palatino, "Iowan Old Style", Georgia, serif;
       font-weight: 500;
+    }
+    h1 {
       font-size: clamp(52px, 8vw, 92px);
       line-height: 0.9;
       margin: 0 0 18px;
@@ -82,26 +85,58 @@
     }
     .mark img { width: 100%; height: auto; display: block; border-radius: 18px; }
     .mark p { margin: 14px 0 0; font-size: 14px; color: var(--muted); }
-    .strip {
-      margin-top: 64px;
+    .shot {
+      margin: 28px 0 0;
+      background: var(--card);
+      border: 1px solid var(--ink);
+      border-radius: 28px;
+      padding: 14px;
+      box-shadow: 10px 10px 0 var(--blush);
+    }
+    .shot img { width: 100%; height: auto; display: block; border-radius: 18px; }
+    .feature {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 36px;
+      align-items: center;
+      margin-top: 72px;
+    }
+    .feature.reverse { grid-template-columns: 0.85fr 1.15fr; }
+    .feature.reverse .copy { order: 2; }
+    .feature.stack { grid-template-columns: 1fr; }
+    .feature h2 { font-size: clamp(32px, 4vw, 48px); line-height: 1; margin: 0 0 12px; }
+    .feature .why { font-size: 18px; line-height: 1.45; margin: 0 0 14px; }
+    .feature ul { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.5; }
+    .feature li { margin: 7px 0; }
+    .catalog { margin-top: 80px; }
+    .catalog h2 { font-size: clamp(36px, 5vw, 56px); margin: 0 0 8px; }
+    .catalog > p { color: var(--muted); margin: 0 0 22px; }
+    .groups {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
     }
-    .strip article { padding: 22px 18px 26px; }
-    .strip article + article { border-left: 1px solid var(--line); }
-    .strip h2 {
-      font-family: Palatino, Georgia, serif;
-      font-weight: 500;
-      font-size: 28px;
-      margin: 0 0 8px;
+    .groups article {
+      padding: 22px 22px 8px 0;
     }
-    .strip p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .groups article:nth-child(2n) {
+      padding-left: 22px;
+      border-left: 1px solid var(--line);
+    }
+    .groups article:nth-child(n + 3) { border-top: 1px solid var(--line); }
+    .groups h3 { font-size: 28px; margin: 0 0 8px; }
+    .groups ul { margin: 0 0 18px; padding-left: 18px; color: var(--muted); line-height: 1.5; }
+    .groups li { margin: 6px 0; }
     footer { margin-top: 40px; font-size: 13px; color: var(--muted); }
     @media (max-width: 800px) {
-      .hero, .strip { grid-template-columns: 1fr; }
-      .strip article + article { border-left: 0; border-top: 1px solid var(--line); }
+      .hero, .feature, .feature.reverse, .groups { grid-template-columns: 1fr; }
+      .feature.reverse .copy { order: 0; }
+      .feature.stack { grid-template-columns: 1fr; }
+      .groups article, .groups article:nth-child(2n) {
+        padding: 22px 0 8px;
+        border-left: 0;
+      }
+      .groups article + article { border-top: 1px solid var(--line); }
     }
   </style>
 </head>
@@ -109,14 +144,17 @@
   <div class="wrap">
     <header>
       <span>Show Bar</span>
-      <a href="https://github.com/rept0rix/show-bar">GitHub</a>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="https://github.com/rept0rix/show-bar">GitHub</a>
+      </nav>
     </header>
 
     <section class="hero">
       <div>
         <p class="kicker">For macOS</p>
         <h1>Windows features<br>on your Mac.</h1>
-        <p class="lede">Show Bar is a macOS app. It brings Windows capabilities to the Mac: hover a Dock icon and see that app’s windows, switch windows with Command-Tab, snap a window to the screen, and keep what you copy.</p>
+        <p class="lede">Show Bar is a macOS app. It brings the Windows taskbar, window switching, snap, clipboard history, and copy-only screenshots to the Mac.</p>
         <div class="actions">
           <a class="download" href="https://github.com/rept0rix/show-bar/releases/download/v1.2.0/Show-Bar-1.2.dmg">Install for Mac</a>
           <p class="note">Version 1.2. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>
@@ -128,19 +166,140 @@
       </div>
     </section>
 
-    <section class="strip">
-      <article>
-        <h2>Made for the Mac</h2>
-        <p>Show Bar runs on macOS. It stays in the menu bar and on the Dock. The Mac stays a Mac. The missing Windows habits are what it adds.</p>
+    <section id="features">
+      <article class="feature stack">
+        <div class="copy">
+          <p class="kicker">The Windows taskbar</p>
+          <h2>Hover the Dock. See the windows.</h2>
+          <p class="why">Point at an icon and that app’s windows open beside it, the way the Windows taskbar does.</p>
+          <ul>
+            <li>The window under the pointer is marked, so you can tell it apart.</li>
+            <li>Click a picture to switch to that window.</li>
+            <li>X closes only that window. Minus minimizes it. Quit closes the app.</li>
+            <li>Rest on a card for two seconds to peek. Click to keep it, or move away to put it back.</li>
+            <li>Send a window to another desktop from its card.</li>
+            <li>While the preview is open, the Dock stays out. It hides again after you leave.</li>
+          </ul>
+        </div>
+        <figure class="shot">
+          <img src="demo-dock.png" alt="A Dock icon opens into window cards. The Safari window under the pointer has a yellow frame, with Desktop 1 and Quit on the card.">
+        </figure>
       </article>
-      <article>
-        <h2>Windows taskbar</h2>
-        <p>Hover a Dock icon and that app’s windows appear, the way the Windows taskbar does. Click a window to switch. X closes only that window.</p>
+
+      <article class="feature reverse">
+        <figure class="shot">
+          <img src="demo-switcher.png" alt="Command-Tab shows six windows in a grid: Safari, Notes, Music, Calendar, Messages, and Code. Safari is selected.">
+        </figure>
+        <div class="copy">
+          <p class="kicker">Command-Tab</p>
+          <h2>The windows, not just the icons.</h2>
+          <p class="why">Mac Command-Tab shows apps. Show Bar shows the windows themselves, newest first.</p>
+          <ul>
+            <li>Arrow keys move through the grid. Release Command to switch.</li>
+            <li>Every card stays on the screen.</li>
+            <li>Real app windows only. Password panels and system windows stay out.</li>
+          </ul>
+        </div>
       </article>
-      <article>
-        <h2>More from Windows</h2>
-        <p>Command-Tab shows the windows. Snap a window to a half or a corner. Clipboard history keeps text, links, and screenshots.</p>
+
+      <article class="feature">
+        <div class="copy">
+          <p class="kicker">Snap</p>
+          <h2>Put the window where it belongs.</h2>
+          <p class="why">Hold Control and Option, then press a key. The front window takes that part of the screen. The same shortcut again puts it back.</p>
+          <ul>
+            <li>Arrows: left, right, top, and bottom halves.</li>
+            <li>U, I, J, and K: the four corners.</li>
+            <li>Return: the whole screen.</li>
+            <li>The same choices are in the menu, under Snap window.</li>
+          </ul>
+        </div>
+        <figure class="shot">
+          <img src="demo-snap.png" alt="A Safari window snapped to the left half of the screen. The caption says Control-Option Left.">
+        </figure>
       </article>
+
+      <article class="feature reverse">
+        <figure class="shot">
+          <img src="demo-clipboard.png" alt="A Clipboard window with search, a link, meeting notes, an image, and a screenshot. The caption says Control-Option V.">
+        </figure>
+        <div class="copy">
+          <p class="kicker">Clipboard</p>
+          <h2>Keep what you copy.</h2>
+          <p class="why">Text, links, and pictures stay in a list. Control-Option-V opens it. A click pastes back into the app you were using.</p>
+          <ul>
+            <li>Search the list. The menu also shows the last eight copies.</li>
+            <li>Copies marked as hidden passwords are skipped.</li>
+            <li>Up to 100 items, still there after Show Bar quits.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="feature">
+        <div class="copy">
+          <p class="kicker">Screenshots</p>
+          <h2>Copy the picture. Skip the file.</h2>
+          <p class="why">A screenshot goes straight to the clipboard. Nothing is saved to the Desktop. The preview stays in the bottom corner until you press X.</p>
+          <ul>
+            <li>Command-Shift-3 copies the screen under the pointer.</li>
+            <li>Command-Shift-4: drag a region, or press Space and click a window.</li>
+            <li>Drag the preview into a chat, or paste with Command-V.</li>
+          </ul>
+        </div>
+        <figure class="shot">
+          <img src="demo-shot.png" alt="A small screenshot card in the bottom-right corner labeled Copied, with an X to close it.">
+        </figure>
+      </article>
+    </section>
+
+    <section class="catalog">
+      <h2>Everything in 1.2</h2>
+      <p>Show Bar runs on macOS. These are the Windows habits it adds, and the Mac details around them.</p>
+      <div class="groups">
+        <article>
+          <h3>Windows, on the Dock</h3>
+          <ul>
+            <li>Hover a Dock icon to see that app’s windows.</li>
+            <li>Mark the window under the pointer.</li>
+            <li>Click to switch. X, minus, or Quit from the card.</li>
+            <li>Peek after two seconds, then click or leave.</li>
+            <li>Move one window to another desktop.</li>
+            <li>Choose the preview size, how many windows, and whether names show.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>Switch and snap</h3>
+          <ul>
+            <li>Command-Tab shows windows, newest first.</li>
+            <li>Arrows move. Release Command to switch.</li>
+            <li>The grid fits the screen.</li>
+            <li>Control-Option arrows snap to a half.</li>
+            <li>U, I, J, K snap to a corner. Return fills the screen.</li>
+            <li>The same shortcut restores the old place.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>Copy and capture</h3>
+          <ul>
+            <li>Clipboard history for text, links, and pictures.</li>
+            <li>Control-Option-V opens it. Search, then click to paste.</li>
+            <li>Hidden passwords are not kept.</li>
+            <li>Screenshots copy and do not save a file.</li>
+            <li>The preview stays in the corner until its X.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>Lives on the Mac</h3>
+          <ul>
+            <li>Move the Dock to the left, right, top, or bottom.</li>
+            <li>Opens when the Mac starts.</li>
+            <li>The menu-bar icon stays when Settings is closed.</li>
+            <li>About shows the version, these notes, and Naor Yanko’s LinkedIn.</li>
+            <li>Settings can ask for a store rating.</li>
+            <li>Remove Show Bar from the app. It moves to the Trash.</li>
+          </ul>
+        </article>
+      </div>
     </section>
 
     <footer>© 2026 Naor Yanko · Show Bar for macOS</footer>
