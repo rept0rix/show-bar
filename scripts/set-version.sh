@@ -63,7 +63,7 @@ between(
     "<!-- /showbar:download -->",
     "\n".join([
         f'          <a class="download" href="{url}">Install for Mac</a>',
-        '          <a class="coffee" href="https://buymeacoffee.com/na0ryank0r">Buy me a coffee</a>',
+        '          <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="na0ryank0r" data-color="#FFDD00" data-emoji="" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>',
         f'          <p class="note">Version {version}. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>',
     ]),
 )
