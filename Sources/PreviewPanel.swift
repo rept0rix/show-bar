@@ -1,36 +1,118 @@
 import AppKit
 import QuartzCore
 
+enum PreviewPreferences {
+    private static let sizeKey = "ShowBar.previewSize"
+    private static let countKey = "ShowBar.maxWindows"
+    private static let titlesKey = "ShowBar.showTitles"
+
+    static var sizeName: String {
+        get { UserDefaults.standard.string(forKey: sizeKey) ?? "medium" }
+        set {
+            UserDefaults.standard.set(newValue, forKey: sizeKey)
+            UserDefaults.standard.synchronize()
+        }
+    }
+
+    static var scale: CGFloat {
+        switch sizeName {
+        case "small": return 0.72
+        case "large": return 1.4
+        default: return 1
+        }
+    }
+
+    static var maxWindows: Int {
+        get {
+            if UserDefaults.standard.object(forKey: countKey) == nil { return 0 }
+            return UserDefaults.standard.integer(forKey: countKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: countKey)
+            UserDefaults.standard.synchronize()
+        }
+    }
+
+    static func limit<T>(_ items: [T]) -> [T] {
+        let cap = maxWindows == 0 ? 16 : max(maxWindows, 1)
+        return Array(items.prefix(cap))
+    }
+
+    static var showTitles: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: titlesKey) == nil { return true }
+            return UserDefaults.standard.bool(forKey: titlesKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: titlesKey)
+            UserDefaults.standard.synchronize()
+        }
+    }
+}
+
 enum PreviewMetrics {
     static let inset: CGFloat = 10
     static let spacing: CGFloat = 8
     static let titleGap: CGFloat = 6
     static let titleHeight: CGFloat = 16
-    static let maxCount = 6
+    static let titleUnderline: CGFloat = 6
+    static var maxCount: Int { PreviewPreferences.maxWindows }
 
-    static func thumb(count: Int, screenWidth: CGFloat) -> CGSize {
-        let count = max(count, 1)
-        let maxPanel = min(max(screenWidth - 32, 340), 1080)
-        let ideal: CGFloat = count == 1 ? 286 : (count == 2 ? 228 : 188)
-        let chrome = inset * 2 + spacing * CGFloat(count - 1)
-        let fitted = (maxPanel - chrome) / CGFloat(count)
-        let width = min(ideal, max(124, fitted)).rounded(.down)
-        let height = (width * 0.62).rounded(.down)
-        return CGSize(width: width, height: height)
+    static func thumbSize() -> CGSize {
+        let width: CGFloat
+        switch PreviewPreferences.sizeName {
+        case "small": width = 148
+        case "large": width = 268
+        default: width = 200
+        }
+        return CGSize(width: width, height: (width * 0.62).rounded())
     }
 
-    static func panelSize(count: Int, thumb: CGSize, showsFooter: Bool) -> CGSize {
-        let count = CGFloat(max(count, 1))
-        let width = inset * 2 + thumb.width * count + spacing * (count - 1)
+    static func grid(count: Int, screenWidth: CGFloat, showsFooter: Bool) -> (thumb: CGSize, columns: Int, panel: CGSize) {
+        let count = max(count, 1)
+        let thumb = thumbSize()
+        let titles: CGFloat = PreviewPreferences.showTitles ? titleGap + titleHeight + titleUnderline : 0
+        let cardHeight = thumb.height + titles
+        let maxWidth = min(max(screenWidth - 24, 360), 1180)
+        var columns = max(1, Int((maxWidth - inset * 2 + spacing) / (thumb.width + spacing)))
+        columns = min(columns, count)
+        let rows = Int(ceil(Double(count) / Double(columns)))
+        let width = inset * 2 + thumb.width * CGFloat(columns) + spacing * CGFloat(max(columns - 1, 0))
         let footer: CGFloat = showsFooter ? 22 : 0
-        let height = inset + thumb.height + titleGap + titleHeight + footer + inset
-        return CGSize(width: width.rounded(), height: height.rounded())
+        let height = inset * 2 + cardHeight * CGFloat(rows) + spacing * CGFloat(max(rows - 1, 0)) + footer
+        return (thumb, columns, CGSize(width: width.rounded(), height: height.rounded()))
+    }
+}
+
+enum PreviewClickPart {
+    case close, minimize, quit, desktop, body
+}
+
+struct PreviewClickBox {
+    let id: CGWindowID
+    let bounds: NSRect
+    let close: NSRect
+    let minimize: NSRect
+    let quit: NSRect
+    let desktop: NSRect
+
+    func part(at point: NSPoint) -> PreviewClickPart? {
+        guard bounds.contains(point) else { return nil }
+        if close.insetBy(dx: -8, dy: -8).contains(point) { return .close }
+        if minimize.insetBy(dx: -8, dy: -8).contains(point) { return .minimize }
+        if quit.insetBy(dx: -6, dy: -6).contains(point) { return .quit }
+        if desktop.insetBy(dx: -6, dy: -6).contains(point) { return .desktop }
+        return .body
     }
 }
 
 final class PreviewPanel {
     var onSelect: ((WindowCard) -> Void)?
     var onClose: ((WindowCard) -> Void)?
+    var onMinimize: ((WindowCard) -> Void)?
+    var onQuit: ((WindowCard) -> Void)?
+    var onMove: ((WindowCard, UInt64) -> Void)?
+    private var menuHold = false
 
     private(set) var isShown = false
     private(set) var anchor = CGRect.zero
@@ -39,8 +121,12 @@ final class PreviewPanel {
     private var appIcon: NSImage?
     private var hideToken = UUID()
     private let panel: PreviewWindow
-    private let effect = NSVisualEffectView()
-    private let stack = NSStackView()
+    private let effect = PreviewBackdrop()
+    private var pointerTimer: Timer?
+    private var peekToken = UUID()
+    private var peekCardID: CGWindowID?
+    private var peekLeave: DispatchWorkItem?
+    private let stack = ClickStack()
     private let footer = NSButton()
     private var cardViews: [CGWindowID: PreviewCardView] = [:]
 
@@ -54,6 +140,7 @@ final class PreviewPanel {
             defer: false
         )
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.dockWindow)) + 1)
+        // The panel used to be fully clear, so the window server sent every click to the app underneath.
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -61,21 +148,24 @@ final class PreviewPanel {
         panel.isMovable = false
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = true
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .transient]
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        panel.acceptsMouseMovedEvents = true
+        panel.ignoresMouseEvents = false
         panel.isExcludedFromWindowsMenu = true
         panel.appearance = NSAppearance(named: .darkAqua)
 
         effect.material = .hudWindow
-        effect.blendingMode = .behindWindow
+        effect.blendingMode = .withinWindow
         effect.state = .active
         effect.wantsLayer = true
         effect.layer?.cornerRadius = 16
         effect.layer?.masksToBounds = true
+        effect.layer?.backgroundColor = NSColor(srgbRed: 0.09, green: 0.09, blue: 0.10, alpha: 1).cgColor
         effect.layer?.borderWidth = 1
         effect.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
         panel.contentView = effect
 
-        stack.orientation = .horizontal
+        stack.orientation = .vertical
         stack.spacing = PreviewMetrics.spacing
         stack.alignment = .top
         stack.distribution = .fill
@@ -114,12 +204,122 @@ final class PreviewPanel {
         return frameAX.insetBy(dx: -10, dy: -10).contains(point)
     }
 
+    /// AppKit mouse location against the panel frame. This stays valid while the pointer is over our own window.
+    func pointerInside() -> Bool {
+        if menuHold && isShown { return true }
+        guard isShown, panel.isVisible, panel.alphaValue > 0.2 else { return false }
+        return panel.frame.insetBy(dx: -18, dy: -18).contains(NSEvent.mouseLocation)
+    }
+
+    func holdOpen(_ hold: Bool) {
+        menuHold = hold
+    }
+
+    func owns(_ window: NSWindow?) -> Bool {
+        window === panel
+    }
+
+    func markCardUnderMouse() {
+        guard isShown, panel.isVisible else { return }
+        panel.contentView?.layoutSubtreeIfNeeded()
+        let mouse = NSEvent.mouseLocation
+        var hovered: PreviewCardView?
+        for card in cardViews.values where screenFrame(of: card).contains(mouse) {
+            hovered = card
+        }
+        for card in cardViews.values {
+            card.applyHover(card === hovered, dimmed: hovered != nil && card !== hovered)
+        }
+        let hoveredID = cardViews.first { $0.value === hovered }?.key
+        if hoveredID == peekCardID {
+            peekLeave?.cancel()
+            peekLeave = nil
+        } else if hoveredID == nil {
+            if peekLeave == nil, peekCardID != nil {
+                let work = DispatchWorkItem { [weak self] in
+                    self?.peekLeave = nil
+                    self?.schedulePeek(nil)
+                }
+                peekLeave = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+            }
+        } else {
+            peekLeave?.cancel()
+            peekLeave = nil
+            schedulePeek(hoveredID)
+        }
+        ClickCatcher.shared.refresh(self)
+    }
+
+    private func schedulePeek(_ id: CGWindowID?) {
+        peekToken = UUID()
+        let token = peekToken
+        if peekCardID != nil {
+            WindowCatalog.endReveal(committing: nil)
+        }
+        peekCardID = id
+        guard let id else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self, self.peekToken == token, self.isShown, self.peekCardID == id,
+                  let card = self.cards.first(where: { $0.id == id }) else { return }
+            WindowCatalog.reveal(card)
+        }
+    }
+
+    private func cancelPeek() {
+        peekToken = UUID()
+        peekCardID = nil
+        WindowCatalog.endReveal(committing: nil)
+    }
+
+    /// The panel often never receives the click. Compare the pointer with each control's screen rectangle.
+    @discardableResult
+    func handleClick(at screenPoint: NSPoint) -> Bool {
+        guard let box = clickBoxes().first(where: { $0.part(at: screenPoint) != nil }),
+              let part = box.part(at: screenPoint) else { return false }
+        return fire(box.id, part)
+    }
+
+    func clickBoxes() -> [PreviewClickBox] {
+        guard isShown else { return [] }
+        panel.contentView?.layoutSubtreeIfNeeded()
+        return cardViews.map { id, card in
+            card.clickBox(id: id) { self.screenFrame(of: $0) }
+        }
+    }
+
+    @discardableResult
+    func fire(_ id: CGWindowID, _ part: PreviewClickPart) -> Bool {
+        cardViews[id]?.fire(part) ?? false
+    }
+
+    private func screenFrame(of view: NSView) -> NSRect {
+        guard view.window != nil else { return .zero }
+        return panel.convertToScreen(view.convert(view.bounds, to: nil))
+    }
+
+    private func startPointerTimer() {
+        guard pointerTimer == nil else { return }
+        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            self?.markCardUnderMouse()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pointerTimer = timer
+    }
+
+    private func stopPointerTimer() {
+        pointerTimer?.invalidate()
+        pointerTimer = nil
+    }
+
     func present(cards: [WindowCard], anchor: CGRect, edge: DockEdge, appIcon: NSImage) {
         hideToken = UUID()
         self.anchor = anchor
         self.edge = edge
         self.appIcon = appIcon
         self.cards = cards
+        lockedCenter = nil
+        cancelPeek()
         rebuild(cards)
         place()
         let appearing = !panel.isVisible || panel.alphaValue < 0.2
@@ -137,14 +337,16 @@ final class PreviewPanel {
             panel.alphaValue = 1
             panel.orderFrontRegardless()
         }
+        panel.contentView?.layoutSubtreeIfNeeded()
+        startPointerTimer()
+        markCardUnderMouse()
     }
 
     func updateAnchor(_ anchor: CGRect, edge: DockEdge) {
-        guard isShown else { return }
-        guard !nearlyEqual(anchor, self.anchor) || edge != self.edge else { return }
-        self.anchor = anchor
-        self.edge = edge
-        place()
+        // The Dock icon frame keeps shifting while magnification animates.
+        // Following it makes the preview bounce. The position is chosen once in present().
+        _ = anchor
+        _ = edge
     }
 
     func sync(cards: [WindowCard]) {
@@ -157,6 +359,7 @@ final class PreviewPanel {
         } else {
             for card in cards {
                 cardViews[card.id]?.setTitle(card.title)
+                cardViews[card.id]?.setDesktop(DesktopSpaces.desk(for: card.id)?.title ?? "Desktop")
             }
         }
         place()
@@ -171,7 +374,10 @@ final class PreviewPanel {
 
     func hide() {
         guard isShown || panel.isVisible else { return }
+        cancelPeek()
         isShown = false
+        lockedCenter = nil
+        stopPointerTimer()
         let token = UUID()
         hideToken = token
         NSAnimationContext.runAnimationGroup({ context in
@@ -191,77 +397,94 @@ final class PreviewPanel {
         }
         cardViews.removeAll()
         let screenWidth = (Coordinates.screen(containing: Coordinates.flip(anchor)) ?? NSScreen.main)?.visibleFrame.width ?? 1200
-        let thumb = PreviewMetrics.thumb(count: cards.count, screenWidth: screenWidth)
-        for card in cards {
-            let view = PreviewCardView(card: card, icon: appIcon, thumb: thumb)
+        let grid = PreviewMetrics.grid(count: cards.count, screenWidth: screenWidth, showsFooter: false)
+        var row: NSStackView?
+        for (index, card) in cards.enumerated() {
+            if index % grid.columns == 0 {
+                let next = ClickStack()
+                next.orientation = .horizontal
+                next.spacing = PreviewMetrics.spacing
+                next.alignment = .top
+                stack.addArrangedSubview(next)
+                row = next
+            }
+            let view = PreviewCardView(card: card, icon: appIcon, thumb: grid.thumb)
             view.onSelect = { [weak self] in self?.onSelect?(card) }
             view.onClose = { [weak self] in self?.onClose?(card) }
-            stack.addArrangedSubview(view)
+            view.onMinimize = { [weak self] in self?.onMinimize?(card) }
+            view.onQuit = { [weak self] in self?.onQuit?(card) }
+            view.onMove = { [weak self] space in self?.onMove?(card, space) }
+            view.onHold = { [weak self] hold in self?.holdOpen(hold) }
+            row?.addArrangedSubview(view)
             cardViews[card.id] = view
         }
     }
 
+    private var lockedCenter: CGPoint?
+
     private func place() {
         let screen = Coordinates.screen(containing: Coordinates.flip(anchor)) ?? NSScreen.main
-        let thumb = PreviewMetrics.thumb(count: cards.count, screenWidth: screen?.visibleFrame.width ?? 1200)
         let showsFooter = !CGPreflightScreenCaptureAccess()
-        let size = PreviewMetrics.panelSize(count: cards.count, thumb: thumb, showsFooter: showsFooter)
+        let size = PreviewMetrics.grid(
+            count: cards.count,
+            screenWidth: screen?.visibleFrame.width ?? 1200,
+            showsFooter: showsFooter
+        ).panel
         let icon = Coordinates.flip(anchor)
+        if lockedCenter != nil, panel.frame.size.equalTo(size) {
+            return
+        }
+        let pointer = lockedCenter ?? NSEvent.mouseLocation
         var origin: CGPoint
         switch edge {
         case .left:
-            origin = CGPoint(x: icon.maxX + 16, y: icon.midY - size.height / 2)
+            origin = CGPoint(x: icon.maxX + 8, y: pointer.y - size.height / 2)
         case .right:
-            origin = CGPoint(x: icon.minX - size.width - 16, y: icon.midY - size.height / 2)
+            origin = CGPoint(x: icon.minX - size.width - 8, y: pointer.y - size.height / 2)
         case .bottom:
-            origin = CGPoint(x: icon.midX - size.width / 2, y: icon.maxY + 16)
+            origin = CGPoint(x: pointer.x - size.width / 2, y: icon.maxY + 8)
         case .top:
-            origin = CGPoint(x: icon.midX - size.width / 2, y: icon.minY - size.height - 16)
+            origin = CGPoint(x: pointer.x - size.width / 2, y: icon.minY - size.height - 8)
         }
-        var clamped = origin
         if let screen {
             let visible = screen.visibleFrame
-            clamped.x = min(max(origin.x, visible.minX + 6), max(visible.minX + 6, visible.maxX - size.width - 6))
-            clamped.y = min(max(origin.y, visible.minY + 6), max(visible.minY + 6, visible.maxY - size.height - 6))
-            clamped = clearCorners(CGRect(origin: clamped, size: size), screen: screen).origin
+            origin.x = min(max(origin.x, visible.minX + 6), max(visible.minX + 6, visible.maxX - size.width - 6))
+            origin.y = min(max(origin.y, visible.minY + 6), max(visible.minY + 6, visible.maxY - size.height - 6))
         }
-        let next = CGRect(origin: clamped, size: size)
+        let next = CGRect(origin: origin, size: size)
+        if lockedCenter == nil {
+            lockedCenter = CGPoint(x: next.midX, y: next.midY)
+        }
         if panel.frame.integral != next.integral {
             panel.setFrame(next, display: true)
             panel.invalidateShadow()
         }
     }
 
-    private func clearCorners(_ rect: CGRect, screen: NSScreen) -> CGRect {
-        var rect = rect
-        let margin: CGFloat = 36
-        let frame = screen.frame
-        let corners = [
-            CGRect(x: frame.minX, y: frame.maxY - margin, width: margin, height: margin),
-            CGRect(x: frame.maxX - margin, y: frame.maxY - margin, width: margin, height: margin),
-            CGRect(x: frame.minX, y: frame.minY, width: margin, height: margin),
-            CGRect(x: frame.maxX - margin, y: frame.minY, width: margin, height: margin),
-        ]
-        for corner in corners where rect.intersects(corner) {
-            switch edge {
-            case .left, .right:
-                if corner.midY > frame.midY {
-                    rect.origin.y = min(rect.origin.y, corner.minY - rect.height - 6)
-                } else {
-                    rect.origin.y = max(rect.origin.y, corner.maxY + 6)
-                }
-            case .bottom, .top:
-                if corner.midX < frame.midX {
-                    rect.origin.x = max(rect.origin.x, corner.maxX + 6)
-                } else {
-                    rect.origin.x = min(rect.origin.x, corner.minX - rect.width - 6)
-                }
-            }
+    /// The strip from the Dock icon across to the preview. Moving through it should not retarget another icon.
+    func approachContains(_ quartz: CGPoint) -> Bool {
+        guard isShown, let screen = panel.screen ?? NSScreen.main else { return false }
+        let point = NSPoint(x: quartz.x, y: Coordinates.primaryHeight - quartz.y)
+        var band = panel.frame
+        if let lockedCenter {
+            band = band.union(CGRect(x: panel.frame.minX, y: lockedCenter.y - 24, width: panel.frame.width, height: 48))
         }
-        let visible = screen.visibleFrame
-        rect.origin.x = min(max(rect.origin.x, visible.minX + 6), max(visible.minX + 6, visible.maxX - rect.width - 6))
-        rect.origin.y = min(max(rect.origin.y, visible.minY + 6), max(visible.minY + 6, visible.maxY - rect.height - 6))
-        return rect
+        band = band.insetBy(dx: 0, dy: -8)
+        switch edge {
+        case .left:
+            band.origin.x = screen.frame.minX
+            band.size.width = panel.frame.maxX - screen.frame.minX
+        case .right:
+            band.origin.x = panel.frame.minX
+            band.size.width = screen.frame.maxX - panel.frame.minX
+        case .bottom:
+            band.origin.y = screen.frame.minY
+            band.size.height = panel.frame.maxY - screen.frame.minY
+        case .top:
+            band.origin.y = panel.frame.minY
+            band.size.height = screen.frame.maxY - panel.frame.minY
+        }
+        return band.contains(point)
     }
 
     private func nearlyEqual(_ lhs: CGRect, _ rhs: CGRect) -> Bool {
@@ -277,19 +500,41 @@ final class PreviewWindow: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+final class PreviewBackdrop: NSVisualEffectView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+final class ClickStack: NSStackView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 final class PreviewCardView: NSView {
     var onSelect: (() -> Void)?
     var onClose: (() -> Void)?
+    var onMinimize: (() -> Void)?
+    var onQuit: (() -> Void)?
+    var onMove: ((UInt64) -> Void)?
+    var onHold: ((Bool) -> Void)?
 
     private let imageView = NSImageView()
     private let iconView = NSImageView()
     private let titleField = NSTextField(labelWithString: "")
+    private let underline = NSView()
+    private var underlineWidth = NSLayoutConstraint()
     private let closeButton = NSButton()
+    private let minimizeButton = NSButton()
+    private let quitButton = NSButton()
+    private let desktopButton = NSButton()
+    private let windowID: CGWindowID
 
     init(card: WindowCard, icon: NSImage?, thumb: CGSize) {
-        super.init(frame: NSRect(x: 0, y: 0, width: thumb.width, height: thumb.height + PreviewMetrics.titleGap + PreviewMetrics.titleHeight))
+        let titleBlock: CGFloat = PreviewPreferences.showTitles ? PreviewMetrics.titleGap + PreviewMetrics.titleHeight + PreviewMetrics.titleUnderline : 0
+        windowID = card.id
+        super.init(frame: NSRect(x: 0, y: 0, width: thumb.width, height: thumb.height + titleBlock))
         translatesAutoresizingMaskIntoConstraints = false
         wantsLayer = true
+        setContentHuggingPriority(.required, for: .vertical)
+        setContentCompressionResistancePriority(.required, for: .vertical)
 
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.imageAlignment = .alignCenter
@@ -308,6 +553,7 @@ final class PreviewCardView: NSView {
         imageView.addSubview(iconView)
 
         titleField.stringValue = card.title
+        titleField.isHidden = !PreviewPreferences.showTitles
         titleField.font = .systemFont(ofSize: 12, weight: .medium)
         titleField.alignment = .center
         titleField.lineBreakMode = .byTruncatingTail
@@ -317,7 +563,15 @@ final class PreviewCardView: NSView {
         titleField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         addSubview(titleField)
 
-        closeButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "סגור")?
+        underline.wantsLayer = true
+        underline.layer?.backgroundColor = NSColor.white.cgColor
+        underline.layer?.cornerRadius = 1
+        underline.alphaValue = 0
+        underline.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(underline)
+        underlineWidth = underline.widthAnchor.constraint(equalToConstant: underlineWidth(for: card.title))
+
+        closeButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close")?
             .withSymbolConfiguration(.init(pointSize: 9, weight: .bold))
         closeButton.isBordered = false
         closeButton.bezelStyle = .circular
@@ -328,8 +582,46 @@ final class PreviewCardView: NSView {
         closeButton.target = self
         closeButton.action = #selector(closePressed)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
-        closeButton.alphaValue = 0
+        closeButton.alphaValue = 1
         addSubview(closeButton)
+
+        minimizeButton.image = NSImage(systemSymbolName: "minus", accessibilityDescription: "Minimize")?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .bold))
+        minimizeButton.isBordered = false
+        minimizeButton.bezelStyle = .circular
+        minimizeButton.contentTintColor = .white
+        minimizeButton.wantsLayer = true
+        minimizeButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.62).cgColor
+        minimizeButton.layer?.cornerRadius = 9
+        minimizeButton.target = self
+        minimizeButton.action = #selector(minimizePressed)
+        minimizeButton.translatesAutoresizingMaskIntoConstraints = false
+        minimizeButton.alphaValue = 1
+        addSubview(minimizeButton)
+
+        quitButton.title = "Quit"
+        quitButton.font = .systemFont(ofSize: 10, weight: .bold)
+        quitButton.isBordered = false
+        quitButton.contentTintColor = .white
+        quitButton.wantsLayer = true
+        quitButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
+        quitButton.layer?.cornerRadius = 7
+        quitButton.target = self
+        quitButton.action = #selector(quitPressed)
+        quitButton.translatesAutoresizingMaskIntoConstraints = false
+        imageView.addSubview(quitButton)
+
+        desktopButton.title = DesktopSpaces.desk(for: card.id)?.title ?? "Desktop"
+        desktopButton.font = .systemFont(ofSize: 10, weight: .semibold)
+        desktopButton.isBordered = false
+        desktopButton.contentTintColor = .white
+        desktopButton.wantsLayer = true
+        desktopButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
+        desktopButton.layer?.cornerRadius = 7
+        desktopButton.target = self
+        desktopButton.action = #selector(desktopPressed)
+        desktopButton.translatesAutoresizingMaskIntoConstraints = false
+        imageView.addSubview(desktopButton)
 
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: thumb.width),
@@ -344,11 +636,28 @@ final class PreviewCardView: NSView {
             titleField.leadingAnchor.constraint(equalTo: leadingAnchor),
             titleField.trailingAnchor.constraint(equalTo: trailingAnchor),
             titleField.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: PreviewMetrics.titleGap),
-            titleField.heightAnchor.constraint(equalToConstant: PreviewMetrics.titleHeight),
+            titleField.heightAnchor.constraint(equalToConstant: PreviewPreferences.showTitles ? PreviewMetrics.titleHeight : 0),
+            underline.topAnchor.constraint(equalTo: titleField.bottomAnchor, constant: PreviewPreferences.showTitles ? 2 : 0),
+            underline.centerXAnchor.constraint(equalTo: centerXAnchor),
+            underline.heightAnchor.constraint(equalToConstant: PreviewPreferences.showTitles ? 2 : 0),
+            underline.bottomAnchor.constraint(equalTo: bottomAnchor),
+            underlineWidth,
             closeButton.topAnchor.constraint(equalTo: imageView.topAnchor, constant: 6),
             closeButton.trailingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: -6),
             closeButton.widthAnchor.constraint(equalToConstant: 18),
             closeButton.heightAnchor.constraint(equalToConstant: 18),
+            minimizeButton.topAnchor.constraint(equalTo: imageView.topAnchor, constant: 6),
+            minimizeButton.leadingAnchor.constraint(equalTo: imageView.leadingAnchor, constant: 6),
+            minimizeButton.widthAnchor.constraint(equalToConstant: 18),
+            minimizeButton.heightAnchor.constraint(equalToConstant: 18),
+            quitButton.trailingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: -6),
+            quitButton.bottomAnchor.constraint(equalTo: imageView.bottomAnchor, constant: -6),
+            quitButton.heightAnchor.constraint(equalToConstant: 16),
+            quitButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 36),
+            desktopButton.leadingAnchor.constraint(equalTo: imageView.leadingAnchor, constant: 6),
+            desktopButton.bottomAnchor.constraint(equalTo: imageView.bottomAnchor, constant: -6),
+            desktopButton.heightAnchor.constraint(equalToConstant: 16),
+            desktopButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 68),
         ])
     }
 
@@ -357,6 +666,16 @@ final class PreviewCardView: NSView {
 
     func setTitle(_ title: String) {
         titleField.stringValue = title
+        underlineWidth.constant = underlineWidth(for: title)
+    }
+
+    private func underlineWidth(for title: String) -> CGFloat {
+        let measured = (title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 12, weight: .medium)]).width
+        return min(bounds.width > 1 ? bounds.width - 16 : 120, max(28, measured))
+    }
+
+    func setDesktop(_ title: String) {
+        desktopButton.title = title
     }
 
     func setScreenshot(_ image: NSImage) {
@@ -379,43 +698,160 @@ final class PreviewCardView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        setHovered(true)
+        applyHover(true, dimmed: false)
     }
 
     override func mouseExited(with event: NSEvent) {
-        setHovered(false)
+        applyHover(false, dimmed: false)
     }
 
-    override func mouseUp(with event: NSEvent) {
-        let local = convert(event.locationInWindow, from: nil)
-        guard bounds.contains(local) else { return }
-        let closeLocal = closeButton.convert(local, from: self)
-        if closeButton.alphaValue > 0.5 && closeButton.bounds.contains(closeLocal) {
-            onClose?()
-            return
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        performAction(at: convert(event.locationInWindow, from: nil))
+    }
+
+    private var lastAction = 0.0
+
+    func clickBox(id: CGWindowID, frameOf: (NSView) -> NSRect) -> PreviewClickBox {
+        PreviewClickBox(
+            id: id,
+            bounds: frameOf(self),
+            close: frameOf(closeButton),
+            minimize: frameOf(minimizeButton),
+            quit: frameOf(quitButton),
+            desktop: frameOf(desktopButton)
+        )
+    }
+
+    func fire(_ part: PreviewClickPart) -> Bool {
+        runAction {
+            switch part {
+            case .close: self.onClose?()
+            case .minimize: self.onMinimize?()
+            case .quit: self.onQuit?()
+            case .desktop: self.desktopPressed()
+            case .body: self.onSelect?()
+            }
         }
-        onSelect?()
+    }
+
+    @discardableResult
+    func performAction(at local: NSPoint) -> Bool {
+        guard bounds.contains(local) else { return false }
+        return runAction {
+            if self.hits(self.closeButton, local: local) { self.onClose?() }
+            else if self.hits(self.minimizeButton, local: local) { self.onMinimize?() }
+            else if self.hits(self.quitButton, local: local) { self.onQuit?() }
+            else if self.hits(self.desktopButton, local: local) { self.desktopPressed() }
+            else { self.onSelect?() }
+        }
+    }
+
+    @discardableResult
+    func performAction(atScreen point: NSPoint, frameOf: (NSView) -> NSRect) -> Bool {
+        guard frameOf(self).contains(point) else { return false }
+        return runAction {
+            if frameOf(self.closeButton).insetBy(dx: -8, dy: -8).contains(point) { self.onClose?() }
+            else if frameOf(self.minimizeButton).insetBy(dx: -8, dy: -8).contains(point) { self.onMinimize?() }
+            else if frameOf(self.quitButton).insetBy(dx: -6, dy: -6).contains(point) { self.onQuit?() }
+            else if frameOf(self.desktopButton).insetBy(dx: -6, dy: -6).contains(point) { self.desktopPressed() }
+            else { self.onSelect?() }
+        }
+    }
+
+    private func runAction(_ body: () -> Void) -> Bool {
+        let now = CACurrentMediaTime()
+        if now - lastAction < 0.25 { return true }
+        lastAction = now
+        body()
+        return true
+    }
+
+    private func hits(_ button: NSView, local: NSPoint) -> Bool {
+        button.bounds.insetBy(dx: -8, dy: -8).contains(button.convert(local, from: self))
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         let local = convert(point, from: superview)
-        guard bounds.contains(local) else { return nil }
-        let closeLocal = closeButton.convert(local, from: self)
-        if closeButton.alphaValue > 0.5 && closeButton.bounds.contains(closeLocal) {
-            return closeButton
-        }
-        return self
+        return bounds.contains(local) ? self : nil
     }
 
     @objc private func closePressed() {
         onClose?()
     }
 
-    private func setHovered(_ hovered: Bool) {
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.1
-            closeButton.animator().alphaValue = hovered ? 1 : 0
+    @objc private func minimizePressed() {
+        onMinimize?()
+    }
+
+    @objc private func quitPressed() {
+        onQuit?()
+    }
+
+    private var showingMenu = false
+
+    @objc private func desktopPressed() {
+        guard !showingMenu else { return }
+        showingMenu = true
+        // popUp cannot run inside the click tap: that tap swallows the next click, so Desktop 2 never arrives.
+        DispatchQueue.main.async { [weak self] in
+            self?.presentDesktopMenu()
+            self?.showingMenu = false
         }
-        imageView.layer?.borderColor = (hovered ? NSColor.white.withAlphaComponent(0.72) : NSColor.white.withAlphaComponent(0.16)).cgColor
+    }
+
+    private func presentDesktopMenu() {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let current = DesktopSpaces.desk(for: windowID)
+        let desks = DesktopSpaces.desks()
+        if desks.isEmpty {
+            let empty = NSMenuItem(title: "No desktops found", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+        }
+        for desk in desks {
+            let item = NSMenuItem(title: desk.title, action: #selector(movePressed(_:)), keyEquivalent: "")
+            item.target = self
+            item.isEnabled = true
+            item.state = desk.id == current?.id ? .on : .off
+            item.representedObject = NSNumber(value: desk.id)
+            menu.addItem(item)
+        }
+        onHold?(true)
+        ClickCatcher.shared.setSuspended(true)
+        window?.makeKey()
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: desktopButton.bounds.height + 4), in: desktopButton)
+        ClickCatcher.shared.setSuspended(false)
+        onHold?(false)
+    }
+
+    @objc private func movePressed(_ sender: NSMenuItem) {
+        guard let spaceID = (sender.representedObject as? NSNumber)?.uint64Value else { return }
+        let current = DesktopSpaces.desk(for: windowID)
+        guard spaceID != current?.id else { return }
+        onMove?(spaceID)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self else { return }
+            self.desktopButton.title = DesktopSpaces.desk(for: self.windowID)?.title ?? sender.title
+        }
+    }
+
+    private var hovered = false
+    private var dimmed = false
+
+    func applyHover(_ hovered: Bool, dimmed: Bool) {
+        let changed = hovered != self.hovered || dimmed != self.dimmed
+        self.hovered = hovered
+        self.dimmed = dimmed
+        guard changed else { return }
+        alphaValue = dimmed ? 0.82 : 1
+        imageView.layer?.borderWidth = hovered ? 2 : 1
+        imageView.layer?.borderColor = NSColor.white.withAlphaComponent(hovered ? 0.92 : 0.18).cgColor
+        layer?.shadowOpacity = 0
+        titleField.textColor = hovered ? .white : NSColor.white.withAlphaComponent(0.72)
+        titleField.font = .systemFont(ofSize: 12, weight: .medium)
+        underline.alphaValue = hovered ? 1 : 0
     }
 }

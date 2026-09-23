@@ -19,9 +19,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>1.1</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Naor Yanko</string>
 	<key>LSMinimumSystemVersion</key>
@@ -36,5 +36,7 @@
 	<string>Show Bar uses Accessibility to see which Dock icon is under the pointer and to switch to the window you choose.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Show Bar uses Screen Recording to draw a small picture of each window when you hover its Dock icon.</string>
+	<key>NSInputMonitoringUsageDescription</key>
+	<string>Show Bar uses input monitoring so Command-Tab can show windows instead of app icons. It does not record what you type.</string>
 </dict>
 </plist>

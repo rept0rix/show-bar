@@ -43,21 +43,18 @@ enum WindowCatalog {
             return lhs.order < rhs.order
         }
 
-        let axTitles = accessibilityTitles(pids: target.pids, appName: icon.title)
-        let unique = dedupe(Array(listed.prefix(12)))
-        var cards = unique.prefix(6).map { window in
-            WindowCard(
-                id: window.id,
-                pid: window.pid,
-                title: resolvedTitle(window: window, axTitles: axTitles, appName: icon.title),
-                frame: window.frame
-            )
+        if !listed.isEmpty {
+            let cards = listed.map { window in
+                WindowCard(
+                    id: window.id,
+                    pid: window.pid,
+                    title: listedTitle(window.title, appName: icon.title),
+                    frame: window.frame
+                )
+            }
+            return PreviewPreferences.limit(cards)
         }
-
-        if cards.isEmpty {
-            cards = accessibilityWindows(pids: target.pids, appName: icon.title)
-        }
-        return cards
+        return PreviewPreferences.limit(accessibilityWindows(pids: target.pids, appName: icon.title))
     }
 
     static func appIcon(for icon: DockIcon) -> NSImage {
@@ -71,39 +68,181 @@ enum WindowCatalog {
         return image
     }
 
-    static func refresh(_ cards: [WindowCard]) async -> (cards: [WindowCard], thumbnails: [Thumbnail]) {
+    static func switcherCards() -> [WindowCard] {
+        let windows = listWindows()
+        var cards = windows.map { window in
+            WindowCard(
+                id: window.id,
+                pid: window.pid,
+                title: switcherTitle(window),
+                frame: window.frame
+            )
+        }
+        var seen = Set(cards.map(\.pid))
+        let running = NSWorkspace.shared.runningApplications.filter {
+            $0.activationPolicy == .regular && $0.processIdentifier != getpid()
+        }
+        for app in running where !seen.contains(app.processIdentifier) {
+            cards.append(WindowCard(
+                id: switcherAppID(app.processIdentifier),
+                pid: app.processIdentifier,
+                title: app.localizedName ?? "Application",
+                frame: .zero
+            ))
+            seen.insert(app.processIdentifier)
+        }
+        return cards
+    }
+
+    private static func switcherTitle(_ window: ListedWindow) -> String {
+        let title = window.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if title.isEmpty || title.caseInsensitiveCompare(window.ownerName) == .orderedSame {
+            return window.ownerName.isEmpty ? "Application" : window.ownerName
+        }
+        return title
+    }
+
+    private static func switcherAppID(_ pid: pid_t) -> CGWindowID {
+        CGWindowID(0xF000_0000) | CGWindowID(UInt32(truncatingIfNeeded: pid))
+    }
+
+    static func refresh(
+        _ cards: [WindowCard],
+        onThumbnail: (@Sendable (Thumbnail) -> Void)? = nil
+    ) async -> (cards: [WindowCard], thumbnails: [Thumbnail]) {
         guard CGPreflightScreenCaptureAccess(), !cards.isEmpty else { return (cards, []) }
         guard let content = try? await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false) else {
             return (cards, [])
         }
         let wanted = Set(cards.map(\.id))
         let windows = content.windows.filter { wanted.contains($0.windowID) }
-        var images: [Thumbnail] = []
         var titled = cards
         for window in windows {
-            if Task.isCancelled { break }
-            if let index = titled.firstIndex(where: { $0.id == window.windowID }) {
-                let next = betterTitle(titled[index].title, window.title ?? "")
-                titled[index] = WindowCard(id: titled[index].id, pid: titled[index].pid, title: next, frame: titled[index].frame)
+            guard let index = titled.firstIndex(where: { $0.id == window.windowID }) else { continue }
+            let next = betterTitle(titled[index].title, window.title ?? "")
+            titled[index] = WindowCard(id: titled[index].id, pid: titled[index].pid, title: next, frame: titled[index].frame)
+        }
+        var images: [Thumbnail] = []
+        let limit = 4
+        await withTaskGroup(of: Thumbnail?.self) { group in
+            var pending = Array(windows)
+            func enqueue() {
+                guard !pending.isEmpty else { return }
+                let window = pending.removeFirst()
+                group.addTask {
+                    if Task.isCancelled { return nil }
+                    guard let image = try? await capture(window), !looksBlank(image) else { return nil }
+                    let thumbnail = Thumbnail(windowID: window.windowID, image: image)
+                    onThumbnail?(thumbnail)
+                    return thumbnail
+                }
             }
-            if let image = try? await capture(window), !looksBlank(image) {
-                images.append(Thumbnail(windowID: window.windowID, image: image))
+            for _ in 0..<min(limit, pending.count) {
+                enqueue()
+            }
+            for await item in group {
+                if let item { images.append(item) }
+                enqueue()
             }
         }
         return (titled, images)
     }
 
     static func focus(_ card: WindowCard) {
-        let app = NSRunningApplication(processIdentifier: card.pid)
-        app?.unhide()
-        app?.activate(options: [])
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-            guard let element = match(card) else { return }
+        if let app = NSRunningApplication(processIdentifier: card.pid) {
+            app.unhide()
+            if let url = app.bundleURL {
+                NSWorkspace.shared.open(url)
+            }
+        }
+        if let element = match(card) {
             AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
             AXUIElementPerformAction(element, kAXRaiseAction as CFString)
             AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
             AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
         }
+    }
+
+    /// Shows the real window above other windows without activating its app.
+    /// A later click commits that choice. Leaving without a click puts the window back.
+    static func reveal(_ card: WindowCard) {
+        if revealed?.cardID == card.id { return }
+        endReveal(committing: nil)
+        guard let element = match(card) else {
+            guard knownWindow(card.id) else { return }
+            raise(card.id, card: card, element: nil)
+            return
+        }
+        raise(windowID(element) ?? card.id, card: card, element: element)
+    }
+
+    private static func raise(_ windowID: CGWindowID, card: WindowCard, element: AXUIElement?) {
+        guard windowID != 0 else { return }
+        let minimized = element.flatMap { AXValueReader.bool($0, kAXMinimizedAttribute as String) } ?? false
+        let space = DesktopSpaces.space(of: windowID)
+        let level = WindowLayer.level(of: windowID) ?? 0
+        if minimized, let element {
+            AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+        }
+        if let space, let current = DesktopSpaces.currentID(), space != current {
+            DesktopSpaces.move(windowID: windowID, to: current)
+        }
+        let floating = Int32(CGWindowLevelForKey(.floatingWindow))
+        if level < floating {
+            WindowLayer.set(windowID, floating)
+        }
+        revealed = Reveal(cardID: card.id, windowID: windowID, pid: card.pid, level: level, minimized: minimized, space: space)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            guard revealed?.windowID == windowID else { return }
+            WindowLayer.set(windowID, floating)
+        }
+    }
+
+    private static func knownWindow(_ id: CGWindowID) -> Bool {
+        listWindows().contains { $0.id == id }
+    }
+
+    static func endReveal(committing card: WindowCard?) {
+        guard let revealed else { return }
+        self.revealed = nil
+        WindowLayer.set(revealed.windowID, revealed.level)
+        let tookFocus = NSWorkspace.shared.frontmostApplication?.processIdentifier == revealed.pid
+        guard card?.id != revealed.cardID, !tookFocus else { return }
+        if let space = revealed.space, DesktopSpaces.space(of: revealed.windowID) != space {
+            DesktopSpaces.move(windowID: revealed.windowID, to: space)
+        }
+        if revealed.minimized, let element = element(forWindowID: revealed.windowID) {
+            AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
+        }
+    }
+
+    private struct Reveal {
+        let cardID: CGWindowID
+        let windowID: CGWindowID
+        let pid: pid_t
+        let level: Int32
+        let minimized: Bool
+        let space: UInt64?
+    }
+
+    private static var revealed: Reveal?
+
+    private static func element(forWindowID id: CGWindowID) -> AXUIElement? {
+        guard let info = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]],
+              let owner = info.first(where: { ($0[kCGWindowNumber as String] as? UInt32) == id }),
+              let pid = owner[kCGWindowOwnerPID as String] as? pid_t else { return nil }
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, 0.25)
+        return AXValueReader.elements(app, kAXWindowsAttribute as String).first { windowID($0) == id }
+    }
+
+    static func quit(_ card: WindowCard) {
+        NSRunningApplication(processIdentifier: card.pid)?.terminate()
+    }
+
+    static func minimize(_ card: WindowCard) {
+        guard let element = match(card) else { return }
+        AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
     }
 
     static func close(_ card: WindowCard) {
@@ -119,7 +258,7 @@ enum WindowCatalog {
         let filter = SCContentFilter(desktopIndependentWindow: window)
         let config = SCStreamConfiguration()
         let aspect = window.frame.width / max(window.frame.height, 1)
-        let maxPixel: CGFloat = 720
+        let maxPixel: CGFloat = 512
         var width = maxPixel
         var height = maxPixel / max(aspect, 0.15)
         if height > maxPixel {
@@ -171,20 +310,17 @@ enum WindowCatalog {
         for (index, dict) in info.enumerated() {
             let layer = (dict[kCGWindowLayer as String] as? NSNumber)?.intValue ?? (dict[kCGWindowLayer as String] as? Int ?? 0)
             guard layer == 0 else { continue }
-            let alpha = (dict[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1
-            guard alpha > 0.04 else { continue }
             let pid = pid_t((dict[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value ?? Int32(dict[kCGWindowOwnerPID as String] as? Int ?? 0))
             guard pid > 0, pid != getpid() else { continue }
             let rawID = (dict[kCGWindowNumber as String] as? NSNumber)?.uint32Value ?? UInt32(dict[kCGWindowNumber as String] as? Int ?? 0)
             guard rawID != 0 else { continue }
             guard let frame = quartzRect(dict[kCGWindowBounds as String]), frame.width >= 80, frame.height >= 52 else { continue }
-            let sharing = (dict[kCGWindowSharingState as String] as? NSNumber)?.intValue
-                ?? (dict[kCGWindowSharingState as String] as? Int ?? 1)
-            guard sharing != 0 else { continue }
-            let title = dict[kCGWindowName as String] as? String ?? ""
-            let owner = dict[kCGWindowOwnerName as String] as? String ?? ""
             let onScreen = (dict[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue
                 ?? (dict[kCGWindowIsOnscreen as String] as? Bool ?? false)
+            let alpha = (dict[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1
+            if onScreen && alpha <= 0.04 { continue }
+            let title = dict[kCGWindowName as String] as? String ?? ""
+            let owner = dict[kCGWindowOwnerName as String] as? String ?? ""
             windows.append(ListedWindow(
                 id: CGWindowID(rawID),
                 pid: pid,
@@ -198,39 +334,10 @@ enum WindowCatalog {
         return windows
     }
 
-    private static func accessibilityTitles(pids: Set<pid_t>, appName: String) -> [(CGRect, String)] {
-        var found: [(CGRect, String)] = []
-        for pid in pids {
-            let app = AXUIElementCreateApplication(pid)
-            AXUIElementSetMessagingTimeout(app, 0.4)
-            for window in AXValueReader.elements(app, kAXWindowsAttribute as String) {
-                guard let frame = AXValueReader.rect(window), frame.width >= 80, frame.height >= 52 else { continue }
-                let title = detailedTitle(window, appName: appName)
-                guard !title.isEmpty else { continue }
-                found.append((frame, title))
-            }
-        }
-        return found
-    }
-
-    private static func detailedTitle(_ window: AXUIElement, appName: String) -> String {
-        let direct = AXValueReader.string(window, kAXTitleAttribute as String) ?? ""
-        if isUseful(direct, appName: appName) { return direct }
-        if let web = webTitle(window, depth: 0) { return web }
-        return direct
-    }
-
-    private static func webTitle(_ element: AXUIElement, depth: Int) -> String? {
-        if depth > 4 { return nil }
-        let role = AXValueReader.string(element, kAXRoleAttribute as String) ?? ""
-        if role == "AXWebArea" || role == "AXDocument" {
-            let title = AXValueReader.string(element, kAXTitleAttribute as String) ?? ""
-            if !title.isEmpty { return title }
-        }
-        for child in AXValueReader.elements(element, kAXChildrenAttribute as String).prefix(8) {
-            if let found = webTitle(child, depth: depth + 1) { return found }
-        }
-        return nil
+    private static func listedTitle(_ title: String, appName: String) -> String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isUseful(trimmed, appName: appName) { return trimmed }
+        return appName
     }
 
     private static func isUseful(_ title: String, appName: String) -> Bool {
@@ -245,40 +352,6 @@ enum WindowCatalog {
         guard !next.isEmpty else { return current }
         if current.isEmpty || next.count > current.count { return next }
         return current
-    }
-
-    private static func resolvedTitle(window: ListedWindow, axTitles: [(CGRect, String)], appName: String) -> String {
-        let usable = isUseful(window.title, appName: appName)
-            && window.title.caseInsensitiveCompare(window.ownerName) != .orderedSame
-        if usable { return window.title }
-        let flipped = Coordinates.flip(window.frame)
-        let ranked = axTitles.map { item -> (String, CGFloat) in
-            let cover = max(overlap(item.0, window.frame), overlap(item.0, flipped))
-            return (item.1, cover)
-        }.sorted { $0.1 > $1.1 }
-        if let match = ranked.first, match.1 > 0.4, isUseful(match.0, appName: appName) {
-            return match.0
-        }
-        return window.title.isEmpty ? appName : window.title
-    }
-
-    private static func dedupe(_ windows: [ListedWindow]) -> [ListedWindow] {
-        var kept: [ListedWindow] = []
-        for window in windows {
-            if let index = kept.firstIndex(where: { overlap($0.frame, window.frame) > 0.72 }) {
-                if rank(window) > rank(kept[index]) { kept[index] = window }
-            } else {
-                kept.append(window)
-            }
-        }
-        return kept
-    }
-
-    private static func rank(_ window: ListedWindow) -> Int {
-        var score = window.onScreen ? 4 : 0
-        if !window.title.isEmpty { score += 2 }
-        if window.frame.width * window.frame.height > 200_000 { score += 1 }
-        return score
     }
 
     private static func overlap(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat {
@@ -338,44 +411,38 @@ enum WindowCatalog {
                 ))
             }
         }
-        return Array(cards.prefix(6))
+        return PreviewPreferences.limit(cards)
     }
 
     private static func match(_ card: WindowCard) -> AXUIElement? {
         let app = AXUIElementCreateApplication(card.pid)
         AXUIElementSetMessagingTimeout(app, 0.3)
         let windows = AXValueReader.elements(app, kAXWindowsAttribute as String)
-        let flipped = Coordinates.flip(card.frame)
-        if let exact = windows.first(where: { element in
-            let title = AXValueReader.string(element, kAXTitleAttribute as String) ?? ""
-            guard title == card.title || card.title.isEmpty else { return false }
-            guard let frame = AXValueReader.rect(element) else { return title == card.title && !title.isEmpty }
-            return framesClose(frame, card.frame) || framesClose(frame, flipped)
-        }) {
+        if let exact = windows.first(where: { windowID($0) == card.id }) {
             return exact
         }
-        let sameTitle = windows.filter {
-            let title = AXValueReader.string($0, kAXTitleAttribute as String) ?? ""
-            return !title.isEmpty && title == card.title
+        let flipped = Coordinates.flip(card.frame)
+        let scored = windows.map { element -> (AXUIElement, CGFloat) in
+            guard let frame = AXValueReader.rect(element) else { return (element, 0) }
+            return (element, max(overlap(frame, card.frame), overlap(frame, flipped)))
         }
-        if sameTitle.count == 1 { return sameTitle[0] }
-        return windows.min { lhs, rhs in
-            let left = AXValueReader.rect(lhs) ?? .zero
-            let right = AXValueReader.rect(rhs) ?? .zero
-            return distance(left, card.frame) < distance(right, card.frame)
-        }
+        guard let best = scored.max(by: { $0.1 < $1.1 }), best.1 > 0.55 else { return nil }
+        return best.0
     }
 
-    private static func framesClose(_ lhs: CGRect, _ rhs: CGRect) -> Bool {
-        abs(lhs.origin.x - rhs.origin.x) < 10
-            && abs(lhs.origin.y - rhs.origin.y) < 10
-            && abs(lhs.width - rhs.width) < 16
-            && abs(lhs.height - rhs.height) < 16
+    private static func windowID(_ element: AXUIElement) -> CGWindowID? {
+        guard let get = windowIDGetter else { return nil }
+        var identifier: UInt32 = 0
+        guard get(element, &identifier) == 0, identifier != 0 else { return nil }
+        return CGWindowID(identifier)
     }
 
-    private static func distance(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat {
-        hypot(lhs.midX - rhs.midX, lhs.midY - rhs.midY)
-    }
+    private static let windowIDGetter: (@convention(c) (AXUIElement, UnsafeMutablePointer<UInt32>) -> Int32)? = {
+        let path = "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices"
+        guard let handle = dlopen(path, RTLD_LAZY),
+              let raw = dlsym(handle, "_AXUIElementGetWindow") else { return nil }
+        return unsafeBitCast(raw, to: (@convention(c) (AXUIElement, UnsafeMutablePointer<UInt32>) -> Int32).self)
+    }()
 
     private static func syntheticID(pid: pid_t, title: String, frame: CGRect) -> CGWindowID {
         var hasher = Hasher()
@@ -398,5 +465,34 @@ enum WindowCatalog {
             return nil
         }
         return CGRect(x: x, y: y, width: width, height: height)
+    }
+}
+
+private enum WindowLayer {
+    static func level(of windowID: CGWindowID) -> Int32? {
+        guard let connection = connectionID(),
+              let get: @convention(c) (Int32, UInt32, UnsafeMutablePointer<Int32>) -> Int32 = symbol("SLSGetWindowLevel") else { return nil }
+        var level: Int32 = 0
+        guard get(connection, windowID, &level) == 0 else { return nil }
+        return level
+    }
+
+    static func set(_ windowID: CGWindowID, _ level: Int32) {
+        guard let connection = connectionID(),
+              let set: @convention(c) (Int32, UInt32, Int32) -> Int32 = symbol("SLSSetWindowLevel") else { return }
+        _ = set(connection, windowID, level)
+    }
+
+    private static let sky = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY)
+
+    private static func connectionID() -> Int32? {
+        guard let main: @convention(c) () -> Int32 = symbol("CGSMainConnectionID") else { return nil }
+        let connection = main()
+        return connection == 0 ? nil : connection
+    }
+
+    private static func symbol<T>(_ name: String) -> T? {
+        guard let sky, let raw = dlsym(sky, name) else { return nil }
+        return unsafeBitCast(raw, to: T.self)
     }
 }

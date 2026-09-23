@@ -17,6 +17,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     var previewsAreEnabled: Bool { enabled }
 
+    fileprivate func applyPreviewPreferences() {
+        hover.reloadAppearance()
+    }
+
+    fileprivate func applyDockPosition() {
+        hover.noteDockMoved()
+    }
+
     private var enabled: Bool {
         get {
             if UserDefaults.standard.object(forKey: defaultsKey) == nil { return true }
@@ -45,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
+        DockAutohide.restore()
         syncHover()
         if !PermissionsState.allGranted {
             showPermissions()
@@ -170,14 +179,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     @objc private func quit() {
         hover.stop()
+        WindowSwitcher.shared.stop()
         NSApp.terminate(nil)
     }
 
     private func syncHover() {
         if enabled && AXIsProcessTrusted() {
             hover.start()
+            WindowSwitcher.shared.onWillShow = { [weak self] in
+                self?.hover.dismissPreview()
+            }
+            WindowSwitcher.shared.start()
         } else {
             hover.stop()
+            WindowSwitcher.shared.stop()
         }
         statusItem?.button?.appearsDisabled = !enabled
     }
@@ -212,7 +227,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         window.delegate = self
         host.layoutSubtreeIfNeeded()
         let fitted = host.fittingSize
-        window.setContentSize(NSSize(width: 480, height: max(fitted.height, 520)))
+        let screenHeight = (window.screen ?? NSScreen.main)?.visibleFrame.height ?? 800
+        let height = min(max(fitted.height, 560), screenHeight - 48)
+        window.setContentSize(NSSize(width: 480, height: height))
         window.center()
         permissionsWindow = window
         window.makeKeyAndOrderFront(nil)
@@ -280,12 +297,40 @@ enum PermissionsState {
 }
 
 enum ShowBarSupport {
+    struct Release: Identifiable {
+        let version: String
+        let notes: [String]
+        var id: String { version }
+    }
+
     static let ownerName = "Naor Yanko"
     static let ownerEmail = "na0ryank0@gmail.com"
     static let downloadURL = URL(string: "https://github.com/rept0rix/show-bar/releases/latest")!
+    static let linkedInURL = URL(string: "https://www.linkedin.com/in/naoryanko")!
     // Replace these with your own pages before you publish.
     static let donateURL = URL(string: "https://www.buymeacoffee.com")!
     static let adURL = URL(string: "https://www.buymeacoffee.com")!
+
+    static var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1"
+    }
+
+    static let releases: [Release] = [
+        Release(version: "1.1", notes: [
+            "Previews open beside the Dock icon, and they open faster.",
+            "Move a window to another desktop from its card.",
+            "A white bar under the name marks the window under the pointer.",
+            "Rest on a card for two seconds to peek that window. Click to switch, or leave to put it back.",
+            "Command-Tab shows the windows, newest first, and stays on the screen.",
+            "Settings can move the Dock to the left, right, top, or bottom."
+        ]),
+        Release(version: "1.0", notes: [
+            "Hover a Dock icon to see that app's windows.",
+            "Click a window to switch to it.",
+            "Close one window, minimize it, or quit the app from the card.",
+            "Choose the preview size, how many windows, and whether names are shown."
+        ])
+    ]
 }
 
 final class PermissionsModel: ObservableObject {
@@ -294,6 +339,10 @@ final class PermissionsModel: ObservableObject {
     @Published var dockCount = 0
     @Published var previewsEnabled = true
     @Published var launchAtLogin = false
+    @Published var previewSize = PreviewPreferences.sizeName
+    @Published var maxWindows = PreviewPreferences.maxWindows
+    @Published var showTitles = PreviewPreferences.showTitles
+    @Published var dockEdge = DockPlacement.current
 
     var allGranted: Bool { accessibility && screen }
 
@@ -302,6 +351,10 @@ final class PermissionsModel: ObservableObject {
         screen = CGPreflightScreenCaptureAccess()
         previewsEnabled = AppDelegate.shared.previewsAreEnabled
         launchAtLogin = SMAppService.mainApp.status == .enabled
+        previewSize = PreviewPreferences.sizeName
+        maxWindows = PreviewPreferences.maxWindows
+        showTitles = PreviewPreferences.showTitles
+        dockEdge = DockPlacement.current
     }
 }
 
@@ -315,6 +368,7 @@ struct PermissionsView: View {
     @State private var previewNote = ""
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 14) {
                 Image(nsImage: NSApp.applicationIconImage)
@@ -332,18 +386,31 @@ struct PermissionsView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Belongs to \(ShowBarSupport.ownerName)")
+            VStack(alignment: .leading, spacing: 8) {
+                Text("About")
                     .font(.headline)
-                Text(ShowBarSupport.ownerEmail)
+                Text("Version \(ShowBarSupport.version)")
+                    .font(.title3.weight(.semibold))
+                Text("\(ShowBarSupport.ownerName) · \(ShowBarSupport.ownerEmail)")
                     .foregroundStyle(.secondary)
-                Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Button("Naor Yanko on LinkedIn") {
+                    NSWorkspace.shared.open(ShowBarSupport.linkedInURL)
+                }
                 Text("Show Bar is not in the Mac App Store. The download is the GitHub release.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                ForEach(ShowBarSupport.releases) { release in
+                    Text("Version \(release.version)")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.top, 4)
+                    ForEach(release.notes, id: \.self) { note in
+                        Text("• \(note)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -363,6 +430,73 @@ struct PermissionsView: View {
                         model.refresh()
                     }
                 ))
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Dock")
+                    .font(.headline)
+                Picker("Position", selection: Binding(
+                    get: { model.dockEdge },
+                    set: { value in
+                        DockPlacement.current = value
+                        model.dockEdge = value
+                        AppDelegate.shared.applyDockPosition()
+                    }
+                )) {
+                    Text("Left").tag(DockPlacement.left)
+                    Text("Right").tag(DockPlacement.right)
+                    Text("Top").tag(DockPlacement.top)
+                    Text("Bottom").tag(DockPlacement.bottom)
+                }
+                .pickerStyle(.segmented)
+                Text("Moves the Dock itself to that edge. Previews follow it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Preview windows")
+                    .font(.headline)
+                Picker("Size", selection: Binding(
+                    get: { model.previewSize },
+                    set: { value in
+                        PreviewPreferences.sizeName = value
+                        model.refresh()
+                        AppDelegate.shared.applyPreviewPreferences()
+                    }
+                )) {
+                    Text("Small").tag("small")
+                    Text("Medium").tag("medium")
+                    Text("Large").tag("large")
+                }
+                .pickerStyle(.segmented)
+                Picker("How many", selection: Binding(
+                    get: { model.maxWindows },
+                    set: { value in
+                        PreviewPreferences.maxWindows = value
+                        model.refresh()
+                        AppDelegate.shared.applyPreviewPreferences()
+                    }
+                )) {
+                    Text("All").tag(0)
+                    Text("2").tag(2)
+                    Text("4").tag(4)
+                    Text("6").tag(6)
+                }
+                .pickerStyle(.segmented)
+                Toggle("Show window names", isOn: Binding(
+                    get: { model.showTitles },
+                    set: { value in
+                        PreviewPreferences.showTitles = value
+                        model.refresh()
+                        AppDelegate.shared.applyPreviewPreferences()
+                    }
+                ))
+                Text("Size changes the thumbnail size on the next hover. All shows every window. Quit closes that app. The X closes only that window.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Button("Download page") {
@@ -429,6 +563,7 @@ struct PermissionsView: View {
         }
         .padding(24)
         .frame(width: 480)
+        }
     }
 
     private var readyText: String {
