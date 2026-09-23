@@ -81,14 +81,21 @@
       max-width: 36rem;
       margin: 0 0 28px;
     }
-    .actions { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-    .download {
-      background: var(--ink);
-      color: var(--paper);
+    .actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .actions .note { flex-basis: 100%; }
+    .download, .coffee {
       text-decoration: none;
       padding: 14px 22px;
       font-size: 16px;
       border-radius: 999px;
+    }
+    .download {
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .coffee {
+      color: var(--ink);
+      border: 1.5px solid var(--ink);
     }
     .note { color: var(--muted); font-size: 14px; max-width: 28rem; margin: 0; line-height: 1.45; }
     .mark {
@@ -165,6 +172,7 @@
       <nav>
         <a href="#features">Features</a>
         <a href="https://github.com/rept0rix/show-bar">GitHub</a>
+        <a href="https://buymeacoffee.com/na0ryank0r">Coffee</a>
       </nav>
     </header>
 
@@ -176,6 +184,7 @@
         <div class="actions">
           <!-- showbar:download -->
           <a class="download" href="https://github.com/rept0rix/show-bar/releases/download/v1.3.0/Show-Bar-1.3.dmg">Install for Mac</a>
+          <a class="coffee" href="https://buymeacoffee.com/na0ryank0r">Buy me a coffee</a>
           <p class="note">Version 1.3. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>
 <!-- /showbar:download -->
         </div>
