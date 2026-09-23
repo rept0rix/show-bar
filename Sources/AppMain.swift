@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import ServiceManagement
 import SwiftUI
+import UserNotifications
 
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
@@ -12,6 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var statusItem: NSStatusItem!
     private var hover = HoverController()
     private var permissionsWindow: NSWindow?
+    private var adminWindow: NSWindow?
+    private var rateWindow: NSWindow?
+    private var offeredUpdate: String?
     private var permissionsModel: PermissionsModel?
     private var permissionsTimer: Timer?
     private var sawAccessibility = false
@@ -46,12 +50,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         sawAccessibility = AXIsProcessTrusted()
         sawScreenRecording = CGPreflightScreenCaptureAccess()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        if let image = NSApp.applicationIconImage {
-            image.size = NSSize(width: 18, height: 18)
-            image.isTemplate = false
-            statusItem.button?.image = image
-        }
-        statusItem.button?.toolTip = "Show Bar"
+        UNUserNotificationCenter.current().delegate = self
+        noteUpdate(nil)
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
@@ -63,6 +63,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             showPermissions()
         }
         recommendKeepingTheDockIcon()
+        AppUpdate.restoreBadge()
+        AppUpdate.checkOnLaunch()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            self?.presentRateRequestIfNeeded()
+        }
+    }
+
+    func noteUpdate(_ version: String?) {
+        offeredUpdate = version
+        statusItem?.button?.image = menuBarIcon(updateReady: version != nil)
+        statusItem?.button?.toolTip = version.map { "Show Bar — update \($0) is ready" } ?? "Show Bar"
+    }
+
+    func relaunchAfterUpdate() {
+        WindowSwitcher.shared.stop()
+        relaunch()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -73,6 +89,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         WindowSnap.rememberFront()
         ClipboardShelf.shared.rememberTarget()
         menu.removeAllItems()
+        if let version = offeredUpdate {
+            let ready = NSMenuItem(title: "Update to \(version)…", action: #selector(installOfferedUpdate), keyEquivalent: "")
+            ready.target = self
+            ready.image = menuBarDot
+            menu.addItem(ready)
+            menu.addItem(.separator())
+        }
         let toggle = NSMenuItem(
             title: enabled ? "Previews enabled" : "Previews disabled",
             action: #selector(toggleEnabled),
@@ -179,6 +202,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let remove = NSMenuItem(title: "Remove Show Bar…", action: #selector(removeApp), keyEquivalent: "")
         remove.target = self
         menu.addItem(remove)
+
+        let updates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        updates.target = self
+        menu.addItem(updates)
+
+        let admin = NSMenuItem(title: "Admin…", action: #selector(openAdmin), keyEquivalent: "")
+        admin.target = self
+        menu.addItem(admin)
 
         menu.addItem(.separator())
 
@@ -320,6 +351,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         NSApp.terminate(nil)
     }
 
+    @objc private func checkForUpdates() {
+        AppUpdate.checkManually()
+    }
+
+    @objc private func installOfferedUpdate() {
+        AppUpdate.askAgain()
+    }
+
+    @objc private func openAdmin() {
+        if let adminWindow {
+            adminWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let host = NSHostingView(rootView: AdminView(model: AdminModel()))
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 520),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Admin"
+        window.contentView = host
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.center()
+        adminWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     @objc private func quit() {
         hover.stop()
         WindowSwitcher.shared.stop()
@@ -383,7 +445,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
     }
 
+    private func presentRateRequestIfNeeded() {
+        guard UserDefaults.standard.bool(forKey: ShowBarSupport.askForRateKey) else { return }
+        guard rateWindow == nil else { return }
+        let host = NSHostingView(rootView: RatePrompt(onFinish: { [weak self] in
+            UserDefaults.standard.set(false, forKey: ShowBarSupport.askForRateKey)
+            self?.rateWindow?.close()
+        }))
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 280),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Show Bar"
+        window.contentView = host
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.center()
+        rateWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func menuBarIcon(updateReady: Bool) -> NSImage? {
+        guard let source = NSApp.applicationIconImage.copy() as? NSImage else { return nil }
+        let side: CGFloat = 18
+        source.size = NSSize(width: side, height: side)
+        source.isTemplate = false
+        guard updateReady else { return source }
+        let canvas = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+            source.draw(in: rect)
+            let ring = NSRect(x: side - 8, y: side - 8, width: 8, height: 8)
+            NSColor.white.setFill()
+            NSBezierPath(ovalIn: ring).fill()
+            NSColor.systemBlue.setFill()
+            NSBezierPath(ovalIn: ring.insetBy(dx: 1.5, dy: 1.5)).fill()
+            return true
+        }
+        canvas.isTemplate = false
+        return canvas
+    }
+
+    private var menuBarDot: NSImage {
+        let side: CGFloat = 12
+        let canvas = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+            NSColor.systemBlue.setFill()
+            NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1)).fill()
+            return true
+        }
+        canvas.isTemplate = false
+        return canvas
+    }
+
     func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        if window === adminWindow {
+            adminWindow = nil
+            return
+        }
+        if window === rateWindow {
+            UserDefaults.standard.set(false, forKey: ShowBarSupport.askForRateKey)
+            rateWindow = nil
+            return
+        }
+        guard window === permissionsWindow else { return }
         permissionsTimer?.invalidate()
         permissionsTimer = nil
         permissionsWindow = nil
@@ -417,6 +543,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 }
 
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        await MainActor.run { AppUpdate.askAgain() }
+    }
+}
+
 enum PermissionsState {
     static var allGranted: Bool {
         AXIsProcessTrusted() && CGPreflightScreenCaptureAccess()
@@ -440,52 +582,20 @@ enum PermissionsState {
 }
 
 enum ShowBarSupport {
-    struct Release: Identifiable {
-        let version: String
-        let notes: [String]
-        var id: String { version }
-    }
-
     static let ownerName = "Naor Yanko"
     static let ownerEmail = "na0ryank0@gmail.com"
     static let downloadURL = URL(string: "https://github.com/rept0rix/show-bar/releases/latest")!
     static let linkedInURL = URL(string: "https://www.linkedin.com/in/naoryanko")!
     /// Mac App Store page. Leave nil until the page exists; the rating button opens this.
     static let storeURL: URL? = nil
-    static let ratePromptKey = "ShowBar.ratePromptSeen"
+    static let askForRateKey = "ShowBar.askForRate"
     // Replace these with your own pages before you publish.
     static let donateURL = URL(string: "https://www.buymeacoffee.com")!
     static let adURL = URL(string: "https://www.buymeacoffee.com")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.3" // showbar-version
     }
-
-    static let releases: [Release] = [
-        Release(version: "1.2", notes: [
-            "Show Bar is a macOS app. It brings Windows features to the Mac.",
-            "Clipboard history keeps text, links, and screenshots. Control-Option-V opens the list.",
-            "A screenshot copies to the clipboard and does not save a file. The preview stays until you press X.",
-            "Command-Tab shows real app windows.",
-            "Settings can ask for a store rating."
-        ]),
-        Release(version: "1.1", notes: [
-            "Previews open beside the Dock icon, and they open faster.",
-            "Move a window to another desktop from its card.",
-            "A white bar under the name marks the window under the pointer.",
-            "Rest on a card for two seconds to peek that window. Click to switch, or leave to put it back.",
-            "Command-Tab shows the windows, newest first, and stays on the screen.",
-            "Settings can move the Dock to the left, right, top, or bottom.",
-            "Show Bar opens when the Mac starts, stays in the menu bar when its window is closed, and can move itself to the Trash.",
-            "Control-Option and the arrows snap the front window to a half, a corner, or the whole screen."
-        ]),
-        Release(version: "1.0", notes: [
-            "Hover a Dock icon to see that app's windows.",
-            "Click a window to switch to it.",
-            "Close one window, minimize it, or quit the app from the card.",
-            "Choose the preview size, how many windows, and whether names are shown."
-        ])
-    ]
 }
 
 final class PermissionsModel: ObservableObject {
@@ -561,21 +671,6 @@ struct PermissionsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Rate Show Bar…") {
                     showRatePrompt = true
-                }
-                Text("Show Bar is not in the Mac App Store. The download is the GitHub release.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                ForEach(ShowBarSupport.releases) { release in
-                    Text("Version \(release.version)")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.top, 4)
-                    ForEach(release.notes, id: \.self) { note in
-                        Text("• \(note)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
                 }
             }
 
@@ -762,21 +857,9 @@ struct PermissionsView: View {
         .padding(24)
         .frame(width: 480)
         }
-        .sheet(isPresented: $showRatePrompt, onDismiss: markRatePromptSeen) {
-            RatePrompt()
+        .sheet(isPresented: $showRatePrompt) {
+            RatePrompt(onFinish: { showRatePrompt = false })
         }
-        .onAppear(perform: presentRatePromptIfNeeded)
-    }
-
-    private func presentRatePromptIfNeeded() {
-        guard !UserDefaults.standard.bool(forKey: ShowBarSupport.ratePromptKey) else { return }
-        DispatchQueue.main.async {
-            showRatePrompt = true
-        }
-    }
-
-    private func markRatePromptSeen() {
-        UserDefaults.standard.set(true, forKey: ShowBarSupport.ratePromptKey)
     }
 
     private var readyText: String {
@@ -816,7 +899,7 @@ struct PermissionsView: View {
 }
 
 private struct RatePrompt: View {
-    @Environment(\.dismiss) private var dismiss
+    var onFinish: () -> Void
     @State private var stars = 0
 
     var body: some View {
@@ -844,12 +927,12 @@ private struct RatePrompt: View {
                 }
             }
             HStack(spacing: 10) {
-                Button("Not now", action: { dismiss() })
+                Button("Not now", action: onFinish)
                 Button("Rate in the App Store") {
                     if let url = ShowBarSupport.storeURL {
                         NSWorkspace.shared.open(url)
                     }
-                    dismiss()
+                    onFinish()
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(ShowBarSupport.storeURL == nil)

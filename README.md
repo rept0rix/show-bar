@@ -26,7 +26,9 @@ Show Bar is a macOS app by Naor Yanko. It brings Windows capabilities to the Mac
 
 ## Download
 
-Show Bar is for macOS 14 or later. The install disk is [Show Bar 1.2](https://github.com/rept0rix/show-bar/releases/download/v1.2.0/Show-Bar-1.2.dmg). Open it and drag Show Bar into Applications.
+<!-- showbar:download -->
+Show Bar is for macOS 14 or later. The install disk is [Show Bar 1.3](https://github.com/rept0rix/show-bar/releases/download/v1.3.0/Show-Bar-1.3.dmg). Open it and drag Show Bar into Applications.
+<!-- /showbar:download -->
 
 Show Bar is not on the Mac App Store. Accessibility, Screen Recording, and Dock hover do not fit App Store rules.
 

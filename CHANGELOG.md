@@ -2,6 +2,13 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.3
+
+- A newer GitHub release shows a blue dot on the menu-bar icon, a notification, and an Update / Not now prompt.
+- Show Bar replaces itself only when the downloaded app is signed as Show Bar by the same team.
+- After each update, Show Bar asks for a rating.
+- Admin shows how many times each install disk was downloaded.
+
 ## 1.2
 
 - The site and About say this plainly: Show Bar runs on macOS and brings Windows capabilities to the Mac.

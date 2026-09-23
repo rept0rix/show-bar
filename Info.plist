@@ -4,12 +4,12 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
 	<key>CFBundleDisplayName</key>
 	<string>Show Bar</string>
 	<key>CFBundleExecutable</key>
 	<string>ShowBar</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.naoryanko.showbar</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -19,24 +19,24 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.2</string>
+	<string>1.3</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
-	<key>NSHumanReadableCopyright</key>
-	<string>© 2026 Naor Yanko</string>
+	<string>4</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<false/>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>Show Bar uses Accessibility to see which Dock icon is under the pointer and to switch to the window you choose.</string>
-	<key>NSScreenCaptureUsageDescription</key>
-	<string>Show Bar uses Screen Recording to draw a small picture of each window when you hover its Dock icon.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Naor Yanko</string>
 	<key>NSInputMonitoringUsageDescription</key>
 	<string>Show Bar uses input monitoring so Command-Tab can show windows instead of app icons. It does not record what you type.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Show Bar uses Screen Recording to draw a small picture of each window when you hover its Dock icon.</string>
 </dict>
 </plist>
