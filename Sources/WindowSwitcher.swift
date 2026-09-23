@@ -8,6 +8,8 @@ final class WindowSwitcher {
 
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
+    private var loop: CFRunLoop?
+    private var tapStarted = false
     private let panel = NSPanel(
         contentRect: .zero,
         styleMask: [.borderless, .nonactivatingPanel],
@@ -115,33 +117,82 @@ final class WindowSwitcher {
     }
 
     func start() {
-        guard tap == nil else { return }
-        let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
-        guard let tap = CGEvent.tapCreate(
+        lock.lock()
+        if tapStarted {
+            lock.unlock()
+            return
+        }
+        tapStarted = true
+        lock.unlock()
+        let thread = Thread { [weak self] in
+            self?.runTap()
+        }
+        thread.name = "ShowBar.CommandTab"
+        thread.qualityOfService = .userInteractive
+        thread.start()
+    }
+
+    /// The key tap stays off the main thread. Building the window grid must not
+    /// let macOS disable the tap and show the original Command-Tab bar as well.
+    private func runTap() {
+        let mask = (1 << CGEventType.keyDown.rawValue)
+            | (1 << CGEventType.keyUp.rawValue)
+            | (1 << CGEventType.flagsChanged.rawValue)
+        let events = CGEventMask(mask)
+        let tap = CGEvent.tapCreate(
+            tap: .cghidEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: events,
+            callback: switcherKeyCallback,
+            userInfo: nil
+        ) ?? CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
-            eventsOfInterest: CGEventMask(mask),
+            eventsOfInterest: events,
             callback: switcherKeyCallback,
             userInfo: nil
-        ) else { return }
+        )
+        guard let tap else { return }
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        let loop = CFRunLoopGetCurrent()
+        CFRunLoopAddSource(loop, source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
-        self.tap = tap
-        self.source = source
+        lock.lock()
+        let stopped = !tapStarted
+        if !stopped {
+            self.tap = tap
+            self.source = source
+            self.loop = loop
+        }
+        lock.unlock()
+        if stopped {
+            CGEvent.tapEnable(tap: tap, enable: false)
+            return
+        }
+        CFRunLoopRun()
     }
 
     func stop() {
         hide()
-        if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
-        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        lock.lock()
+        let current = tap
+        let currentLoop = loop
         tap = nil
         source = nil
+        loop = nil
+        tapStarted = false
+        lock.unlock()
+        if let current { CGEvent.tapEnable(tap: current, enable: false) }
+        if let currentLoop { CFRunLoopStop(currentLoop) }
     }
 
     fileprivate func enable() {
-        if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+        lock.lock()
+        let current = tap
+        lock.unlock()
+        if let current { CGEvent.tapEnable(tap: current, enable: true) }
     }
 
     func isVisible() -> Bool {
@@ -474,12 +525,22 @@ private func switcherKeyCallback(
         }
         return Unmanaged.passUnretained(event)
     }
-    guard type == .keyDown else { return Unmanaged.passUnretained(event) }
+    guard type == .keyDown || type == .keyUp else { return Unmanaged.passUnretained(event) }
     let key = event.getIntegerValueField(.keyboardEventKeycode)
     let control = event.flags.contains(.maskControl)
     let option = event.flags.contains(.maskAlternate)
     let shift = event.flags.contains(.maskShift)
     let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+    let extra = control || option
+    // Swallow the press and the release, or the Dock still opens its own bar.
+    if key == 48, command, !extra {
+        if type == .keyDown {
+            let backward = shift
+            DispatchQueue.main.async { WindowSwitcher.shared.cycle(backward: backward) }
+        }
+        return nil
+    }
+    guard type == .keyDown else { return Unmanaged.passUnretained(event) }
     if ShotShelf.shared.consume(key: key, command: command, shift: shift, option: option, isRepeat: isRepeat) {
         return nil
     }
@@ -491,7 +552,6 @@ private func switcherKeyCallback(
         DispatchQueue.main.async { WindowSnap.apply(zone) }
         return nil
     }
-    let extra = event.flags.contains(.maskControl) || event.flags.contains(.maskAlternate)
     if WindowSwitcher.shared.isVisible() {
         let direction: ArrowDirection?
         switch key {
@@ -505,11 +565,6 @@ private func switcherKeyCallback(
             DispatchQueue.main.async { WindowSwitcher.shared.move(direction) }
             return nil
         }
-    }
-    if key == 48, command, !extra {
-        let backward = event.flags.contains(.maskShift)
-        DispatchQueue.main.async { WindowSwitcher.shared.cycle(backward: backward) }
-        return nil
     }
     if key == 53, WindowSwitcher.shared.isVisible() {
         DispatchQueue.main.async { WindowSwitcher.shared.cancel() }

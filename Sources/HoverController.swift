@@ -218,6 +218,12 @@ final class HoverController: @unchecked Sendable {
     func noteDockMoved() {
         hideNow()
         loadIcons()
+        // The Dock slides after the position change. Read it again once it has settled.
+        for delay in [0.45, 1.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.loadIcons()
+            }
+        }
     }
 
     private func mouseDown(screenPoint: NSPoint, quartzPoint: CGPoint) {

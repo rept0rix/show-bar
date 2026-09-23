@@ -153,13 +153,15 @@ enum DockReader {
         let appKit = Coordinates.flip(union)
         guard let screen = Coordinates.screen(containing: appKit) else { return .bottom }
         let frame = screen.frame
-        let distances: [(CGFloat, DockEdge)] = [
-            (abs(appKit.minX - frame.minX), .left),
-            (abs(appKit.maxX - frame.maxX), .right),
-            (abs(appKit.minY - frame.minY), .bottom),
-            (abs(appKit.maxY - frame.maxY), .top),
-        ]
-        return distances.min(by: { $0.0 < $1.0 })?.1 ?? .bottom
+        // A bottom Dock is wide, so it also touches the left edge. The long side says which edge it is.
+        if union.width >= union.height {
+            let toBottom = abs(appKit.minY - frame.minY)
+            let toTop = abs(appKit.maxY - frame.maxY)
+            return toBottom <= toTop ? .bottom : .top
+        }
+        let toLeft = abs(appKit.minX - frame.minX)
+        let toRight = abs(appKit.maxX - frame.maxX)
+        return toLeft <= toRight ? .left : .right
     }
 
     static func hitFrame(_ frame: CGRect, edge: DockEdge) -> CGRect {

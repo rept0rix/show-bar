@@ -2,6 +2,13 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.4
+
+- Previews follow the Dock on the left, the right, or the bottom, including after the Dock is moved.
+- Settings no longer offers a top Dock. macOS cannot put the Dock there.
+- Settings opens with the logo and the version, then a preview, a rating, and a coffee. Dock, shortcuts, permissions, and the app are separate tabs.
+- Remove Show Bar is red. It says the app goes to the Trash and has to be installed again.
+
 ## 1.3
 
 - A newer GitHub release shows a blue dot on the menu-bar icon, a notification, and an Update / Not now prompt.

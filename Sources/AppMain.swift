@@ -201,6 +201,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         menu.addItem(.separator())
         let remove = NSMenuItem(title: "Remove Show Bar…", action: #selector(removeApp), keyEquivalent: "")
         remove.target = self
+        remove.attributedTitle = NSAttributedString(
+            string: "Remove Show Bar…",
+            attributes: [.foregroundColor: NSColor.systemRed]
+        )
         menu.addItem(remove)
 
         let updates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
@@ -330,7 +334,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     @objc fileprivate func removeApp() {
         let alert = NSAlert()
         alert.messageText = "Remove Show Bar?"
-        alert.informativeText = "Show Bar will move to the Trash and will stop opening when the Mac starts."
+        alert.informativeText = "Show Bar moves to the Trash and stops opening when the Mac starts. This cannot be undone from the app. Install it again to bring it back."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Move to Trash")
         alert.addButton(withTitle: "Cancel")
@@ -594,7 +598,7 @@ enum ShowBarSupport {
     static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.3" // showbar-version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.4" // showbar-version
     }
 }
 
@@ -623,6 +627,19 @@ final class PermissionsModel: ObservableObject {
     }
 }
 
+private enum SettingsPage: CaseIterable {
+    case dock, shortcuts, permissions, app
+
+    var title: String {
+        switch self {
+        case .dock: return "Dock"
+        case .shortcuts: return "Shortcuts"
+        case .permissions: return "Permissions"
+        case .app: return "App"
+        }
+    }
+}
+
 struct PermissionsView: View {
     @ObservedObject var model: PermissionsModel
     var onAccessibility: () -> Void
@@ -632,197 +649,33 @@ struct PermissionsView: View {
     var onDonate: () -> Void
     @State private var previewNote = ""
     @State private var showRatePrompt = false
+    @State private var tab = SettingsPage.dock
 
     var body: some View {
-        ScrollView {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 14) {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
-                    .frame(width: 72, height: 72)
+                    .frame(width: 64, height: 64)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Show Bar")
                         .font(.title2.weight(.semibold))
-                    Text("A macOS app that brings Windows features to the Mac.")
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Version \(ShowBarSupport.version)")
+                        .font(.title3.weight(.semibold))
                     Text(readyText)
                         .font(.headline)
                         .foregroundStyle(model.allGranted && model.dockCount > 0 ? Color.green : Color.orange)
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("About")
-                    .font(.headline)
-                Text("Version \(ShowBarSupport.version)")
-                    .font(.title3.weight(.semibold))
-                Text("\(ShowBarSupport.ownerName) · \(ShowBarSupport.ownerEmail)")
-                    .foregroundStyle(.secondary)
-                Button("Naor Yanko on LinkedIn") {
-                    NSWorkspace.shared.open(ShowBarSupport.linkedInURL)
-                }
-                Text("Rate")
-                    .font(.headline)
-                    .padding(.top, 4)
-                Text("A rating in the store helps other people find Show Bar.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button("Rate Show Bar…") {
-                    showRatePrompt = true
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Toggle("Previews", isOn: Binding(
-                    get: { model.previewsEnabled },
-                    set: { value in
-                        guard value != model.previewsEnabled else { return }
-                        AppDelegate.shared.toggleEnabled()
-                        model.refresh()
-                    }
-                ))
-                Toggle("Launch at login", isOn: Binding(
-                    get: { model.launchAtLogin },
-                    set: { value in
-                        guard value != model.launchAtLogin else { return }
-                        AppDelegate.shared.toggleLoginItem()
-                        model.refresh()
-                    }
-                ))
-                Text("Show Bar opens when the Mac starts. The icon in the top menu bar stays even when this window is closed.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("To keep the icon on the left side of the screen, right-click Show Bar in the Dock and choose Options → Keep in Dock.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button("Remove Show Bar…") {
-                    AppDelegate.shared.removeApp()
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Dock")
-                    .font(.headline)
-                Picker("Position", selection: Binding(
-                    get: { model.dockEdge },
-                    set: { value in
-                        DockPlacement.current = value
-                        model.dockEdge = value
-                        AppDelegate.shared.applyDockPosition()
-                    }
-                )) {
-                    Text("Left").tag(DockPlacement.left)
-                    Text("Right").tag(DockPlacement.right)
-                    Text("Top").tag(DockPlacement.top)
-                    Text("Bottom").tag(DockPlacement.bottom)
-                }
-                .pickerStyle(.segmented)
-                Text("Moves the Dock itself to that edge. Previews follow it.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Clipboard")
-                    .font(.headline)
-                Text("Show Bar keeps what you copy: text, links, and screenshots. Control-Option-V opens the list. A click pastes it back. Copies marked as hidden passwords are skipped.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button("Open clipboard history") {
-                    ClipboardShelf.shared.show()
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Snap windows")
-                    .font(.headline)
-                Text("Hold Control and Option, then press an arrow. Left and right take half the screen. U, I, J, and K take the corners. Return fills the screen. The same shortcut again puts the window back.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Preview windows")
-                    .font(.headline)
-                Picker("Size", selection: Binding(
-                    get: { model.previewSize },
-                    set: { value in
-                        PreviewPreferences.sizeName = value
-                        model.refresh()
-                        AppDelegate.shared.applyPreviewPreferences()
-                    }
-                )) {
-                    Text("Small").tag("small")
-                    Text("Medium").tag("medium")
-                    Text("Large").tag("large")
-                }
-                .pickerStyle(.segmented)
-                Picker("How many", selection: Binding(
-                    get: { model.maxWindows },
-                    set: { value in
-                        PreviewPreferences.maxWindows = value
-                        model.refresh()
-                        AppDelegate.shared.applyPreviewPreferences()
-                    }
-                )) {
-                    Text("All").tag(0)
-                    Text("2").tag(2)
-                    Text("4").tag(4)
-                    Text("6").tag(6)
-                }
-                .pickerStyle(.segmented)
-                Toggle("Show window names", isOn: Binding(
-                    get: { model.showTitles },
-                    set: { value in
-                        PreviewPreferences.showTitles = value
-                        model.refresh()
-                        AppDelegate.shared.applyPreviewPreferences()
-                    }
-                ))
-                Text("Size changes the thumbnail size on the next hover. All shows every window. Quit closes that app. The X closes only that window.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Button("Download page") {
-                NSWorkspace.shared.open(ShowBarSupport.downloadURL)
-            }
-
-            VStack(spacing: 10) {
-                permissionRow(
-                    title: "Accessibility",
-                    detail: model.accessibility ? "On. Dock icons found: \(model.dockCount)." : "Off. If the switch is already on, turn it off and on again.",
-                    granted: model.accessibility,
-                    action: onAccessibility
-                )
-                permissionRow(
-                    title: "Screen Recording",
-                    detail: model.screen ? "On. Window pictures can be drawn." : "Off. Previews will show titles only until this is on.",
-                    granted: model.screen,
-                    action: onScreen
-                )
-            }
-
-            HStack {
+            HStack(spacing: 8) {
                 Button("Show a preview now") {
                     previewNote = onPreview() ?? "Preview is open. Move the pointer away to close it."
                 }
                 .buttonStyle(.borderedProminent)
-                Button("Donate", action: onDonate)
-                Spacer()
-                Button("Relaunch", action: onRelaunch)
-                Button("Close") { NSApp.keyWindow?.close() }
-                    .keyboardShortcut(.cancelAction)
+                Button("Rate…") { showRatePrompt = true }
+                Button("Buy me a coffee", action: onDonate)
             }
-
             if !previewNote.isEmpty {
                 Text(previewNote)
                     .font(.callout)
@@ -830,35 +683,180 @@ struct PermissionsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("ADVERTISEMENT")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                Button(action: { NSWorkspace.shared.open(ShowBarSupport.adURL) }) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Buy me a coffee")
-                                .font(.headline)
-                            Text("Show Bar stays free. A coffee supports the next version.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            Picker("Section", selection: $tab) {
+                ForEach(SettingsPage.allCases, id: \.self) { page in
+                    Text(page.title).tag(page)
                 }
-                .buttonStyle(.plain)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            Group {
+                switch tab {
+                case .dock: dockPage
+                case .shortcuts: shortcutsPage
+                case .permissions: permissionsPage
+                case .app: appPage
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
         }
         .padding(24)
-        .frame(width: 480)
-        }
+        .frame(width: 520)
         .sheet(isPresented: $showRatePrompt) {
             RatePrompt(onFinish: { showRatePrompt = false })
+        }
+    }
+
+    private var dockChoice: DockPlacement {
+        switch model.dockEdge {
+        case .left: return .left
+        case .right: return .right
+        case .bottom, .top: return .bottom
+        }
+    }
+
+    private var dockPage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("The Dock cannot sit on the top edge of the screen.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Picker("Position", selection: Binding(
+                get: { dockChoice },
+                set: { value in
+                    DockPlacement.current = value
+                    model.dockEdge = value
+                    AppDelegate.shared.applyDockPosition()
+                }
+            )) {
+                Text("Left").tag(DockPlacement.left)
+                Text("Bottom").tag(DockPlacement.bottom)
+                Text("Right").tag(DockPlacement.right)
+            }
+            .pickerStyle(.segmented)
+            Toggle("Previews", isOn: Binding(
+                get: { model.previewsEnabled },
+                set: { value in
+                    guard value != model.previewsEnabled else { return }
+                    AppDelegate.shared.toggleEnabled()
+                    model.refresh()
+                }
+            ))
+            Picker("Size", selection: Binding(
+                get: { model.previewSize },
+                set: { value in
+                    PreviewPreferences.sizeName = value
+                    model.refresh()
+                    AppDelegate.shared.applyPreviewPreferences()
+                }
+            )) {
+                Text("Small").tag("small")
+                Text("Medium").tag("medium")
+                Text("Large").tag("large")
+            }
+            .pickerStyle(.segmented)
+            Picker("How many", selection: Binding(
+                get: { model.maxWindows },
+                set: { value in
+                    PreviewPreferences.maxWindows = value
+                    model.refresh()
+                    AppDelegate.shared.applyPreviewPreferences()
+                }
+            )) {
+                Text("All").tag(0)
+                Text("2").tag(2)
+                Text("4").tag(4)
+                Text("6").tag(6)
+            }
+            .pickerStyle(.segmented)
+            Toggle("Show window names", isOn: Binding(
+                get: { model.showTitles },
+                set: { value in
+                    PreviewPreferences.showTitles = value
+                    model.refresh()
+                    AppDelegate.shared.applyPreviewPreferences()
+                }
+            ))
+        }
+    }
+
+    private var shortcutsPage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Command-Tab shows the windows. Arrows move. Release Command to switch.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Clipboard")
+                .font(.headline)
+            Text("Control-Option-V opens what you copied. A click pastes it. Hidden passwords are skipped.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Open clipboard history") {
+                ClipboardShelf.shared.show()
+            }
+            Text("Screenshots")
+                .font(.headline)
+            Text("Command-Shift-3 copies the screen. Command-Shift-4 copies a selection. Nothing is saved as a file.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Snap")
+                .font(.headline)
+            Text("Control-Option and an arrow takes half the screen. U, I, J, and K take the corners. Return fills the screen. The same shortcut puts the window back.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var permissionsPage: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            permissionRow(
+                title: "Accessibility",
+                detail: model.accessibility ? "On. Dock icons found: \(model.dockCount)." : "Off. If the switch is already on, turn it off and on again.",
+                granted: model.accessibility,
+                action: onAccessibility
+            )
+            permissionRow(
+                title: "Screen Recording",
+                detail: model.screen ? "On. Window pictures can be drawn." : "Off. Previews will show titles only until this is on.",
+                granted: model.screen,
+                action: onScreen
+            )
+            Button("Relaunch", action: onRelaunch)
+        }
+    }
+
+    private var appPage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle("Launch at login", isOn: Binding(
+                get: { model.launchAtLogin },
+                set: { value in
+                    guard value != model.launchAtLogin else { return }
+                    AppDelegate.shared.toggleLoginItem()
+                    model.refresh()
+                }
+            ))
+            Text("The menu-bar icon stays when this window is closed. To keep the Dock icon, right-click Show Bar in the Dock and choose Options → Keep in Dock.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Check for Updates…") {
+                AppUpdate.checkManually()
+            }
+            Button("Download page") {
+                NSWorkspace.shared.open(ShowBarSupport.downloadURL)
+            }
+            Divider()
+            Text("Remove Show Bar deletes the app. It goes to the Trash, and you install it again to get it back.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Remove Show Bar…", role: .destructive) {
+                AppDelegate.shared.removeApp()
+            }
+            .buttonStyle(.bordered)
         }
     }
 
