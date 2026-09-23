@@ -7,6 +7,8 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     static let shared = AppDelegate()
     private let defaultsKey = "ShowBar.enabled"
+    private let loginKey = "ShowBar.launchAtLogin"
+    private let dockTipKey = "ShowBar.explainedDock"
     private var statusItem: NSStatusItem!
     private var hover = HoverController()
     private var permissionsWindow: NSWindow?
@@ -35,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     static func main() {
         let app = NSApplication.shared
-        app.setActivationPolicy(.accessory)
+        app.setActivationPolicy(.regular)
         app.delegate = shared
         app.run()
     }
@@ -54,13 +56,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         menu.delegate = self
         statusItem.menu = menu
         DockAutohide.restore()
+        ClipboardShelf.shared.start()
         syncHover()
+        ensureLaunchAtLogin()
         if !PermissionsState.allGranted {
             showPermissions()
         }
+        recommendKeepingTheDockIcon()
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        WindowSnap.rememberFront()
+        ClipboardShelf.shared.rememberTarget()
         menu.removeAllItems()
         let toggle = NSMenuItem(
             title: enabled ? "Previews enabled" : "Previews disabled",
@@ -107,6 +118,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         preview.target = self
         menu.addItem(preview)
 
+        let snap = NSMenuItem(title: "Snap window", action: nil, keyEquivalent: "")
+        let snapMenu = NSMenu()
+        for zone in SnapZone.allCases {
+            let item = NSMenuItem(title: zone.title, action: #selector(snapFront(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = zone.rawValue
+            snapMenu.addItem(item)
+        }
+        snap.submenu = snapMenu
+        menu.addItem(snap)
+
+        let shot = NSMenuItem(title: "Screenshot", action: nil, keyEquivalent: "")
+        let shotMenu = NSMenu()
+        let whole = NSMenuItem(title: "Copy screen    ⌘⇧3", action: #selector(copyScreen), keyEquivalent: "")
+        whole.target = self
+        shotMenu.addItem(whole)
+        let area = NSMenuItem(title: "Copy selection    ⌘⇧4", action: #selector(copySelection), keyEquivalent: "")
+        area.target = self
+        shotMenu.addItem(area)
+        shot.submenu = shotMenu
+        menu.addItem(shot)
+
+        let clips = NSMenuItem(title: "Clipboard", action: nil, keyEquivalent: "")
+        let clipMenu = NSMenu()
+        let recent = Array(ClipboardShelf.shared.clips.prefix(8))
+        if recent.isEmpty {
+            let empty = NSMenuItem(title: "Nothing copied yet", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            clipMenu.addItem(empty)
+        } else {
+            for clip in recent {
+                let item = NSMenuItem(title: ClipboardShelf.shared.menuTitle(for: clip), action: #selector(pasteClip(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = clip.id.uuidString
+                clipMenu.addItem(item)
+            }
+        }
+        clipMenu.addItem(.separator())
+        let history = NSMenuItem(title: "Show history    ⌃⌥V", action: #selector(showClipboard), keyEquivalent: "")
+        history.target = self
+        clipMenu.addItem(history)
+        clips.submenu = clipMenu
+        menu.addItem(clips)
+
         let donate = NSMenuItem(title: "Donate", action: #selector(openDonate), keyEquivalent: "")
         donate.target = self
         menu.addItem(donate)
@@ -115,6 +170,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         login.target = self
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
+
+        let dockTip = NSMenuItem(title: "Keep the Dock icon…", action: #selector(explainDockIcon), keyEquivalent: "")
+        dockTip.target = self
+        menu.addItem(dockTip)
+
+        menu.addItem(.separator())
+        let remove = NSMenuItem(title: "Remove Show Bar…", action: #selector(removeApp), keyEquivalent: "")
+        remove.target = self
+        menu.addItem(remove)
 
         menu.addItem(.separator())
 
@@ -142,6 +206,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         }
     }
 
+    @objc private func snapFront(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let zone = SnapZone(rawValue: raw) else { return }
+        WindowSnap.apply(zone)
+    }
+
+    @objc private func copyScreen() {
+        ShotShelf.shared.captureScreen()
+    }
+
+    @objc private func copySelection() {
+        ShotShelf.shared.beginSelection()
+    }
+
+    @objc private func showClipboard() {
+        ClipboardShelf.shared.show()
+    }
+
+    @objc private func pasteClip(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        ClipboardShelf.shared.paste(id: id)
+    }
+
     @objc private func openDonate() {
         NSWorkspace.shared.open(ShowBarSupport.donateURL)
     }
@@ -162,19 +248,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     @objc fileprivate func toggleLoginItem() {
+        let turningOn = SMAppService.mainApp.status != .enabled
+        UserDefaults.standard.set(turningOn, forKey: loginKey)
+        applyLaunchAtLogin(turningOn, tellUser: true)
+    }
+
+    private func ensureLaunchAtLogin() {
+        let firstChoice = UserDefaults.standard.object(forKey: loginKey) == nil
+        if firstChoice {
+            UserDefaults.standard.set(true, forKey: loginKey)
+        }
+        applyLaunchAtLogin(UserDefaults.standard.bool(forKey: loginKey), tellUser: firstChoice)
+    }
+
+    private func applyLaunchAtLogin(_ enabled: Bool, tellUser: Bool) {
         let service = SMAppService.mainApp
         do {
-            if service.status == .enabled {
+            if enabled {
+                if service.status != .enabled {
+                    try service.register()
+                }
+            } else if service.status == .enabled {
                 try service.unregister()
-            } else {
-                try service.register()
             }
         } catch {
+            guard tellUser else { return }
             let alert = NSAlert()
             alert.messageText = "Show Bar could not set launch at login"
             alert.informativeText = error.localizedDescription
             alert.runModal()
         }
+    }
+
+    @objc private func explainDockIcon() {
+        let alert = NSAlert()
+        alert.messageText = "Keep Show Bar in the Dock"
+        alert.informativeText = "Right-click the Show Bar icon on the left side of the screen, then choose Options → Keep in Dock. The icon in the top menu bar stays even when this window is closed."
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private func recommendKeepingTheDockIcon() {
+        guard !UserDefaults.standard.bool(forKey: dockTipKey) else { return }
+        UserDefaults.standard.set(true, forKey: dockTipKey)
+        DispatchQueue.main.async { [weak self] in
+            self?.explainDockIcon()
+        }
+    }
+
+    @objc fileprivate func removeApp() {
+        let alert = NSAlert()
+        alert.messageText = "Remove Show Bar?"
+        alert.informativeText = "Show Bar will move to the Trash and will stop opening when the Mac starts."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Move to Trash")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        UserDefaults.standard.set(false, forKey: loginKey)
+        try? SMAppService.mainApp.unregister()
+        hover.stop()
+        WindowSwitcher.shared.stop()
+        do {
+            try FileManager.default.trashItem(at: Bundle.main.bundleURL, resultingItemURL: nil)
+        } catch {
+            let failed = NSAlert()
+            failed.messageText = "Show Bar could not move itself to the Trash"
+            failed.informativeText = error.localizedDescription
+            failed.runModal()
+            return
+        }
+        NSApp.terminate(nil)
     }
 
     @objc private func quit() {
@@ -307,22 +450,34 @@ enum ShowBarSupport {
     static let ownerEmail = "na0ryank0@gmail.com"
     static let downloadURL = URL(string: "https://github.com/rept0rix/show-bar/releases/latest")!
     static let linkedInURL = URL(string: "https://www.linkedin.com/in/naoryanko")!
+    /// Mac App Store page. Leave nil until the page exists; the rating button opens this.
+    static let storeURL: URL? = nil
+    static let ratePromptKey = "ShowBar.ratePromptSeen"
     // Replace these with your own pages before you publish.
     static let donateURL = URL(string: "https://www.buymeacoffee.com")!
     static let adURL = URL(string: "https://www.buymeacoffee.com")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2"
     }
 
     static let releases: [Release] = [
+        Release(version: "1.2", notes: [
+            "Show Bar is a macOS app. It brings Windows features to the Mac.",
+            "Clipboard history keeps text, links, and screenshots. Control-Option-V opens the list.",
+            "A screenshot copies to the clipboard and does not save a file. The preview stays until you press X.",
+            "Command-Tab shows real app windows.",
+            "Settings can ask for a store rating."
+        ]),
         Release(version: "1.1", notes: [
             "Previews open beside the Dock icon, and they open faster.",
             "Move a window to another desktop from its card.",
             "A white bar under the name marks the window under the pointer.",
             "Rest on a card for two seconds to peek that window. Click to switch, or leave to put it back.",
             "Command-Tab shows the windows, newest first, and stays on the screen.",
-            "Settings can move the Dock to the left, right, top, or bottom."
+            "Settings can move the Dock to the left, right, top, or bottom.",
+            "Show Bar opens when the Mac starts, stays in the menu bar when its window is closed, and can move itself to the Trash.",
+            "Control-Option and the arrows snap the front window to a half, a corner, or the whole screen."
         ]),
         Release(version: "1.0", notes: [
             "Hover a Dock icon to see that app's windows.",
@@ -366,6 +521,7 @@ struct PermissionsView: View {
     var onPreview: () -> String?
     var onDonate: () -> Void
     @State private var previewNote = ""
+    @State private var showRatePrompt = false
 
     var body: some View {
         ScrollView {
@@ -377,7 +533,7 @@ struct PermissionsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Show Bar")
                         .font(.title2.weight(.semibold))
-                    Text("Hover a Dock icon to see its windows, like Windows.")
+                    Text("A macOS app that brings Windows features to the Mac.")
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(readyText)
@@ -395,6 +551,16 @@ struct PermissionsView: View {
                     .foregroundStyle(.secondary)
                 Button("Naor Yanko on LinkedIn") {
                     NSWorkspace.shared.open(ShowBarSupport.linkedInURL)
+                }
+                Text("Rate")
+                    .font(.headline)
+                    .padding(.top, 4)
+                Text("A rating in the store helps other people find Show Bar.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Rate Show Bar…") {
+                    showRatePrompt = true
                 }
                 Text("Show Bar is not in the Mac App Store. The download is the GitHub release.")
                     .font(.caption)
@@ -430,6 +596,17 @@ struct PermissionsView: View {
                         model.refresh()
                     }
                 ))
+                Text("Show Bar opens when the Mac starts. The icon in the top menu bar stays even when this window is closed.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("To keep the icon on the left side of the screen, right-click Show Bar in the Dock and choose Options → Keep in Dock.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Remove Show Bar…") {
+                    AppDelegate.shared.removeApp()
+                }
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -450,6 +627,27 @@ struct PermissionsView: View {
                 }
                 .pickerStyle(.segmented)
                 Text("Moves the Dock itself to that edge. Previews follow it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Clipboard")
+                    .font(.headline)
+                Text("Show Bar keeps what you copy: text, links, and screenshots. Control-Option-V opens the list. A click pastes it back. Copies marked as hidden passwords are skipped.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Open clipboard history") {
+                    ClipboardShelf.shared.show()
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Snap windows")
+                    .font(.headline)
+                Text("Hold Control and Option, then press an arrow. Left and right take half the screen. U, I, J, and K take the corners. Return fills the screen. The same shortcut again puts the window back.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -564,6 +762,21 @@ struct PermissionsView: View {
         .padding(24)
         .frame(width: 480)
         }
+        .sheet(isPresented: $showRatePrompt, onDismiss: markRatePromptSeen) {
+            RatePrompt()
+        }
+        .onAppear(perform: presentRatePromptIfNeeded)
+    }
+
+    private func presentRatePromptIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: ShowBarSupport.ratePromptKey) else { return }
+        DispatchQueue.main.async {
+            showRatePrompt = true
+        }
+    }
+
+    private func markRatePromptSeen() {
+        UserDefaults.standard.set(true, forKey: ShowBarSupport.ratePromptKey)
     }
 
     private var readyText: String {
@@ -599,5 +812,55 @@ struct PermissionsView: View {
         }
         .padding(12)
         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+private struct RatePrompt: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var stars = 0
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 64, height: 64)
+            Text("Rate Show Bar")
+                .font(.title2.weight(.semibold))
+            Text("If Show Bar is useful, a rating in the store helps other people find it.")
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 6) {
+                ForEach(1...5, id: \.self) { value in
+                    Button {
+                        stars = value
+                    } label: {
+                        Image(systemName: value <= stars ? "star.fill" : "star")
+                            .font(.system(size: 28))
+                            .foregroundStyle(Color.yellow)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(value) stars")
+                }
+            }
+            HStack(spacing: 10) {
+                Button("Not now", action: { dismiss() })
+                Button("Rate in the App Store") {
+                    if let url = ShowBarSupport.storeURL {
+                        NSWorkspace.shared.open(url)
+                    }
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(ShowBarSupport.storeURL == nil)
+            }
+            if ShowBarSupport.storeURL == nil {
+                Text("The store link will go on this button.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(24)
+        .frame(width: 360)
     }
 }

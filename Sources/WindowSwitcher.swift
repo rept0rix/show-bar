@@ -144,7 +144,7 @@ final class WindowSwitcher {
         if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
     }
 
-    fileprivate func isVisible() -> Bool {
+    func isVisible() -> Bool {
         lock.lock()
         defer { lock.unlock() }
         return visible
@@ -305,6 +305,7 @@ final class WindowSwitcher {
             cardView.addSubview(name)
             cardView.addSubview(title)
             cardView.addSubview(bar)
+            grid.addSubview(cardView)
             NSLayoutConstraint.activate([
                 cardView.leadingAnchor.constraint(equalTo: grid.leadingAnchor, constant: CGFloat(column) * (thumbW + gap)),
                 cardView.topAnchor.constraint(equalTo: grid.topAnchor, constant: CGFloat(row) * (cardH + gap)),
@@ -331,7 +332,6 @@ final class WindowSwitcher {
                 bar.heightAnchor.constraint(equalToConstant: 2),
                 bar.bottomAnchor.constraint(equalTo: cardView.bottomAnchor),
             ])
-            grid.addSubview(cardView)
             thumbs.append(image)
             titleFields.append(title)
             bars.append(bar)
@@ -476,6 +476,21 @@ private func switcherKeyCallback(
     }
     guard type == .keyDown else { return Unmanaged.passUnretained(event) }
     let key = event.getIntegerValueField(.keyboardEventKeycode)
+    let control = event.flags.contains(.maskControl)
+    let option = event.flags.contains(.maskAlternate)
+    let shift = event.flags.contains(.maskShift)
+    let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+    if ShotShelf.shared.consume(key: key, command: command, shift: shift, option: option, isRepeat: isRepeat) {
+        return nil
+    }
+    if control, option, !command, !shift, key == 9, !isRepeat, !WindowSwitcher.shared.isVisible() {
+        DispatchQueue.main.async { ClipboardShelf.shared.show() }
+        return nil
+    }
+    if control, option, !command, !WindowSwitcher.shared.isVisible(), let zone = SnapZone.from(keycode: key) {
+        DispatchQueue.main.async { WindowSnap.apply(zone) }
+        return nil
+    }
     let extra = event.flags.contains(.maskControl) || event.flags.contains(.maskAlternate)
     if WindowSwitcher.shared.isVisible() {
         let direction: ArrowDirection?

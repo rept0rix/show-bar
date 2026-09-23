@@ -69,8 +69,7 @@ enum WindowCatalog {
     }
 
     static func switcherCards() -> [WindowCard] {
-        let windows = listWindows()
-        var cards = windows.map { window in
+        listWindows().filter(belongsInSwitcher).map { window in
             WindowCard(
                 id: window.id,
                 pid: window.pid,
@@ -78,20 +77,20 @@ enum WindowCatalog {
                 frame: window.frame
             )
         }
-        var seen = Set(cards.map(\.pid))
-        let running = NSWorkspace.shared.runningApplications.filter {
-            $0.activationPolicy == .regular && $0.processIdentifier != getpid()
-        }
-        for app in running where !seen.contains(app.processIdentifier) {
-            cards.append(WindowCard(
-                id: switcherAppID(app.processIdentifier),
-                pid: app.processIdentifier,
-                title: app.localizedName ?? "Application",
-                frame: .zero
-            ))
-            seen.insert(app.processIdentifier)
-        }
-        return cards
+    }
+
+    /// Command-Tab is for switching to a real window. Password panels, Quick Look, and apps with no window on screen are not.
+    private static func belongsInSwitcher(_ window: ListedWindow) -> Bool {
+        guard window.onScreen, window.frame.width >= 220, window.frame.height >= 140 else { return false }
+        let owner = window.ownerName.lowercased()
+        let blocked = [
+            "autofill", "quicklook", "loginwindow", "window server", "systemuiserver",
+            "control center", "notification center", "spotlight", "universal control",
+            "wallpaper", "textinput", "dock"
+        ]
+        if blocked.contains(where: { owner.contains($0) }) { return false }
+        guard let app = NSRunningApplication(processIdentifier: window.pid) else { return false }
+        return app.activationPolicy == .regular
     }
 
     private static func switcherTitle(_ window: ListedWindow) -> String {
@@ -100,10 +99,6 @@ enum WindowCatalog {
             return window.ownerName.isEmpty ? "Application" : window.ownerName
         }
         return title
-    }
-
-    private static func switcherAppID(_ pid: pid_t) -> CGWindowID {
-        CGWindowID(0xF000_0000) | CGWindowID(UInt32(truncatingIfNeeded: pid))
     }
 
     static func refresh(
