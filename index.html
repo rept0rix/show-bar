@@ -35,8 +35,23 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
+    header .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: inherit;
+      text-decoration: none;
+      border-bottom: none;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    header .brand img {
+      width: 36px;
+      height: 36px;
+      display: block;
+    }
     header nav { display: flex; gap: 18px; }
-    header a { text-decoration: none; border-bottom: 1px solid var(--ink); }
+    header nav a { text-decoration: none; border-bottom: 1px solid var(--ink); }
     .hero {
       display: grid;
       grid-template-columns: 1.15fr 0.85fr;
@@ -143,7 +158,10 @@
 <body>
   <div class="wrap">
     <header>
-      <span>Show Bar</span>
+      <a class="brand" href="./">
+        <img src="logo.png" alt="">
+        <span>Show Bar</span>
+      </a>
       <nav>
         <a href="#features">Features</a>
         <a href="https://github.com/rept0rix/show-bar">GitHub</a>
