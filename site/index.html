@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Show Bar — Windows features on your Mac</title>
+  <title>Show Bar — The Windows-style Command-Tab for Mac</title>
   <link rel="icon" href="logo.png" type="image/png">
   <link rel="apple-touch-icon" href="logo.png">
-  <meta name="description" content="Show Bar is a macOS app. It brings Windows capabilities to the Mac: Dock window previews, Command-Tab windows, snap, clipboard history, and screenshots that copy.">
-  <meta property="og:title" content="Show Bar — Windows features on your Mac">
-  <meta property="og:description" content="Show Bar is a macOS app. It brings Windows capabilities to the Mac: Dock window previews, Command-Tab windows, snap, clipboard history, and screenshots that copy.">
+  <meta name="description" content="Your Mac is missing Windows features. Show Bar is a real Command-Tab, plus window previews, snapping, clipboard history, and screenshots that copy.">
+  <meta property="og:title" content="Show Bar — The Windows-style Command-Tab for Mac">
+  <meta property="og:description" content="Your Mac is missing Windows features. A real Command-Tab, window previews, snapping, clipboard history, and better screenshots.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://rept0rix.github.io/show-bar/">
   <meta property="og:image" content="https://rept0rix.github.io/show-bar/og.png?v=2">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Show Bar opens an app’s windows when you hover its Dock icon.">
+  <meta property="og:image:alt" content="Show Bar Command-Tab shows the windows themselves, not just the app icons.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Show Bar — Windows features on your Mac">
-  <meta name="twitter:description" content="A macOS app that brings Windows features to the Mac.">
+  <meta name="twitter:title" content="Show Bar — The Windows-style Command-Tab for Mac">
+  <meta name="twitter:description" content="Your Mac is missing Windows features. A real Command-Tab, plus four more.">
   <meta name="twitter:image" content="https://rept0rix.github.io/show-bar/og.png?v=2">
   <style>
     :root {
@@ -93,8 +93,16 @@
       font-size: 22px;
       line-height: 1.45;
       max-width: 36rem;
-      margin: 0 0 28px;
+      margin: 0 0 16px;
     }
+    .misses {
+      margin: 0 0 28px;
+      padding: 0;
+      list-style: none;
+      font-size: 18px;
+      line-height: 1.55;
+    }
+    .misses li { margin: 0; }
     .actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; }
     .actions .note { flex-basis: 100%; }
     .download, .coffee {
@@ -164,6 +172,74 @@
     .groups ul { margin: 0 0 18px; padding-left: 18px; color: var(--muted); line-height: 1.5; }
     .groups li { margin: 6px 0; }
     footer { margin-top: 40px; font-size: 13px; color: var(--muted); }
+    .hero .kicker,
+    .hero h1,
+    .hero .lede,
+    .misses li,
+    .actions,
+    .mark {
+      animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    }
+    .hero h1 { animation-delay: 0.08s; }
+    .hero .lede { animation-delay: 0.16s; }
+    .misses li:nth-child(1) { animation-delay: 0.24s; }
+    .misses li:nth-child(2) { animation-delay: 0.32s; }
+    .misses li:nth-child(3) { animation-delay: 0.4s; }
+    .misses li:nth-child(4) { animation-delay: 0.48s; }
+    .misses li:nth-child(5) { animation-delay: 0.56s; }
+    .actions { animation-delay: 0.64s; }
+    .mark { animation-delay: 0.2s; }
+    .misses li {
+      padding-left: 16px;
+      position: relative;
+    }
+    .misses li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.55em;
+      width: 7px;
+      height: 7px;
+      border-radius: 2px;
+      background: var(--blush);
+      opacity: 0.28;
+      transform: scale(0.7);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    .misses li.on::before {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .mark, .shot {
+      transition: transform 0.35s ease, box-shadow 0.35s ease;
+    }
+    .mark:hover, .shot:hover {
+      animation: none;
+      transform: translate(-4px, -4px);
+      box-shadow: 16px 16px 0 var(--blush);
+    }
+    .reveal {
+      opacity: 0;
+      transform: translateY(22px);
+    }
+    .reveal.in {
+      opacity: 1;
+      transform: none;
+      transition: opacity 0.65s ease, transform 0.65s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero .kicker, .hero h1, .hero .lede, .misses li, .actions, .mark,
+      .reveal {
+        animation: none;
+        opacity: 1;
+        transform: none;
+      }
+      .mark, .shot { transition: none; }
+    }
     @media (max-width: 800px) {
       .hero, .feature, .feature.reverse, .groups { grid-template-columns: 1fr; }
       .feature.reverse .copy { order: 0; }
@@ -192,25 +268,48 @@
 
     <section class="hero">
       <div>
-        <p class="kicker">For macOS</p>
-        <h1>Windows features<br>on your Mac.</h1>
-        <p class="lede">Show Bar is a macOS app. It brings the Windows taskbar, window switching, snap, clipboard history, and copy-only screenshots to the Mac.</p>
+        <p class="kicker">The Windows-style Command-Tab for Mac</p>
+        <h1>Your Mac is missing<br>Windows features.</h1>
+        <p class="lede">Bring the best Windows workflows to macOS.</p>
+        <ul class="misses">
+          <li>Window previews.</li>
+          <li>A real Command-Tab.</li>
+          <li>Window snapping.</li>
+          <li>Clipboard history.</li>
+          <li>Better screenshots.</li>
+        </ul>
         <div class="actions">
           <!-- showbar:download -->
-          <a class="download" href="https://github.com/rept0rix/show-bar/releases/download/v1.4.0/Show-Bar-1.4.dmg">Install for Mac</a>
+          <a class="download" href="https://github.com/rept0rix/show-bar/releases/download/v1.4.0/Show-Bar-1.4.dmg">Download Free</a>
           <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="na0ryank0r" data-color="#FFDD00" data-emoji="" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
           <p class="note">Version 1.4. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>
 <!-- /showbar:download -->
         </div>
       </div>
       <div class="mark">
-        <img src="hero.png" alt="Hovering the Dock opens Mail, Safari, and Music. The Safari window under the pointer is marked.">
-        <p>Hover a Dock icon. Its windows open.</p>
+        <img src="demo-switcher.png" alt="Command-Tab shows six windows in a grid: Safari, Notes, Music, Calendar, Messages, and Code. Safari is selected.">
+        <p>Command-Tab shows the windows. Release ⌘ to switch.</p>
       </div>
     </section>
 
     <section id="features">
       <article class="feature stack">
+        <div class="copy">
+          <p class="kicker">A real Command-Tab</p>
+          <h2>The windows, not just the icons.</h2>
+          <p class="why">Mac Command-Tab shows apps. Show Bar shows the windows themselves, newest first. The other four Windows habits sit behind this one.</p>
+          <ul>
+            <li>Arrow keys move through the grid. Release Command to switch.</li>
+            <li>Every card stays on the screen.</li>
+            <li>Real app windows only. Password panels and system windows stay out.</li>
+          </ul>
+        </div>
+        <figure class="shot">
+          <img src="demo-switcher.png" alt="Command-Tab shows six windows in a grid: Safari, Notes, Music, Calendar, Messages, and Code. Safari is selected.">
+        </figure>
+      </article>
+
+      <article class="feature">
         <div class="copy">
           <p class="kicker">The Windows taskbar</p>
           <h2>Hover the Dock. See the windows.</h2>
@@ -230,22 +329,6 @@
       </article>
 
       <article class="feature reverse">
-        <figure class="shot">
-          <img src="demo-switcher.png" alt="Command-Tab shows six windows in a grid: Safari, Notes, Music, Calendar, Messages, and Code. Safari is selected.">
-        </figure>
-        <div class="copy">
-          <p class="kicker">Command-Tab</p>
-          <h2>The windows, not just the icons.</h2>
-          <p class="why">Mac Command-Tab shows apps. Show Bar shows the windows themselves, newest first.</p>
-          <ul>
-            <li>Arrow keys move through the grid. Release Command to switch.</li>
-            <li>Every card stays on the screen.</li>
-            <li>Real app windows only. Password panels and system windows stay out.</li>
-          </ul>
-        </div>
-      </article>
-
-      <article class="feature">
         <div class="copy">
           <p class="kicker">Snap</p>
           <h2>Put the window where it belongs.</h2>
@@ -262,10 +345,7 @@
         </figure>
       </article>
 
-      <article class="feature reverse">
-        <figure class="shot">
-          <img src="demo-clipboard.png" alt="A Clipboard window with search, a link, meeting notes, an image, and a screenshot. The caption says Control-Option V.">
-        </figure>
+      <article class="feature">
         <div class="copy">
           <p class="kicker">Clipboard</p>
           <h2>Keep what you copy.</h2>
@@ -276,28 +356,31 @@
             <li>Up to 100 items, still there after Show Bar quits.</li>
           </ul>
         </div>
+        <figure class="shot">
+          <img src="demo-clipboard.png" alt="A Clipboard window with search, a link, meeting notes, an image, and a screenshot. The caption says Control-Option V.">
+        </figure>
       </article>
 
-      <article class="feature">
+      <article class="feature reverse">
+        <figure class="shot">
+          <img src="demo-shot.png" alt="A small screenshot card in the bottom-right corner labeled Copied, with an X to close it.">
+        </figure>
         <div class="copy">
           <p class="kicker">Screenshots</p>
           <h2>Copy the picture. Skip the file.</h2>
-          <p class="why">A screenshot goes straight to the clipboard. Nothing is saved to the Desktop. The preview stays in the bottom corner until you press X.</p>
+          <p class="why">A screenshot goes straight to the clipboard. The preview stays in the bottom corner. Save writes it to the Desktop. X closes it.</p>
           <ul>
             <li>Command-Shift-3 copies the screen under the pointer.</li>
             <li>Command-Shift-4: drag a region, or press Space and click a window.</li>
             <li>Drag the preview into a chat, or paste with Command-V.</li>
           </ul>
         </div>
-        <figure class="shot">
-          <img src="demo-shot.png" alt="A small screenshot card in the bottom-right corner labeled Copied, with an X to close it.">
-        </figure>
       </article>
     </section>
 
     <section class="catalog">
-      <h2>Everything in Show Bar</h2>
-      <p>Show Bar runs on macOS. These are the Windows habits it adds, and the Mac details around them.</p>
+      <h2>Command-Tab, plus four more</h2>
+      <p>Show Bar runs on macOS. Command-Tab is the one people come for. These are the other Windows habits, and the Mac details around them.</p>
       <div class="groups">
         <article>
           <h3>Windows, on the Dock</h3>
@@ -327,7 +410,7 @@
             <li>Clipboard history for text, links, and pictures.</li>
             <li>Control-Option-V opens it. Search, then click to paste.</li>
             <li>Hidden passwords are not kept.</li>
-            <li>Screenshots copy and do not save a file.</li>
+            <li>Screenshots copy. Save on the preview writes the file to the Desktop.</li>
             <li>The preview stays in the corner until its X.</li>
           </ul>
         </article>
@@ -350,5 +433,35 @@
 
     <footer>© 2026 Naor Yanko · Show Bar for macOS</footer>
   </div>
+  <script>
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const items = document.querySelectorAll(".misses li");
+    if (!reduce && items.length) {
+      let current = 0;
+      const mark = () => {
+        items.forEach((item, index) => item.classList.toggle("on", index === current));
+        current = (current + 1) % items.length;
+      };
+      mark();
+      setInterval(mark, 1400);
+    }
+    const blocks = document.querySelectorAll(".feature, .catalog h2, .catalog > p, .groups article");
+    if (reduce || !("IntersectionObserver" in window)) {
+      blocks.forEach((block) => block.classList.add("in"));
+    } else {
+      const seen = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("in");
+          seen.unobserve(entry.target);
+        });
+      }, { threshold: 0.18 });
+      blocks.forEach((block, index) => {
+        block.classList.add("reveal");
+        block.style.transitionDelay = (index % 2) * 90 + "ms";
+        seen.observe(block);
+      });
+    }
+  </script>
 </body>
 </html>
