@@ -53,6 +53,18 @@ enum WindowSnap {
         lastOtherPID = pid
     }
 
+    /// Each press sticks the window to the other half: left, then right, then left.
+    static func cycleHalf(pid: pid_t, id: CGWindowID, frame: CGRect) {
+        guard AXIsProcessTrusted(), pid > 0, pid != getpid() else { return }
+        NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+        guard let window = window(pid: pid, id: id) ?? window(pid: pid, frame: frame) else { return }
+        AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+        guard let current = AXValueReader.rect(window) else { return }
+        let screen = screen(forAXRect: current)
+        let left = Coordinates.flip(SnapZone.left.frame(inside: screen.visibleFrame))
+        apply(close(current, left) ? .right : .left, window: window, current: current, screen: screen)
+    }
+
     static func apply(_ zone: SnapZone) {
         guard AXIsProcessTrusted() else { return }
         let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
@@ -60,9 +72,12 @@ enum WindowSnap {
         guard let pid, pid != getpid() else { return }
         guard let window = focusedWindow(pid: pid) else { return }
         guard let current = AXValueReader.rect(window) else { return }
-        let screen = screen(forAXRect: current)
+        apply(zone, window: window, current: current, screen: screen(forAXRect: current))
+    }
+
+    private static func apply(_ zone: SnapZone, window: AXUIElement, current: CGRect, screen: NSScreen) {
         let target = Coordinates.flip(zone.frame(inside: screen.visibleFrame))
-        let key = windowID(window) ?? CGWindowID(pid)
+        let key = windowID(window) ?? 0
 
         if let saved = memory[key], saved.zone == zone, close(current, target) {
             place(window, saved.original)
@@ -75,6 +90,36 @@ enum WindowSnap {
             memory[key]?.zone = zone
         }
         place(window, target)
+    }
+
+    private static func window(pid: pid_t, id: CGWindowID) -> AXUIElement? {
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, 0.25)
+        return AXValueReader.elements(app, kAXWindowsAttribute as String).first { windowID($0) == id }
+    }
+
+    /// The window id from the window list does not always match Accessibility. The frame does.
+    private static func window(pid: pid_t, frame: CGRect) -> AXUIElement? {
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, 0.25)
+        let flipped = Coordinates.flip(frame)
+        let windows = AXValueReader.elements(app, kAXWindowsAttribute as String)
+        var best: (AXUIElement, CGFloat)?
+        for element in windows {
+            guard let rect = AXValueReader.rect(element) else { continue }
+            let score = max(areaOverlap(rect, frame), areaOverlap(rect, flipped))
+            if best == nil || score > best!.1 { best = (element, score) }
+        }
+        if let best, best.1 > 0.35 { return best.0 }
+        return windows.first
+    }
+
+    private static func areaOverlap(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat {
+        let hit = lhs.intersection(rhs)
+        guard !hit.isNull, hit.width > 0, hit.height > 0 else { return 0 }
+        let smaller = min(lhs.width * lhs.height, rhs.width * rhs.height)
+        guard smaller > 1 else { return 0 }
+        return (hit.width * hit.height) / smaller
     }
 
     private static func focusedWindow(pid: pid_t) -> AXUIElement? {

@@ -85,7 +85,7 @@ enum PreviewMetrics {
 }
 
 enum PreviewClickPart {
-    case close, minimize, quit, desktop, body
+    case close, minimize, quit, desktop, snap, shot, body
 }
 
 struct PreviewClickBox {
@@ -95,11 +95,15 @@ struct PreviewClickBox {
     let minimize: NSRect
     let quit: NSRect
     let desktop: NSRect
+    let snap: NSRect
+    let shot: NSRect
 
     func part(at point: NSPoint) -> PreviewClickPart? {
         guard bounds.contains(point) else { return nil }
-        if close.insetBy(dx: -8, dy: -8).contains(point) { return .close }
-        if minimize.insetBy(dx: -8, dy: -8).contains(point) { return .minimize }
+        if snap.insetBy(dx: -4, dy: -4).contains(point) { return .snap }
+        if shot.insetBy(dx: -4, dy: -4).contains(point) { return .shot }
+        if close.insetBy(dx: -4, dy: -4).contains(point) { return .close }
+        if minimize.insetBy(dx: -4, dy: -4).contains(point) { return .minimize }
         if quit.insetBy(dx: -6, dy: -6).contains(point) { return .quit }
         if desktop.insetBy(dx: -6, dy: -6).contains(point) { return .desktop }
         return .body
@@ -112,6 +116,8 @@ final class PreviewPanel {
     var onMinimize: ((WindowCard) -> Void)?
     var onQuit: ((WindowCard) -> Void)?
     var onMove: ((WindowCard, UInt64) -> Void)?
+    var onSnap: ((WindowCard) -> Void)?
+    var onShot: ((WindowCard) -> Void)?
     private var menuHold = false
 
     private(set) var isShown = false
@@ -414,6 +420,8 @@ final class PreviewPanel {
             view.onMinimize = { [weak self] in self?.onMinimize?(card) }
             view.onQuit = { [weak self] in self?.onQuit?(card) }
             view.onMove = { [weak self] space in self?.onMove?(card, space) }
+            view.onSnap = { [weak self] in self?.onSnap?(card) }
+            view.onShot = { [weak self] in self?.onShot?(card) }
             view.onHold = { [weak self] hold in self?.holdOpen(hold) }
             row?.addArrangedSubview(view)
             cardViews[card.id] = view
@@ -514,6 +522,8 @@ final class PreviewCardView: NSView {
     var onMinimize: (() -> Void)?
     var onQuit: (() -> Void)?
     var onMove: ((UInt64) -> Void)?
+    var onSnap: (() -> Void)?
+    var onShot: (() -> Void)?
     var onHold: ((Bool) -> Void)?
 
     private let imageView = NSImageView()
@@ -525,6 +535,8 @@ final class PreviewCardView: NSView {
     private let minimizeButton = NSButton()
     private let quitButton = NSButton()
     private let desktopButton = NSButton()
+    private let snapButton = NSButton()
+    private let shotButton = NSButton()
     private let windowID: CGWindowID
 
     init(card: WindowCard, icon: NSImage?, thumb: CGSize) {
@@ -538,6 +550,10 @@ final class PreviewCardView: NSView {
 
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.imageAlignment = .alignCenter
+        imageView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        imageView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        imageView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        imageView.setContentHuggingPriority(.defaultLow, for: .vertical)
         imageView.wantsLayer = true
         imageView.layer?.cornerRadius = 8
         imageView.layer?.masksToBounds = true
@@ -623,8 +639,35 @@ final class PreviewCardView: NSView {
         desktopButton.translatesAutoresizingMaskIntoConstraints = false
         imageView.addSubview(desktopButton)
 
+        snapButton.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Snap left or right")?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .bold))
+        snapButton.isBordered = false
+        snapButton.bezelStyle = .circular
+        snapButton.contentTintColor = .white
+        snapButton.wantsLayer = true
+        snapButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.62).cgColor
+        snapButton.layer?.cornerRadius = 13
+        snapButton.target = self
+        snapButton.action = #selector(snapPressed)
+        snapButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(snapButton)
+
+        shotButton.image = NSImage(systemSymbolName: "camera", accessibilityDescription: "Copy this window")?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .bold))
+        shotButton.isBordered = false
+        shotButton.bezelStyle = .circular
+        shotButton.contentTintColor = .white
+        shotButton.wantsLayer = true
+        shotButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.62).cgColor
+        shotButton.layer?.cornerRadius = 13
+        shotButton.target = self
+        shotButton.action = #selector(shotPressed)
+        shotButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(shotButton)
+
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: thumb.width),
+            heightAnchor.constraint(equalToConstant: thumb.height + titleBlock),
             imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
             imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
             imageView.topAnchor.constraint(equalTo: topAnchor),
@@ -650,6 +693,14 @@ final class PreviewCardView: NSView {
             minimizeButton.leadingAnchor.constraint(equalTo: imageView.leadingAnchor, constant: 6),
             minimizeButton.widthAnchor.constraint(equalToConstant: 18),
             minimizeButton.heightAnchor.constraint(equalToConstant: 18),
+            snapButton.topAnchor.constraint(equalTo: imageView.topAnchor, constant: 6),
+            snapButton.leadingAnchor.constraint(equalTo: minimizeButton.trailingAnchor, constant: 8),
+            snapButton.widthAnchor.constraint(equalToConstant: 26),
+            snapButton.heightAnchor.constraint(equalToConstant: 26),
+            shotButton.topAnchor.constraint(equalTo: imageView.topAnchor, constant: 6),
+            shotButton.leadingAnchor.constraint(equalTo: snapButton.trailingAnchor, constant: 8),
+            shotButton.widthAnchor.constraint(equalToConstant: 26),
+            shotButton.heightAnchor.constraint(equalToConstant: 26),
             quitButton.trailingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: -6),
             quitButton.bottomAnchor.constraint(equalTo: imageView.bottomAnchor, constant: -6),
             quitButton.heightAnchor.constraint(equalToConstant: 16),
@@ -720,7 +771,9 @@ final class PreviewCardView: NSView {
             close: frameOf(closeButton),
             minimize: frameOf(minimizeButton),
             quit: frameOf(quitButton),
-            desktop: frameOf(desktopButton)
+            desktop: frameOf(desktopButton),
+            snap: frameOf(snapButton),
+            shot: frameOf(shotButton)
         )
     }
 
@@ -731,6 +784,8 @@ final class PreviewCardView: NSView {
             case .minimize: self.onMinimize?()
             case .quit: self.onQuit?()
             case .desktop: self.desktopPressed()
+            case .snap: self.onSnap?()
+            case .shot: self.onShot?()
             case .body: self.onSelect?()
             }
         }
@@ -740,10 +795,12 @@ final class PreviewCardView: NSView {
     func performAction(at local: NSPoint) -> Bool {
         guard bounds.contains(local) else { return false }
         return runAction {
-            if self.hits(self.closeButton, local: local) { self.onClose?() }
-            else if self.hits(self.minimizeButton, local: local) { self.onMinimize?() }
-            else if self.hits(self.quitButton, local: local) { self.onQuit?() }
-            else if self.hits(self.desktopButton, local: local) { self.desktopPressed() }
+            if self.hits(self.snapButton, local: local, pad: 4) { self.onSnap?() }
+            else if self.hits(self.shotButton, local: local, pad: 4) { self.onShot?() }
+            else if self.hits(self.closeButton, local: local, pad: 4) { self.onClose?() }
+            else if self.hits(self.minimizeButton, local: local, pad: 4) { self.onMinimize?() }
+            else if self.hits(self.quitButton, local: local, pad: 6) { self.onQuit?() }
+            else if self.hits(self.desktopButton, local: local, pad: 6) { self.desktopPressed() }
             else { self.onSelect?() }
         }
     }
@@ -752,8 +809,10 @@ final class PreviewCardView: NSView {
     func performAction(atScreen point: NSPoint, frameOf: (NSView) -> NSRect) -> Bool {
         guard frameOf(self).contains(point) else { return false }
         return runAction {
-            if frameOf(self.closeButton).insetBy(dx: -8, dy: -8).contains(point) { self.onClose?() }
-            else if frameOf(self.minimizeButton).insetBy(dx: -8, dy: -8).contains(point) { self.onMinimize?() }
+            if frameOf(self.snapButton).insetBy(dx: -4, dy: -4).contains(point) { self.onSnap?() }
+            else if frameOf(self.shotButton).insetBy(dx: -4, dy: -4).contains(point) { self.onShot?() }
+            else if frameOf(self.closeButton).insetBy(dx: -4, dy: -4).contains(point) { self.onClose?() }
+            else if frameOf(self.minimizeButton).insetBy(dx: -4, dy: -4).contains(point) { self.onMinimize?() }
             else if frameOf(self.quitButton).insetBy(dx: -6, dy: -6).contains(point) { self.onQuit?() }
             else if frameOf(self.desktopButton).insetBy(dx: -6, dy: -6).contains(point) { self.desktopPressed() }
             else { self.onSelect?() }
@@ -768,8 +827,8 @@ final class PreviewCardView: NSView {
         return true
     }
 
-    private func hits(_ button: NSView, local: NSPoint) -> Bool {
-        button.bounds.insetBy(dx: -8, dy: -8).contains(button.convert(local, from: self))
+    private func hits(_ button: NSView, local: NSPoint, pad: CGFloat) -> Bool {
+        button.bounds.insetBy(dx: -pad, dy: -pad).contains(button.convert(local, from: self))
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -783,6 +842,14 @@ final class PreviewCardView: NSView {
 
     @objc private func minimizePressed() {
         onMinimize?()
+    }
+
+    @objc private func snapPressed() {
+        onSnap?()
+    }
+
+    @objc private func shotPressed() {
+        onShot?()
     }
 
     @objc private func quitPressed() {

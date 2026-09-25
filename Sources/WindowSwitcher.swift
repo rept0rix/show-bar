@@ -27,6 +27,7 @@ final class WindowSwitcher {
     private var titleFields: [NSTextField] = []
     private var bars: [NSView] = []
     private var index = 0
+    private var moved = false
     private var columns = 1
     private var captureTask: Task<Void, Never>?
     private let lock = NSLock()
@@ -90,7 +91,8 @@ final class WindowSwitcher {
         }
     }
 
-    /// Most recently used app first. Within an app, windows stay front to back.
+    /// Most recently used app first. The first window in the system list is not "recent":
+    /// that list often starts with a window that stays above the others, such as Spotify.
     private func remember(_ pid: pid_t) {
         guard pid > 0, pid != getpid() else { return }
         recentPIDs.removeAll { $0 == pid }
@@ -98,7 +100,7 @@ final class WindowSwitcher {
     }
 
     private func orderedByRecency(_ cards: [WindowCard]) -> [WindowCard] {
-        if let front = cards.first?.pid {
+        if let front = NSWorkspace.shared.frontmostApplication?.processIdentifier {
             remember(front)
         }
         for card in cards where !recentPIDs.contains(card.pid) {
@@ -109,6 +111,9 @@ final class WindowSwitcher {
             rank[pid] = offset
         }
         return cards.enumerated().sorted { lhs, rhs in
+            if lhs.element.isCurrent != rhs.element.isCurrent {
+                return lhs.element.isCurrent && !rhs.element.isCurrent
+            }
             let left = rank[lhs.element.pid] ?? Int.max
             let right = rank[rhs.element.pid] ?? Int.max
             if left != right { return left < right }
@@ -207,6 +212,7 @@ final class WindowSwitcher {
             return
         }
         guard !cards.isEmpty else { return }
+        moved = true
         index = backward
             ? (index - 1 + cards.count) % cards.count
             : (index + 1) % cards.count
@@ -215,6 +221,7 @@ final class WindowSwitcher {
 
     fileprivate func move(_ direction: ArrowDirection) {
         guard isVisible(), !cards.isEmpty else { return }
+        moved = true
         let span = max(columns, 1)
         switch direction {
         case .left:
@@ -243,8 +250,10 @@ final class WindowSwitcher {
             return
         }
         let card = cards[index]
+        let shouldSwitch = moved || !card.isCurrent
         hide()
-        WindowCatalog.endReveal(committing: card)
+        WindowCatalog.endReveal(committing: shouldSwitch ? card : nil)
+        guard shouldSwitch else { return }
         WindowCatalog.focus(card)
     }
 
@@ -252,12 +261,13 @@ final class WindowSwitcher {
         hide()
     }
 
-    private func show(backward: Bool) {
+    private func show(backward _: Bool) {
         let next = orderedByRecency(WindowCatalog.switcherCards())
         guard !next.isEmpty else { return }
         onWillShow?()
         cards = next
-        index = next.count == 1 ? 0 : (backward ? next.count - 1 : 1)
+        index = next.firstIndex(where: \.isCurrent) ?? 0
+        moved = false
         rebuild()
         place()
         lock.lock()
@@ -304,6 +314,7 @@ final class WindowSwitcher {
             let cardView = SwitcherCard()
             cardView.translatesAutoresizingMaskIntoConstraints = false
             cardView.onClick = { [weak self] in
+                self?.moved = true
                 self?.index = offset
                 self?.commit()
             }
@@ -314,11 +325,37 @@ final class WindowSwitcher {
             let placeholder = (app?.icon ?? NSWorkspace.shared.icon(for: .application))
             placeholder.size = NSSize(width: 72, height: 72)
             image.image = placeholder
+            image.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            image.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+            image.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            image.setContentHuggingPriority(.defaultLow, for: .vertical)
             image.wantsLayer = true
             image.layer?.cornerRadius = 8
             image.layer?.masksToBounds = true
             image.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.45).cgColor
             image.translatesAutoresizingMaskIntoConstraints = false
+
+            if !card.isCurrent {
+                let badge = NSTextField(labelWithString: card.desktopIndex > 0 ? "Desktop \(card.desktopIndex)" : "Other desktop")
+                badge.font = .systemFont(ofSize: 10, weight: .bold)
+                badge.textColor = .white
+                badge.translatesAutoresizingMaskIntoConstraints = false
+                let pill = NSView()
+                pill.wantsLayer = true
+                pill.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
+                pill.layer?.cornerRadius = 7
+                pill.translatesAutoresizingMaskIntoConstraints = false
+                image.addSubview(pill)
+                pill.addSubview(badge)
+                NSLayoutConstraint.activate([
+                    pill.leadingAnchor.constraint(equalTo: image.leadingAnchor, constant: 6),
+                    pill.topAnchor.constraint(equalTo: image.topAnchor, constant: 6),
+                    badge.leadingAnchor.constraint(equalTo: pill.leadingAnchor, constant: 6),
+                    badge.trailingAnchor.constraint(equalTo: pill.trailingAnchor, constant: -6),
+                    badge.topAnchor.constraint(equalTo: pill.topAnchor, constant: 2),
+                    badge.bottomAnchor.constraint(equalTo: pill.bottomAnchor, constant: -2),
+                ])
+            }
 
             let icon = NSImageView()
             icon.imageScaling = .scaleProportionallyUpOrDown
@@ -540,10 +577,17 @@ private func switcherKeyCallback(
         }
         return nil
     }
-    guard type == .keyDown else { return Unmanaged.passUnretained(event) }
-    if ShotShelf.shared.consume(key: key, command: command, shift: shift, option: option, isRepeat: isRepeat) {
+    if ShotShelf.shared.consume(
+        key: key,
+        command: command,
+        shift: shift,
+        option: option,
+        isRepeat: isRepeat,
+        keyDown: type == .keyDown
+    ) {
         return nil
     }
+    guard type == .keyDown else { return Unmanaged.passUnretained(event) }
     if control, option, !command, !shift, key == 9, !isRepeat, !WindowSwitcher.shared.isVisible() {
         DispatchQueue.main.async { ClipboardShelf.shared.show() }
         return nil

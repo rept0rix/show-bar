@@ -7,6 +7,7 @@ final class HoverController: @unchecked Sendable {
     private var monitor: Any?
     private var localMonitor: Any?
     private var iconTimer: Timer?
+    private var pollTimer: Timer?
     private var edgeRefresh: DispatchWorkItem?
     private var edgeAttempts = 0
     private var sawMouse = false
@@ -17,6 +18,7 @@ final class HoverController: @unchecked Sendable {
     private var hoverTask: Task<Void, Never>?
     private var hideTask: Task<Void, Never>?
     private var watchTask: Task<Void, Never>?
+    private var activeObserver: NSObjectProtocol?
     private let panel = PreviewPanel()
     private(set) var isRunning = false
     var iconCount: Int { icons.count }
@@ -43,6 +45,12 @@ final class HoverController: @unchecked Sendable {
             DesktopSpaces.move(windowID: card.id, to: spaceID)
             self?.refreshAfterClose()
         }
+        panel.onSnap = { card in
+            WindowSnap.cycleHalf(pid: card.pid, id: card.id, frame: card.frame)
+        }
+        panel.onShot = { card in
+            ShotShelf.shared.capture(window: card.id)
+        }
         ClickCatcher.shared.onClick = { [weak self] id, part in
             _ = self?.panel.fire(id, part)
         }
@@ -52,7 +60,9 @@ final class HoverController: @unchecked Sendable {
         guard AXIsProcessTrusted() else {
             return "Accessibility is off. Turn it on, then click Show a preview."
         }
-        refreshIcons()
+        // Preview must wake the same hover path as a normal launch.
+        if !isRunning { start() }
+        loadIcons()
         let front = NSWorkspace.shared.frontmostApplication
         let preferred = icons.first { icon in
             if let bundleID = icon.bundleID, bundleID == front?.bundleIdentifier { return true }
@@ -71,12 +81,27 @@ final class HoverController: @unchecked Sendable {
     }
 
     func start() {
-        guard !isRunning, AXIsProcessTrusted() else { return }
+        guard AXIsProcessTrusted() else { return }
+        if isRunning {
+            wakeHover()
+            return
+        }
         isRunning = true
-        refreshIcons()
+        // First load must not wait for a Preview click or a mouse-moved event.
+        loadIcons()
+        seedMouse()
         installMonitor()
+        installPoll()
+        watchActivation()
         iconTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
             self?.refreshIcons()
+        }
+        // Global monitors sometimes stay quiet until the first RunLoop turn after launch.
+        DispatchQueue.main.async { [weak self] in
+            self?.wakeHover()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.wakeHover()
         }
     }
 
@@ -84,6 +109,8 @@ final class HoverController: @unchecked Sendable {
         isRunning = false
         iconTimer?.invalidate()
         iconTimer = nil
+        pollTimer?.invalidate()
+        pollTimer = nil
         hoverTask?.cancel()
         hideTask?.cancel()
         watchTask?.cancel()
@@ -93,6 +120,10 @@ final class HoverController: @unchecked Sendable {
         edgeRefresh?.cancel()
         edgeRefresh = nil
         edgeAttempts = 0
+        if let activeObserver {
+            NotificationCenter.default.removeObserver(activeObserver)
+        }
+        activeObserver = nil
         if let monitor {
             NSEvent.removeMonitor(monitor)
         }
@@ -101,6 +132,20 @@ final class HoverController: @unchecked Sendable {
         }
         monitor = nil
         localMonitor = nil
+    }
+
+    /// Reload icons and check the pointer without waiting for a mouse-moved event.
+    private func wakeHover() {
+        guard isRunning else { return }
+        if monitor == nil { installMonitor() }
+        loadIcons()
+        seedMouse()
+        mouseMoved(to: lastPoint)
+    }
+
+    private func seedMouse() {
+        lastPoint = quartzMouse()
+        sawMouse = true
     }
 
     private func refreshIcons() {
@@ -127,7 +172,7 @@ final class HoverController: @unchecked Sendable {
             }
             return
         }
-        guard let shownID, let icon = icons.first(where: { $0.id == shownID }), DockReader.isOnScreen(icon.frame) else {
+        guard let shownID, let icon = icons.first(where: { $0.id == shownID }), DockReader.isHoverable(icon.frame) else {
             hideNow()
             return
         }
@@ -137,7 +182,7 @@ final class HoverController: @unchecked Sendable {
     /// Auto-hide animates on the Dock process. AX queries at that moment freeze the bar.
     private func leaveDockAlone() -> Bool {
         guard mouseNearScreenEdge() else { return false }
-        for icon in icons where DockReader.isOnScreen(icon.frame) {
+        for icon in icons where DockReader.isHoverable(icon.frame) {
             return false
         }
         return true
@@ -156,18 +201,19 @@ final class HoverController: @unchecked Sendable {
 
     private func scheduleEdgeRefresh() {
         guard edgeRefresh == nil else { return }
-        let delay = edgeAttempts == 0 ? 0.16 : 0.08
+        let delay = edgeAttempts == 0 ? 0.12 : 0.08
         let work = DispatchWorkItem { [weak self] in
             self?.edgeRefresh = nil
             guard let self, self.isRunning else { return }
             self.loadIcons()
-            let visible = self.icons.contains { DockReader.isOnScreen($0.frame) }
+            let visible = self.icons.contains { DockReader.isHoverable($0.frame) }
             if visible || !self.mouseNearScreenEdge() {
                 self.edgeAttempts = 0
+                self.mouseMoved(to: self.quartzMouse())
                 return
             }
             self.edgeAttempts += 1
-            if self.edgeAttempts < 5 {
+            if self.edgeAttempts < 12 {
                 self.scheduleEdgeRefresh()
             } else {
                 self.edgeAttempts = 0
@@ -183,6 +229,12 @@ final class HoverController: @unchecked Sendable {
     }
 
     private func installMonitor() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let localMonitor {
+            NSEvent.removeMonitor(localMonitor)
+        }
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown, .rightMouseDown]) { [weak self] event in
             let kind = event.type
             DispatchQueue.main.async {
@@ -210,6 +262,34 @@ final class HoverController: @unchecked Sendable {
         }
     }
 
+    /// Poll the pointer so hover works even when the global monitor is quiet after launch.
+    private func installPoll() {
+        pollTimer?.invalidate()
+        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.pollHover()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pollTimer = timer
+    }
+
+    private func pollHover() {
+        guard isRunning, NSEvent.pressedMouseButtons == 0 else { return }
+        mouseMoved(to: quartzMouse())
+    }
+
+    private func watchActivation() {
+        if let activeObserver {
+            NotificationCenter.default.removeObserver(activeObserver)
+        }
+        activeObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.wakeHover()
+        }
+    }
+
     func reloadAppearance() {
         guard let shownID, let icon = icons.first(where: { $0.id == shownID }) else { return }
         show(icon)
@@ -222,6 +302,7 @@ final class HoverController: @unchecked Sendable {
         for delay in [0.45, 1.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.loadIcons()
+                self?.wakeHover()
             }
         }
     }
@@ -286,7 +367,7 @@ final class HoverController: @unchecked Sendable {
 
     private func commitHover(id: String) {
         let point = quartzMouse()
-        guard let icon = icon(at: point), icon.id == id, DockReader.isOnScreen(icon.frame) else {
+        guard let icon = icon(at: point), icon.id == id, DockReader.isHoverable(icon.frame) else {
             if pendingID == id { pendingID = nil }
             return
         }
@@ -375,7 +456,7 @@ final class HoverController: @unchecked Sendable {
 
     private func icon(at point: CGPoint) -> DockIcon? {
         let hits = icons.filter {
-            DockReader.isOnScreen($0.frame) && DockReader.hitFrame($0.frame, edge: edge).contains(point)
+            DockReader.isHoverable($0.frame) && DockReader.hitFrame($0.frame, edge: edge).contains(point)
         }
         return hits.min { lhs, rhs in
             hypot(lhs.frame.midX - point.x, lhs.frame.midY - point.y)

@@ -8,6 +8,10 @@ struct WindowCard: Identifiable, Equatable, Sendable {
     let pid: pid_t
     let title: String
     let frame: CGRect
+    /// Desktop 1 is 1, Desktop 2 is 2. The number does not change when the user switches.
+    var desktopIndex: Int = 0
+    /// True when this window is on the desktop in front of the user.
+    var isCurrent: Bool = true
 
     static func == (lhs: WindowCard, rhs: WindowCard) -> Bool {
         lhs.id == rhs.id && lhs.pid == rhs.pid && lhs.title == rhs.title
@@ -69,19 +73,41 @@ enum WindowCatalog {
     }
 
     static func switcherCards() -> [WindowCard] {
-        listWindows().filter(belongsInSwitcher).map { window in
-            WindowCard(
+        let desks = DesktopSpaces.desks()
+        let currents = DesktopSpaces.currentIDs()
+        let currentIndex = desks.first { currents.contains($0.id) }?.index ?? 0
+        return listWindows().compactMap { window in
+            guard belongsInSwitcher(window) else { return nil }
+            let ids = Set(DesktopSpaces.spaceIDs(for: window.id))
+            let home = desks.first { ids.contains($0.id) }
+            let onCurrent = !ids.isEmpty && !ids.isDisjoint(with: currents)
+            // A window on Desktop 1 stays in the list even when that desktop is not in front.
+            let isCurrent = ids.isEmpty ? window.onScreen : onCurrent
+            if !window.onScreen, ids.isEmpty, home == nil, !isCurrent {
+                return WindowCard(
+                    id: window.id,
+                    pid: window.pid,
+                    title: switcherTitle(window),
+                    frame: window.frame,
+                    desktopIndex: 0,
+                    isCurrent: false
+                )
+            }
+            return WindowCard(
                 id: window.id,
                 pid: window.pid,
                 title: switcherTitle(window),
-                frame: window.frame
+                frame: window.frame,
+                desktopIndex: home?.index ?? currentIndex,
+                isCurrent: isCurrent
             )
         }
     }
 
-    /// Command-Tab is for switching to a real window. Password panels, Quick Look, and apps with no window on screen are not.
+    /// Command-Tab is for switching to a real window. Password panels and Quick Look are not.
+    /// A window on another desktop is included even though it is not on this screen.
     private static func belongsInSwitcher(_ window: ListedWindow) -> Bool {
-        guard window.onScreen, window.frame.width >= 220, window.frame.height >= 140 else { return false }
+        guard window.frame.width >= 220, window.frame.height >= 140 else { return false }
         let owner = window.ownerName.lowercased()
         let blocked = [
             "autofill", "quicklook", "loginwindow", "window server", "systemuiserver",
@@ -144,6 +170,11 @@ enum WindowCatalog {
     }
 
     static func focus(_ card: WindowCard) {
+        if !card.isCurrent,
+           let space = DesktopSpaces.space(of: card.id),
+           space != DesktopSpaces.currentID() {
+            DesktopSpaces.show(space)
+        }
         if let app = NSRunningApplication(processIdentifier: card.pid) {
             app.unhide()
             if let url = app.bundleURL {

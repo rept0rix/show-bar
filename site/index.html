@@ -241,6 +241,14 @@
       container-type: inline-size;
     }
     .live > .stage { display: block; }
+    .live > .stage.switcher,
+    .live > .stage.snap,
+    .live > .stage.clip,
+    .live > .stage.dock {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     .live > .still { display: none; }
     .live:not(.run) .stage * { animation-play-state: paused; }
     .panel {
@@ -248,9 +256,14 @@
       border-radius: 4.2cqi;
       box-shadow: 0 2.2cqi 4cqi rgba(70, 42, 16, 0.14);
     }
+    .switcher, .snap, .clip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     .switcher .panel {
-      width: 74%;
-      margin: 8% auto 0;
+      width: 78%;
+      margin: 0;
       padding: 2.4% 2.2% 1.8%;
     }
     .switcher .grid {
@@ -285,12 +298,17 @@
       border-radius: 0.45cqi;
       display: block;
     }
-    .cap {
-      margin: 3.2cqi 0 0;
-      text-align: center;
-      font-family: Palatino, "Iowan Old Style", Georgia, serif;
-      font-size: 2.5cqi;
-      color: #1b1612;
+    .ptr {
+      position: absolute;
+      width: 1.7cqi;
+      height: 1.7cqi;
+      margin-left: -0.2cqi;
+      border-radius: 50% 50% 50% 0;
+      background: #fff;
+      border: 0.18cqi solid #1b1612;
+      box-shadow: 0 0.25cqi 0.6cqi rgba(27, 22, 18, 0.28);
+      z-index: 4;
+      pointer-events: none;
     }
     .bar { height: 22%; }
     .safari .bar { background: #466bfa; }
@@ -334,11 +352,21 @@
       0%, 13% { box-shadow: 0 0 0 0.35cqi #fff; transform: scale(1.035); }
       18%, 100% { box-shadow: 0 0 0 0 transparent; transform: none; }
     }
+    .dock { display: flex; align-items: center; }
     .dock .row {
+      position: relative;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 2.2cqi;
-      padding: 7% 8% 0 6%;
+      width: 100%;
+      padding: 0 6%;
+    }
+    .dock .ptr { animation: dockptr 6.6s ease-in-out infinite; }
+    @keyframes dockptr {
+      0%, 16% { left: 28%; top: 38%; }
+      30%, 46% { left: 52%; top: 38%; }
+      60%, 82% { left: 76%; top: 38%; }
+      100% { left: 28%; top: 38%; }
     }
     .dockbar {
       width: 5.8cqi;
@@ -397,27 +425,6 @@
       padding: 0.2cqi 0.7cqi;
     }
     .dwin .name { color: #f4f1ec; font-size: 1.5cqi; }
-    .dock .copy {
-      position: absolute;
-      left: 14%;
-      right: 6%;
-      bottom: 8%;
-      margin: 0;
-    }
-    .dock .copy strong {
-      display: block;
-      font-family: Palatino, Georgia, serif;
-      font-weight: 500;
-      font-size: 3.3cqi;
-      line-height: 1.05;
-    }
-    .dock .copy span {
-      display: block;
-      margin-top: 0.8cqi;
-      font-size: 1.7cqi;
-      color: #5c5146;
-      line-height: 1.35;
-    }
     @keyframes ypick {
       0%, 20% { box-shadow: 0 0 0 0.38cqi #f5c400; }
       28%, 100% { box-shadow: 0 0 0 0 transparent; }
@@ -428,9 +435,9 @@
       100% { opacity: 0; transform: translateX(-1cqi); }
     }
     .snap .screen {
-      width: 86%;
-      height: 68%;
-      margin: 7% auto 0;
+      width: 88%;
+      height: 78%;
+      margin: 0;
       background: #f7f1e6;
       border-radius: 2.2cqi;
       border: 1px solid rgba(27, 22, 18, 0.18);
@@ -465,29 +472,16 @@
       background: #3d78f6;
       border-radius: 0.8cqi;
     }
-    .snap .cap { position: relative; height: 1.3em; }
-    .snap .cap span {
-      position: absolute;
-      left: 0;
-      right: 0;
-      opacity: 0;
-      animation: cap 9s linear infinite;
-      animation-delay: calc(var(--i) * 3s);
-    }
     @keyframes place {
       0%, 22% { left: 6%; width: 44%; }
       36%, 58% { left: 50%; width: 44%; }
       72%, 94% { left: 6%; width: 88%; }
       100% { left: 6%; width: 44%; }
     }
-    @keyframes cap {
-      0% { opacity: 0; }
-      6%, 24% { opacity: 1; }
-      33%, 100% { opacity: 0; }
-    }
     .clip .sheet {
-      width: 42%;
-      margin: 8% auto 0;
+      position: relative;
+      width: 46%;
+      margin: 0;
       background: #f7f1e6;
       border-radius: 2.4cqi;
       padding: 2.4cqi 2.2cqi 1.6cqi;
@@ -519,9 +513,16 @@
       animation-delay: calc(var(--i) * 1.6s);
     }
     .item i { width: 2.3cqi; height: 2.3cqi; border-radius: 0.5cqi; flex: none; }
+    .clip .ptr { animation: clipptr 6.4s ease-in-out infinite; }
     @keyframes hi {
       0%, 16% { background: #fff; box-shadow: inset 0.35cqi 0 0 #d4532b; }
       26%, 100% { background: transparent; box-shadow: none; }
+    }
+    @keyframes clipptr {
+      0%, 16% { left: 78%; top: 46%; }
+      30%, 46% { left: 78%; top: 60%; }
+      58%, 74% { left: 78%; top: 74%; }
+      86%, 100% { left: 78%; top: 88%; }
     }
     .shotcap .frame {
       position: absolute;
@@ -631,9 +632,9 @@
         </ul>
         <div class="actions">
           <!-- showbar:download -->
-          <a class="download" href="https://github.com/rept0rix/show-bar/releases/download/v1.4.0/Show-Bar-1.4.dmg">Download Free</a>
+          <a class="download" href="https://github.com/rept0rix/show-bar/releases/download/v1.5.0/Show-Bar-1.5.dmg">Download Free</a>
           <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="na0ryank0r" data-color="#FFDD00" data-emoji="" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
-          <p class="note">Version 1.4. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>
+          <p class="note">Version 1.5. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>
 <!-- /showbar:download -->
         </div>
       </div>
@@ -648,7 +649,7 @@
         <div class="copy">
           <p class="kicker">A real Command-Tab</p>
           <h2>The windows, not just the icons.</h2>
-          <p class="why">Mac Command-Tab shows apps. Show Bar shows the windows themselves, newest first. The other four Windows habits sit behind this one.</p>
+          <p class="why">Mac Command-Tab shows apps. Show Bar shows the windows themselves, the app in front first, including windows on the other desktops. The other four Windows habits sit behind this one.</p>
           <ul>
             <li>Arrow keys move through the grid. Release Command to switch.</li>
             <li>Every card stays on the screen.</li>
@@ -718,12 +719,12 @@
         </figure>
         <div class="copy">
           <p class="kicker">Screenshots</p>
-          <h2>Copy the picture. Skip the file.</h2>
-          <p class="why">A screenshot goes straight to the clipboard. The preview stays in the bottom corner. Save writes it to the Desktop. X closes it.</p>
+          <h2>Copy one picture, or all of them.</h2>
+          <p class="why">Screenshots collect in the corner. Take one out with its X. Copy all puts the rest on the clipboard together. Settings decides whether the shelf stays, saves, or closes.</p>
           <ul>
-            <li>Command-Shift-3 copies the screen under the pointer.</li>
-            <li>Command-Shift-4: drag a region, or press Space and click a window.</li>
-            <li>Drag the preview into a chat, or paste with Command-V.</li>
+            <li>Command-Shift-3 copies every screen. Command-Shift-4 drags a part, with a target on the pointer.</li>
+            <li>The menu bar has a camera and a crop button.</li>
+            <li>One paste sends every picture that is still in the shelf.</li>
           </ul>
         </div>
       </article>
@@ -739,6 +740,7 @@
             <li>Hover a Dock icon to see that app’s windows.</li>
             <li>Mark the window under the pointer.</li>
             <li>Click to switch. X, minus, or Quit from the card.</li>
+            <li>Snap that window left and right, or copy it, from the card.</li>
             <li>Peek after two seconds, then click or leave.</li>
             <li>Move one window to another desktop.</li>
             <li>Choose the preview size, how many windows, and whether names show.</li>
@@ -747,7 +749,7 @@
         <article>
           <h3>Switch and snap</h3>
           <ul>
-            <li>Command-Tab shows windows, newest first.</li>
+            <li>Command-Tab shows windows, the app in front first, on every desktop.</li>
             <li>Arrows move. Release Command to switch.</li>
             <li>The grid fits the screen.</li>
             <li>Control-Option arrows snap to a half.</li>
@@ -761,8 +763,8 @@
             <li>Clipboard history for text, links, and pictures.</li>
             <li>Control-Option-V opens it. Search, then click to paste.</li>
             <li>Hidden passwords are not kept.</li>
-            <li>Screenshots copy. Save on the preview writes the file to the Desktop.</li>
-            <li>The preview stays in the corner until its X.</li>
+            <li>Screenshots collect in the corner. Copy all sends them in one paste.</li>
+            <li>X on a picture leaves it out. Settings can save, close, or keep the shelf.</li>
           </ul>
         </article>
         <article>
@@ -796,7 +798,6 @@
           <div><div class="thumb code" style="--i:5"><div class="bar"></div><div class="lines"><span></span><span></span><span></span></div></div><div class="name"><i class="ic-code"></i>Code</div></div>
         </div>
       </div>
-      <p class="cap">Arrows to move · release ⌘ to switch</p>
     </div>
   </template>
   <template id="scene-dock">
@@ -814,8 +815,8 @@
           <div class="dwin" style="--i:1"><div class="thumb safari"><div class="bar"></div><div class="body"><div class="block"></div><div class="side"></div></div><div class="pills"><span>Desktop 1</span><span>Quit</span></div></div><div class="name">Safari</div></div>
           <div class="dwin" style="--i:2"><div class="thumb music"><div class="pills"><span>Desktop 2</span><span>Quit</span></div></div><div class="name">Music</div></div>
         </div>
+        <div class="ptr"></div>
       </div>
-      <p class="copy"><strong>The window under the pointer lights up.</strong><span>Click a picture to focus it. X closes that window. Quit closes the app.</span></p>
     </div>
   </template>
   <template id="scene-snap">
@@ -824,7 +825,6 @@
         <div class="menubar"></div>
         <div class="window"><div class="title">Safari</div><div class="blue"></div></div>
       </div>
-      <p class="cap"><span style="--i:0">Control-Option Left</span><span style="--i:1">Control-Option Right</span><span style="--i:2">Control-Option Return</span></p>
     </div>
   </template>
   <template id="scene-clipboard">
@@ -836,8 +836,8 @@
         <div class="item" style="--i:1"><i class="ic-notes"></i>Meeting notes for Monday</div>
         <div class="item" style="--i:2"><i class="ic-music"></i>Image</div>
         <div class="item" style="--i:3"><i class="ic-code"></i>Screenshot</div>
+        <div class="ptr"></div>
       </div>
-      <p class="cap">Control-Option V</p>
     </div>
   </template>
   <template id="scene-shot">

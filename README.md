@@ -4,7 +4,7 @@
 
 <h1 align="center">Show Bar</h1>
 
-<p align="center">A macOS app that brings Windows features to the Mac.<br>Taskbar previews, window switching, snap, and clipboard history.</p>
+<p align="center">The Windows-style Command-Tab for Mac.<br>Your Mac is missing window previews, snapping, clipboard history, and better screenshots.</p>
 
 <p align="center">
   <a href="https://rept0rix.github.io/show-bar/"><strong>Website</strong></a>
@@ -16,7 +16,7 @@
   <img src="docs/hero.png" alt="Show Bar. Windows on the Dock, with the window under the pointer highlighted.">
 </p>
 
-Show Bar is a macOS app by Naor Yanko. It brings Windows capabilities to the Mac: hover a Dock icon to see that app’s windows, switch windows with Command-Tab, snap a window to the screen, and keep what you copy.
+Show Bar is a macOS app by Naor Yanko. Mac Command-Tab shows apps. Show Bar shows the windows. It also brings Dock window previews, snap, clipboard history, and screenshots that copy.
 
 <p align="center">
   <img src="docs/product.png" alt="A Dock icon open into window previews. The window under the pointer has a yellow frame.">
@@ -29,7 +29,7 @@ Show Bar is a macOS app by Naor Yanko. It brings Windows capabilities to the Mac
 ## Download
 
 <!-- showbar:download -->
-Show Bar is for macOS 14 or later. The install disk is [Show Bar 1.4](https://github.com/rept0rix/show-bar/releases/download/v1.4.0/Show-Bar-1.4.dmg). Open it and drag Show Bar into Applications.
+Show Bar is for macOS 14 or later. The install disk is [Show Bar 1.5](https://github.com/rept0rix/show-bar/releases/download/v1.5.0/Show-Bar-1.5.dmg). Open it and drag Show Bar into Applications.
 <!-- /showbar:download -->
 
 Show Bar is not on the Mac App Store. Accessibility, Screen Recording, and Dock hover do not fit App Store rules.

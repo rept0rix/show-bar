@@ -11,6 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private let loginKey = "ShowBar.launchAtLogin"
     private let dockTipKey = "ShowBar.explainedDock"
     private var statusItem: NSStatusItem!
+    private var captureItem: NSStatusItem!
+    private var cropItem: NSStatusItem!
     private var hover = HoverController()
     private var permissionsWindow: NSWindow?
     private var adminWindow: NSWindow?
@@ -50,11 +52,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         sawAccessibility = AXIsProcessTrusted()
         sawScreenRecording = CGPreflightScreenCaptureAccess()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        captureItem = NSStatusBar.system.statusItem(withLength: 28)
+        cropItem = NSStatusBar.system.statusItem(withLength: 28)
         UNUserNotificationCenter.current().delegate = self
         noteUpdate(nil)
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
+        installQuickShots()
         DockAutohide.restore()
         ClipboardShelf.shared.start()
         syncHover()
@@ -154,9 +159,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
         let shot = NSMenuItem(title: "Screenshot", action: nil, keyEquivalent: "")
         let shotMenu = NSMenu()
-        let whole = NSMenuItem(title: "Copy screen    ⌘⇧3", action: #selector(copyScreen), keyEquivalent: "")
+        let wholeTitle = NSScreen.screens.count > 1 ? "Copy every screen    ⌘⇧3" : "Copy entire screen    ⌘⇧3"
+        let whole = NSMenuItem(title: wholeTitle, action: #selector(copyScreen), keyEquivalent: "")
         whole.target = self
         shotMenu.addItem(whole)
+        if NSScreen.screens.count > 1 {
+            let one = NSMenuItem(title: "Copy this screen", action: #selector(copyThisScreen), keyEquivalent: "")
+            one.target = self
+            shotMenu.addItem(one)
+        }
         let area = NSMenuItem(title: "Copy selection    ⌘⇧4", action: #selector(copySelection), keyEquivalent: "")
         area.target = self
         shotMenu.addItem(area)
@@ -198,15 +209,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         dockTip.target = self
         menu.addItem(dockTip)
 
-        menu.addItem(.separator())
-        let remove = NSMenuItem(title: "Remove Show Bar…", action: #selector(removeApp), keyEquivalent: "")
-        remove.target = self
-        remove.attributedTitle = NSAttributedString(
-            string: "Remove Show Bar…",
-            attributes: [.foregroundColor: NSColor.systemRed]
-        )
-        menu.addItem(remove)
-
         let updates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
         updates.target = self
         menu.addItem(updates)
@@ -246,8 +248,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         WindowSnap.apply(zone)
     }
 
+    private func installQuickShots() {
+        if let button = captureItem.button {
+            button.image = NSImage(systemSymbolName: "camera", accessibilityDescription: "Copy the screen")
+            button.image?.isTemplate = true
+            button.toolTip = "Copy the screen"
+            button.target = self
+            button.action = #selector(copyScreen)
+        }
+        if let button = cropItem.button {
+            button.image = NSImage(systemSymbolName: "rectangle.dashed", accessibilityDescription: "Copy a selection")
+            button.image?.isTemplate = true
+            button.toolTip = "Copy a selection"
+            button.target = self
+            button.action = #selector(copySelection)
+        }
+    }
+
     @objc private func copyScreen() {
         ShotShelf.shared.captureScreen()
+    }
+
+    @objc private func copyThisScreen() {
+        ShotShelf.shared.captureScreenUnderPointer()
     }
 
     @objc private func copySelection() {
@@ -333,25 +356,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     @objc fileprivate func removeApp() {
         let alert = NSAlert()
-        alert.messageText = "Remove Show Bar?"
-        alert.informativeText = "Show Bar moves to the Trash and stops opening when the Mac starts. This cannot be undone from the app. Install it again to bring it back."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Move to Trash")
+        alert.messageText = "Move Show Bar to the Trash?"
+        alert.informativeText = "Show Bar will quit and the app will be deleted. It will not open the next time the Mac starts. This cannot be undone. To use Show Bar again, install it from the download page."
+        alert.alertStyle = .critical
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        UserDefaults.standard.set(false, forKey: loginKey)
-        try? SMAppService.mainApp.unregister()
-        hover.stop()
-        WindowSwitcher.shared.stop()
+        alert.addButton(withTitle: "Move to Trash")
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
         do {
             try FileManager.default.trashItem(at: Bundle.main.bundleURL, resultingItemURL: nil)
         } catch {
             let failed = NSAlert()
-            failed.messageText = "Show Bar could not move itself to the Trash"
-            failed.informativeText = error.localizedDescription
+            failed.messageText = "Show Bar is still installed"
+            failed.informativeText = "The app could not be moved to the Trash, so nothing was removed. \(error.localizedDescription)"
             failed.runModal()
             return
         }
+        UserDefaults.standard.set(false, forKey: loginKey)
+        try? SMAppService.mainApp.unregister()
+        hover.stop()
+        WindowSwitcher.shared.stop()
         NSApp.terminate(nil)
     }
 
@@ -598,7 +621,7 @@ enum ShowBarSupport {
     static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.4" // showbar-version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.5" // showbar-version
     }
 }
 
@@ -628,12 +651,13 @@ final class PermissionsModel: ObservableObject {
 }
 
 private enum SettingsPage: CaseIterable {
-    case dock, shortcuts, permissions, app
+    case dock, shortcuts, shots, permissions, app
 
     var title: String {
         switch self {
         case .dock: return "Dock"
         case .shortcuts: return "Shortcuts"
+        case .shots: return "Shots"
         case .permissions: return "Permissions"
         case .app: return "App"
         }
@@ -650,6 +674,7 @@ struct PermissionsView: View {
     @State private var previewNote = ""
     @State private var showRatePrompt = false
     @State private var tab = SettingsPage.dock
+    @State private var shotAfter = ShotPreferences.after
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -695,6 +720,7 @@ struct PermissionsView: View {
                 switch tab {
                 case .dock: dockPage
                 case .shortcuts: shortcutsPage
+                case .shots: shotsPage
                 case .permissions: permissionsPage
                 case .app: appPage
                 }
@@ -782,7 +808,7 @@ struct PermissionsView: View {
 
     private var shortcutsPage: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Command-Tab shows the windows. Arrows move. Release Command to switch.")
+            Text("Command-Tab shows the windows, including what is open on Desktop 2 and Desktop 3. A card marked Desktop 2 switches straight to that desktop. Arrows move. Release Command to switch.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -797,13 +823,45 @@ struct PermissionsView: View {
             }
             Text("Screenshots")
                 .font(.headline)
-            Text("Command-Shift-3 copies the screen. Command-Shift-4 copies a selection. Nothing is saved as a file.")
+            Text("Command-Shift-3 copies every screen. Command-Shift-4 drags a part, and the pointer turns into a crosshair. The Shots tab chooses whether the shelf stays, saves, or closes.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Snap")
                 .font(.headline)
             Text("Control-Option and an arrow takes half the screen. U, I, J, and K take the corners. Return fills the screen. The same shortcut puts the window back.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var shotsPage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("After a screenshot")
+                .font(.headline)
+            Picker("After a screenshot", selection: Binding(
+                get: { shotAfter },
+                set: { mode in
+                    shotAfter = mode
+                    ShotPreferences.after = mode
+                }
+            )) {
+                ForEach(ShotAfter.allCases, id: \.self) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
+            Text(shotAfter.detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Several shots sit together in the corner. The X on a picture leaves it out. Copy all puts the remaining pictures on the clipboard as files, so one paste sends all of them.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("The camera and the dashed rectangle in the menu bar take a screenshot without opening this menu. On a window preview, the split button snaps the window left and right, and the camera copies that window.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -848,15 +906,16 @@ struct PermissionsView: View {
             Button("Download page") {
                 NSWorkspace.shared.open(ShowBarSupport.downloadURL)
             }
-            Divider()
-            Text("Remove Show Bar deletes the app. It goes to the Trash, and you install it again to get it back.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Button("Remove Show Bar…", role: .destructive) {
-                AppDelegate.shared.removeApp()
+            DisclosureGroup("Uninstall") {
+                Text("This deletes Show Bar. The app goes to the Trash and quits. It will not open the next time the Mac starts. To use it again, install it from the download page.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Move Show Bar to the Trash…") {
+                    AppDelegate.shared.removeApp()
+                }
+                .foregroundStyle(.red)
             }
-            .buttonStyle(.bordered)
         }
     }
 

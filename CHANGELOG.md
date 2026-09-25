@@ -2,8 +2,23 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.5
+
+- Command-Tab follows the app in front. A window that stays above the others, such as Spotify, is no longer stuck first.
+- Windows on Desktop 1 and on the other screen are in Command-Tab, not only the desktop in front.
+- Command-Shift-3 and Command-Shift-4 work while Command-Tab is open.
+- A crop hides the arrow and draws a target that stays on the pointer.
+- Screenshots collect in the corner. X on a picture leaves it out. Copy all puts the rest on the clipboard as files, so one paste sends them together.
+- Settings has a Shots tab: keep the shelf open, copy and close, save and close, or save and keep it open.
+- The menu bar has a camera for the whole screen and a dashed rectangle for a crop.
+- A window card can snap that window to the left half and then the right, and copy that window.
+- Preview pictures stay inside their cards.
+
 ## 1.4
 
+- A screenshot plays the system tick, and the Mac’s own save window stays closed.
+- The screenshot preview has a save button. It writes the picture to the Desktop.
+- Dock window previews open on hover after launch. A Preview click is no longer required.
 - Previews follow the Dock on the left, the right, or the bottom, including after the Dock is moved.
 - Settings no longer offers a top Dock. macOS cannot put the Dock there.
 - Settings opens with the logo and the version, then a preview, a rating, and a coffee. Dock, shortcuts, permissions, and the app are separate tabs.

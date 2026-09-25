@@ -43,17 +43,48 @@ enum DesktopSpaces {
         spaceID(for: windowID)
     }
 
-    static func currentID() -> UInt64? {
+    static func spaceIDs(for windowID: CGWindowID) -> [UInt64] {
+        guard let connection = connectionID(),
+              let copy: @convention(c) (Int32, Int32, CFArray) -> Unmanaged<CFArray>? = symbol("CGSCopySpacesForWindows") else { return [] }
+        let windows = [NSNumber(value: UInt32(windowID))] as CFArray
+        guard let unmanaged = copy(connection, 7, windows) else { return [] }
+        let spaces = unmanaged.takeRetainedValue() as NSArray
+        return spaces.compactMap { ($0 as? NSNumber)?.uint64Value }.filter { $0 != 0 }
+    }
+
+    /// Brings that desktop forward. The window itself is focused afterwards.
+    static func show(_ spaceID: UInt64) {
         guard let connection = connectionID(),
               let copy: @convention(c) (Int32) -> Unmanaged<CFArray>? = symbol("SLSCopyManagedDisplaySpaces"),
-              let unmanaged = copy(connection) else { return nil }
+              let setSpace: @convention(c) (Int32, CFString, UInt64) -> Void = symbol("SLSManagedDisplaySetCurrentSpace"),
+              let unmanaged = copy(connection) else { return }
         let displays = unmanaged.takeRetainedValue() as NSArray
+        for case let display as NSDictionary in displays {
+            let spaces = display["Spaces"] as? [NSDictionary] ?? []
+            guard spaces.contains(where: { ($0["id64"] as? NSNumber)?.uint64Value == spaceID }) else { continue }
+            guard let uuid = display["Display Identifier"] as? String else { continue }
+            setSpace(connection, uuid as CFString, spaceID)
+            return
+        }
+    }
+
+    static func currentID() -> UInt64? {
+        currentIDs().first
+    }
+
+    /// Every display has its own current desktop. One id hides the other screen.
+    static func currentIDs() -> Set<UInt64> {
+        guard let connection = connectionID(),
+              let copy: @convention(c) (Int32) -> Unmanaged<CFArray>? = symbol("SLSCopyManagedDisplaySpaces"),
+              let unmanaged = copy(connection) else { return [] }
+        let displays = unmanaged.takeRetainedValue() as NSArray
+        var ids: Set<UInt64> = []
         for case let display as NSDictionary in displays {
             guard let current = display["Current Space"] as? NSDictionary else { continue }
             let id = (current["id64"] as? NSNumber)?.uint64Value ?? 0
-            if id != 0 { return id }
+            if id != 0 { ids.insert(id) }
         }
-        return nil
+        return ids
     }
 
     static func move(windowID: CGWindowID, to spaceID: UInt64) {
