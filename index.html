@@ -137,6 +137,11 @@
       background: var(--ink);
       color: var(--paper);
     }
+    .edition {
+      color: var(--muted);
+      font-size: 15px;
+      white-space: nowrap;
+    }
     .coffee {
       color: var(--ink);
       border: 1.5px solid var(--ink);
@@ -706,9 +711,9 @@
       <p class="lede">Show Bar is the Command-Tab that shows the windows.</p>
       <div class="actions">
         <!-- showbar:download -->
-        <a class="download" href="https://github.com/rept0rix/show-bar/releases/download/v1.6.0/Show-Bar-1.6.dmg">Download Free</a>
-        <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="na0ryank0r" data-color="#FFDD00" data-emoji="" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
-        <p class="note">Version 1.6. Open the disk image and drag Show Bar into Applications. macOS 14 or later.</p>
+          <a class="download" href="https://github.com/rept0rix/show-bar/releases/download/v1.7.0/Show-Bar-1.7.dmg">Download Free</a>
+          <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="na0ryank0r" data-color="#FFDD00" data-emoji="" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
+          <p class="note">Version 1.7. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>
 <!-- /showbar:download -->
       </div>
       <figure class="poster">
@@ -749,12 +754,24 @@
 
     <section class="versions" id="versions">
       <h2>Versions</h2>
-      <p>The newest disk is 1.6. Open a version to read what changed. Older disks are still here.</p>
+      <p>The newest disk is 1.7. Open a version to read what changed. Older disks are still here.</p>
       <details class="release" open>
+        <summary>
+          <span class="ver">1.7</span>
+          <span class="sum">Screenshots include Show Bar. The Dock switches faster.</span>
+          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.7.0/Show-Bar-1.7.dmg">Download</a>
+        </summary>
+        <ul class="notes">
+          <li>A screenshot includes Show Bar, so the Dock preview and Command-Tab can be captured.</li>
+          <li>Moving along the Dock switches to the next app immediately, including icons at the far ends.</li>
+          <li>When an update is ready, the menu-bar icon keeps a blue dot, and the menu keeps an Update button.</li>
+        </ul>
+      </details>
+      <details class="release">
         <summary>
           <span class="ver">1.6</span>
           <span class="sum">Admin leaves the app menu.</span>
-          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.6.0/Show-Bar-1.6.dmg">Download</a>
+          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.6.0/Show-Bar-1.6.dmg">Download 1.6</a>
         </summary>
         <ul class="notes">
           <li>Admin is no longer in the app menu. Download counts are on a private page.</li>
@@ -764,7 +781,7 @@
         <summary>
           <span class="ver">1.5</span>
           <span class="sum">Screenshots collect. Command-Tab includes every desktop.</span>
-          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.5.0/Show-Bar-1.5.dmg">Download</a>
+          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.5.0/Show-Bar-1.5.dmg">Download 1.5</a>
         </summary>
         <ul class="notes">
           <li>Command-Tab follows the app in front. A window that stays on top is no longer stuck first.</li>
@@ -780,7 +797,7 @@
         <summary>
           <span class="ver">1.4</span>
           <span class="sum">Previews follow the Dock. Settings is split into tabs.</span>
-          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.4.0/Show-Bar-1.4.dmg">Download</a>
+          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.4.0/Show-Bar-1.4.dmg">Download 1.4</a>
         </summary>
         <ul class="notes">
           <li>A screenshot plays the system tick, and the Mac’s own save window stays closed.</li>
@@ -793,7 +810,7 @@
         <summary>
           <span class="ver">1.3</span>
           <span class="sum">The app can update itself.</span>
-          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.3.0/Show-Bar-1.3.dmg">Download</a>
+          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.3.0/Show-Bar-1.3.dmg">Download 1.3</a>
         </summary>
         <ul class="notes">
           <li>A newer release shows a blue dot, a notification, and an Update / Not now prompt.</li>
@@ -805,7 +822,7 @@
         <summary>
           <span class="ver">1.2</span>
           <span class="sum">Clipboard history and the first screenshots.</span>
-          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.2.0/Show-Bar-1.2.dmg">Download</a>
+          <a class="get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v1.2.0/Show-Bar-1.2.dmg">Download 1.2</a>
         </summary>
         <ul class="notes">
           <li>Clipboard history keeps text, links, and pictures. Control-Option-V opens the list.</li>
