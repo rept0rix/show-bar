@@ -250,10 +250,8 @@ final class WindowSwitcher {
             return
         }
         let card = cards[index]
-        let shouldSwitch = moved || !card.isCurrent
         hide()
-        WindowCatalog.endReveal(committing: shouldSwitch ? card : nil)
-        guard shouldSwitch else { return }
+        WindowCatalog.endReveal(committing: card)
         WindowCatalog.focus(card)
     }
 

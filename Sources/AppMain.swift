@@ -69,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         recommendKeepingTheDockIcon()
         AppUpdate.restoreBadge()
         AppUpdate.checkOnLaunch()
+        previewAfterUpdateIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
             self?.presentRateRequestIfNeeded()
         }
@@ -85,6 +86,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     func relaunchAfterUpdate() {
         WindowSwitcher.shared.stop()
         relaunch()
+    }
+
+    /// The first capture after an update is the slow one. Open a preview once per version so the windows are already loading.
+    private func previewAfterUpdateIfNeeded() {
+        let key = "ShowBar.previewedVersion"
+        let version = ShowBarSupport.version
+        guard UserDefaults.standard.string(forKey: key) != version else { return }
+        UserDefaults.standard.set(version, forKey: key)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            guard let self, self.enabled else { return }
+            _ = self.hover.showSamplePreview()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -591,7 +604,7 @@ enum ShowBarSupport {
     static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.7" // showbar-version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8" // showbar-version
     }
 }
 

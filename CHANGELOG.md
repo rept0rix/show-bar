@@ -2,6 +2,12 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.8
+
+- After an update, Show Bar opens one preview so the window pictures start loading.
+- Choosing a window in Command-Tab or on the Dock opens that window, including a chosen WhatsApp window.
+- Closing the screenshot editor leaves the picture on the shelf. Opening the editor again shows the picture.
+
 ## 1.7
 
 - A screenshot includes Show Bar, so the Dock preview and Command-Tab can be captured.

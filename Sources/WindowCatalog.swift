@@ -170,23 +170,38 @@ enum WindowCatalog {
     }
 
     static func focus(_ card: WindowCard) {
-        if !card.isCurrent,
-           let space = DesktopSpaces.space(of: card.id),
-           space != DesktopSpaces.currentID() {
+        let target = card.id
+        if let space = DesktopSpaces.space(of: target),
+           let current = DesktopSpaces.currentID(),
+           space != current {
             DesktopSpaces.show(space)
         }
+        let matched = element(forWindowID: target) ?? match(card)
         if let app = NSRunningApplication(processIdentifier: card.pid) {
             app.unhide()
-            if let url = app.bundleURL {
-                NSWorkspace.shared.open(url)
-            }
+            app.activate(options: [.activateIgnoringOtherApps])
         }
-        if let element = match(card) {
-            AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
-            AXUIElementPerformAction(element, kAXRaiseAction as CFString)
-            AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
-            AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        bringForward(matched, pid: card.pid)
+        WindowOrder.front(target)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            bringForward(Self.element(forWindowID: target) ?? matched, pid: card.pid)
+            WindowOrder.front(target)
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            bringForward(Self.element(forWindowID: target) ?? matched, pid: card.pid)
+        }
+    }
+
+    /// Activating an app focuses whichever window it last used. This points it at the chosen one.
+    private static func bringForward(_ element: AXUIElement?, pid: pid_t) {
+        guard let element else { return }
+        AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, 0.2)
+        AXUIElementSetAttributeValue(app, kAXFocusedWindowAttribute as CFString, element)
+        AXUIElementPerformAction(element, kAXRaiseAction as CFString)
+        AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
     }
 
     /// Shows the real window above other windows without activating its app.
@@ -447,12 +462,20 @@ enum WindowCatalog {
         if let exact = windows.first(where: { windowID($0) == card.id }) {
             return exact
         }
+        let wanted = card.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let titled = windows.filter {
+            let title = AXValueReader.string($0, kAXTitleAttribute as String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return !wanted.isEmpty && title.caseInsensitiveCompare(wanted) == .orderedSame
+        }
+        if titled.count == 1 { return titled[0] }
+        let pool = titled.isEmpty ? windows : titled
         let flipped = Coordinates.flip(card.frame)
-        let scored = windows.map { element -> (AXUIElement, CGFloat) in
+        let scored = pool.map { element -> (AXUIElement, CGFloat) in
             guard let frame = AXValueReader.rect(element) else { return (element, 0) }
             return (element, max(overlap(frame, card.frame), overlap(frame, flipped)))
-        }
-        guard let best = scored.max(by: { $0.1 < $1.1 }), best.1 > 0.55 else { return nil }
+        }.sorted { $0.1 > $1.1 }
+        guard let best = scored.first, best.1 > 0.55 else { return nil }
+        if scored.count > 1, best.1 - scored[1].1 < 0.15 { return nil }
         return best.0
     }
 
@@ -519,6 +542,28 @@ private enum WindowLayer {
 
     private static func symbol<T>(_ name: String) -> T? {
         guard let sky, let raw = dlsym(sky, name) else { return nil }
+        return unsafeBitCast(raw, to: T.self)
+    }
+}
+
+/// Puts one window in front of the others in that app. Activating the app alone raises whichever window it last used.
+private enum WindowOrder {
+    static func front(_ windowID: CGWindowID) {
+        guard windowID != 0,
+              let connection = connectionID(),
+              let order: @convention(c) (Int32, UInt32, Int32, UInt32) -> Int32 = symbol("SLSOrderWindow") else { return }
+        _ = order(connection, windowID, 1, 0)
+    }
+
+    private static func connectionID() -> Int32? {
+        guard let main: @convention(c) () -> Int32 = symbol("CGSMainConnectionID") else { return nil }
+        let connection = main()
+        return connection == 0 ? nil : connection
+    }
+
+    private static func symbol<T>(_ name: String) -> T? {
+        guard let sky = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY),
+              let raw = dlsym(sky, name) else { return nil }
         return unsafeBitCast(raw, to: T.self)
     }
 }

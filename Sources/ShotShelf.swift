@@ -418,6 +418,7 @@ final class ShotShelf {
         if let markup {
             markup.window.orderFrontRegardless()
             NSApp.activate()
+            markup.reload()
             return
         }
         let original = shots[index]
@@ -427,6 +428,7 @@ final class ShotShelf {
         }
         editor.onClose = { [weak self] in
             self?.markup = nil
+            self?.preview?.orderFrontRegardless()
         }
         markup = editor
         editor.show(on: shelfScreen ?? preview?.screen ?? NSScreen.main ?? NSScreen.screens.first)
@@ -1012,11 +1014,17 @@ private final class ShotMarkup: NSObject, NSWindowDelegate {
 
     func show(on screen: NSScreen?) {
         previousApp = NSWorkspace.shared.frontmostApplication
-        window.orderFrontRegardless()
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate()
+        _ = controller?.view
+        loadImage(on: screen)
         DispatchQueue.main.async { [weak self] in
             self?.loadImage(on: screen)
         }
+    }
+
+    func reload() {
+        loadImage(on: window.screen)
     }
 
     private func loadImage(on screen: NSScreen?) {
@@ -1030,7 +1038,8 @@ private final class ShotMarkup: NSObject, NSWindowDelegate {
             height: CGFloat(image.height) / scale
         )
         let picture = NSImage(cgImage: image, size: points)
-        controller.perform(NSSelectorFromString("setImage:withArchivedModelData:"), with: picture, with: nil)
+        let empty = Data()
+        controller.perform(NSSelectorFromString("setImage:withArchivedModelData:"), with: picture, with: empty)
         fit(on: screen)
     }
 
