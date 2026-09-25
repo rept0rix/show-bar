@@ -231,6 +231,355 @@
       from { opacity: 0; transform: translateY(16px); }
       to { opacity: 1; transform: none; }
     }
+    .stage {
+      display: none;
+      position: relative;
+      aspect-ratio: 16 / 9;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #efe2d1;
+      container-type: inline-size;
+    }
+    .live > .stage { display: block; }
+    .live > .still { display: none; }
+    .live:not(.run) .stage * { animation-play-state: paused; }
+    .panel {
+      background: #272727;
+      border-radius: 4.2cqi;
+      box-shadow: 0 2.2cqi 4cqi rgba(70, 42, 16, 0.14);
+    }
+    .switcher .panel {
+      width: 74%;
+      margin: 8% auto 0;
+      padding: 2.4% 2.2% 1.8%;
+    }
+    .switcher .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.6cqi 1.8cqi;
+    }
+    .thumb {
+      background: #fff;
+      border-radius: 1.6cqi;
+      overflow: hidden;
+      aspect-ratio: 16 / 10.2;
+      position: relative;
+    }
+    .switcher .thumb {
+      animation: pick 7.2s ease-in-out infinite;
+      animation-delay: calc(var(--i) * 1.2s);
+    }
+    .name {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.7cqi;
+      margin-top: 0.9cqi;
+      color: #f4f1ec;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      font-size: 1.7cqi;
+    }
+    .name i {
+      width: 1.9cqi;
+      height: 1.9cqi;
+      border-radius: 0.45cqi;
+      display: block;
+    }
+    .cap {
+      margin: 3.2cqi 0 0;
+      text-align: center;
+      font-family: Palatino, "Iowan Old Style", Georgia, serif;
+      font-size: 2.5cqi;
+      color: #1b1612;
+    }
+    .bar { height: 22%; }
+    .safari .bar { background: #466bfa; }
+    .safari .body, .msg .body { display: flex; gap: 6%; height: 58%; padding: 7% 7% 0; }
+    .safari .block { width: 48%; background: #3d78f6; border-radius: 0.7cqi; }
+    .safari .side { flex: 1; background: #d5dde8; border-radius: 0.7cqi; }
+    .notes { background: #fffaf2; }
+    .notes .bar { background: #f0c84a; height: 18%; }
+    .lines { display: flex; flex-direction: column; gap: 8%; height: 62%; padding: 8% 8% 0; }
+    .lines span { display: block; height: 12%; border-radius: 99px; background: #efe4cf; }
+    .lines span:first-child { width: 42%; background: #e4d3b0; }
+    .music { background: linear-gradient(135deg, #8ed8c8, #6aa6f2 42%, #e07ec8 78%, #f0a56a); }
+    .cal .bar { background: #e15b5b; height: 16%; }
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.35cqi;
+      padding: 6% 7% 0;
+      font-family: "Avenir Next", sans-serif;
+      font-size: 1.05cqi;
+      color: #3a342c;
+      text-align: center;
+    }
+    .days b { color: #e15b5b; font-weight: 600; }
+    .msg .bar { background: #3cba6f; height: 18%; }
+    .msg .body { flex-direction: column; gap: 10%; }
+    .msg .body span { height: 18%; border-radius: 99px; background: #e7e1d6; }
+    .msg .body span:first-child { width: 46%; background: #2a2a2a; }
+    .code { background: #2a2a2e; }
+    .code .bar { background: #3a3a40; height: 16%; }
+    .code .lines span { background: #6f6f76; }
+    .code .lines span:nth-child(2) { width: 72%; }
+    .code .lines span:nth-child(3) { width: 54%; }
+    .ic-safari { background: conic-gradient(#e74c3c, #f1c40f, #2ecc71, #3498db, #e74c3c); }
+    .ic-notes { background: #f0c84a; }
+    .ic-music { background: #e4576a; }
+    .ic-cal { background: #fff; box-shadow: inset 0 0.45cqi 0 #e15b5b; }
+    .ic-msg { background: #3cba6f; }
+    .ic-code { background: #3d78f6; }
+    @keyframes pick {
+      0%, 13% { box-shadow: 0 0 0 0.35cqi #fff; transform: scale(1.035); }
+      18%, 100% { box-shadow: 0 0 0 0 transparent; transform: none; }
+    }
+    .dock .row {
+      display: flex;
+      align-items: flex-start;
+      gap: 2.2cqi;
+      padding: 7% 8% 0 6%;
+    }
+    .dockbar {
+      width: 5.8cqi;
+      background: #393838;
+      border-radius: 1.7cqi;
+      padding: 0.9cqi 0.7cqi;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7cqi;
+    }
+    .dockbar i {
+      width: 4.4cqi;
+      height: 4.4cqi;
+      border-radius: 1.1cqi;
+      display: block;
+    }
+    .dockbar i.on {
+      box-shadow: 0 0 0 0.28cqi #f5c400;
+    }
+    .previews {
+      flex: 1;
+      max-width: 72%;
+      display: flex;
+      gap: 1.2cqi;
+      padding: 1.3cqi;
+      animation: arrive 6.6s ease infinite;
+    }
+    .dwin { flex: 1; min-width: 0; text-align: center; }
+    .dwin .thumb {
+      animation: ypick 6.6s ease-in-out infinite;
+      animation-delay: calc(0.7s + var(--i) * 1.7s);
+    }
+    .face { height: 78%; }
+    .mail .face { background: #8d8d8d; }
+    .mail .face span, .beat span {
+      display: block;
+      height: 8%;
+      margin: 8% 10% 0;
+      border-radius: 99px;
+      background: #d0d0d0;
+    }
+    .pills {
+      position: absolute;
+      left: 6%;
+      right: 6%;
+      bottom: 7%;
+      display: flex;
+      justify-content: space-between;
+      font-family: "Avenir Next", sans-serif;
+      font-size: 1.15cqi;
+      color: #fff;
+    }
+    .pills span {
+      background: #3a3a3a;
+      border-radius: 99px;
+      padding: 0.2cqi 0.7cqi;
+    }
+    .dwin .name { color: #f4f1ec; font-size: 1.5cqi; }
+    .dock .copy {
+      position: absolute;
+      left: 14%;
+      right: 6%;
+      bottom: 8%;
+      margin: 0;
+    }
+    .dock .copy strong {
+      display: block;
+      font-family: Palatino, Georgia, serif;
+      font-weight: 500;
+      font-size: 3.3cqi;
+      line-height: 1.05;
+    }
+    .dock .copy span {
+      display: block;
+      margin-top: 0.8cqi;
+      font-size: 1.7cqi;
+      color: #5c5146;
+      line-height: 1.35;
+    }
+    @keyframes ypick {
+      0%, 20% { box-shadow: 0 0 0 0.38cqi #f5c400; }
+      28%, 100% { box-shadow: 0 0 0 0 transparent; }
+    }
+    @keyframes arrive {
+      0% { opacity: 0; transform: translateX(-2cqi) scale(0.97); }
+      10%, 90% { opacity: 1; transform: none; }
+      100% { opacity: 0; transform: translateX(-1cqi); }
+    }
+    .snap .screen {
+      width: 86%;
+      height: 68%;
+      margin: 7% auto 0;
+      background: #f7f1e6;
+      border-radius: 2.2cqi;
+      border: 1px solid rgba(27, 22, 18, 0.18);
+      box-shadow: 0 1.6cqi 3cqi rgba(70, 42, 16, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    .menubar {
+      height: 7%;
+      background: #2a2a2a;
+    }
+    .snap .window {
+      position: absolute;
+      top: 16%;
+      height: 72%;
+      background: #fff;
+      border-radius: 1.2cqi;
+      box-shadow: 0 1cqi 2.4cqi rgba(40, 24, 8, 0.12);
+      overflow: hidden;
+      animation: place 9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .snap .title {
+      text-align: center;
+      font-family: "Avenir Next", sans-serif;
+      font-size: 1.5cqi;
+      padding: 0.7cqi 0 0.4cqi;
+    }
+    .snap .blue {
+      width: 46%;
+      height: 28%;
+      margin: 12% auto 0;
+      background: #3d78f6;
+      border-radius: 0.8cqi;
+    }
+    .snap .cap { position: relative; height: 1.3em; }
+    .snap .cap span {
+      position: absolute;
+      left: 0;
+      right: 0;
+      opacity: 0;
+      animation: cap 9s linear infinite;
+      animation-delay: calc(var(--i) * 3s);
+    }
+    @keyframes place {
+      0%, 22% { left: 6%; width: 44%; }
+      36%, 58% { left: 50%; width: 44%; }
+      72%, 94% { left: 6%; width: 88%; }
+      100% { left: 6%; width: 44%; }
+    }
+    @keyframes cap {
+      0% { opacity: 0; }
+      6%, 24% { opacity: 1; }
+      33%, 100% { opacity: 0; }
+    }
+    .clip .sheet {
+      width: 42%;
+      margin: 8% auto 0;
+      background: #f7f1e6;
+      border-radius: 2.4cqi;
+      padding: 2.4cqi 2.2cqi 1.6cqi;
+      box-shadow: 0 1.8cqi 3.2cqi rgba(70, 42, 16, 0.12);
+    }
+    .clip h3 {
+      margin: 0 0 1.4cqi;
+      text-align: center;
+      font-size: 3cqi;
+    }
+    .search {
+      background: #fff;
+      border-radius: 1cqi;
+      color: #8a7d70;
+      font-family: "Avenir Next", sans-serif;
+      font-size: 1.7cqi;
+      padding: 0.9cqi 1.2cqi;
+      margin-bottom: 1.2cqi;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 1cqi;
+      border-radius: 0.9cqi;
+      padding: 0.7cqi 0.6cqi;
+      font-family: "Avenir Next", sans-serif;
+      font-size: 1.8cqi;
+      animation: hi 6.4s ease infinite;
+      animation-delay: calc(var(--i) * 1.6s);
+    }
+    .item i { width: 2.3cqi; height: 2.3cqi; border-radius: 0.5cqi; flex: none; }
+    @keyframes hi {
+      0%, 16% { background: #fff; box-shadow: inset 0.35cqi 0 0 #d4532b; }
+      26%, 100% { background: transparent; box-shadow: none; }
+    }
+    .shotcap .frame {
+      position: absolute;
+      border: 0.28cqi solid #3b6cff;
+      background: rgba(59, 108, 255, 0.14);
+      border-radius: 1cqi;
+      overflow: hidden;
+      animation: capture 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .shotcap .mini { width: 100%; height: 72%; background: #eef3fb; }
+    .shotcap .mini .block {
+      width: 42%;
+      height: 28%;
+      margin: 14% 0 0 8%;
+      background: #3d78f6;
+      border-radius: 0.5cqi;
+      float: left;
+    }
+    .shotcap .mini .side {
+      width: 34%;
+      height: 28%;
+      margin: 14% 8% 0 0;
+      background: #c5d0de;
+      border-radius: 0.5cqi;
+      float: right;
+    }
+    .shotcap .foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6cqi 1cqi 0;
+      font-family: "Avenir Next", sans-serif;
+      font-size: 1.5cqi;
+      opacity: 0;
+      animation: copied 7s linear infinite;
+    }
+    .shotcap .x {
+      width: 1.8cqi;
+      height: 1.8cqi;
+      border-radius: 50%;
+      background: #2a2a2a;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 1.3cqi;
+    }
+    @keyframes capture {
+      0% { left: 28%; top: 30%; width: 6%; height: 8%; opacity: 0; background: rgba(59, 108, 255, 0.14); border-color: #3b6cff; }
+      8% { opacity: 1; }
+      26% { left: 16%; top: 16%; width: 34%; height: 38%; opacity: 1; }
+      46%, 84% { left: 68%; top: 56%; width: 24%; height: 30%; opacity: 1; background: #fff; border-color: transparent; border-radius: 1.6cqi; box-shadow: 0 1.2cqi 2.4cqi rgba(70, 42, 16, 0.16); }
+      100% { left: 68%; top: 64%; width: 24%; height: 30%; opacity: 0; }
+    }
+    @keyframes copied {
+      0%, 38% { opacity: 0; }
+      46%, 86% { opacity: 1; }
+      100% { opacity: 0; }
+    }
     @media (prefers-reduced-motion: reduce) {
       .hero .kicker, .hero h1, .hero .lede, .misses li, .actions, .mark,
       .reveal {
@@ -239,6 +588,8 @@
         transform: none;
       }
       .mark, .shot { transition: none; }
+      .live > .stage { display: none; }
+      .live > .still { display: block; }
     }
     @media (max-width: 800px) {
       .hero, .feature, .feature.reverse, .groups { grid-template-columns: 1fr; }
@@ -286,8 +637,8 @@
 <!-- /showbar:download -->
         </div>
       </div>
-      <div class="mark">
-        <img src="demo-switcher.png" alt="Command-Tab shows six windows in a grid: Safari, Notes, Music, Calendar, Messages, and Code. Safari is selected.">
+      <div class="mark" data-scene="switcher">
+        <img class="still" src="demo-switcher.png" alt="Command-Tab shows six windows in a grid: Safari, Notes, Music, Calendar, Messages, and Code. The selection moves across them.">
         <p>Command-Tab shows the windows. Release ⌘ to switch.</p>
       </div>
     </section>
@@ -304,8 +655,8 @@
             <li>Real app windows only. Password panels and system windows stay out.</li>
           </ul>
         </div>
-        <figure class="shot">
-          <img src="demo-switcher.png" alt="Command-Tab shows six windows in a grid: Safari, Notes, Music, Calendar, Messages, and Code. Safari is selected.">
+        <figure class="shot" data-scene="switcher">
+          <img class="still" src="demo-switcher.png" alt="Command-Tab shows six windows in a grid: Safari, Notes, Music, Calendar, Messages, and Code. The selection moves across them.">
         </figure>
       </article>
 
@@ -323,8 +674,8 @@
             <li>While the preview is open, the Dock stays out. It hides again after you leave.</li>
           </ul>
         </div>
-        <figure class="shot">
-          <img src="demo-dock.png" alt="A Dock icon opens into window cards. The Safari window under the pointer has a yellow frame, with Desktop 1 and Quit on the card.">
+        <figure class="shot" data-scene="dock">
+          <img class="still" src="demo-dock.png" alt="A Dock icon opens into window cards. A yellow frame moves across the windows under the pointer.">
         </figure>
       </article>
 
@@ -340,8 +691,8 @@
             <li>The same choices are in the menu, under Snap window.</li>
           </ul>
         </div>
-        <figure class="shot">
-          <img src="demo-snap.png" alt="A Safari window snapped to the left half of the screen. The caption says Control-Option Left.">
+        <figure class="shot" data-scene="snap">
+          <img class="still" src="demo-snap.png" alt="A Safari window snaps to the left half, the right half, then the full screen.">
         </figure>
       </article>
 
@@ -356,14 +707,14 @@
             <li>Up to 100 items, still there after Show Bar quits.</li>
           </ul>
         </div>
-        <figure class="shot">
-          <img src="demo-clipboard.png" alt="A Clipboard window with search, a link, meeting notes, an image, and a screenshot. The caption says Control-Option V.">
+        <figure class="shot" data-scene="clipboard">
+          <img class="still" src="demo-clipboard.png" alt="A Clipboard window. The highlight moves through a link, meeting notes, an image, and a screenshot.">
         </figure>
       </article>
 
       <article class="feature reverse">
-        <figure class="shot">
-          <img src="demo-shot.png" alt="A small screenshot card in the bottom-right corner labeled Copied, with an X to close it.">
+        <figure class="shot" data-scene="shot">
+          <img class="still" src="demo-shot.png" alt="A selection is drawn, then a screenshot card lands in the bottom-right corner labeled Copied.">
         </figure>
         <div class="copy">
           <p class="kicker">Screenshots</p>
@@ -433,8 +784,84 @@
 
     <footer>© 2026 Naor Yanko · Show Bar for macOS</footer>
   </div>
+  <template id="scene-switcher">
+    <div class="stage switcher" aria-hidden="true">
+      <div class="panel">
+        <div class="grid">
+          <div><div class="thumb safari" style="--i:0"><div class="bar"></div><div class="body"><div class="block"></div><div class="side"></div></div></div><div class="name"><i class="ic-safari"></i>Safari</div></div>
+          <div><div class="thumb notes" style="--i:1"><div class="bar"></div><div class="lines"><span></span><span></span><span></span><span></span></div></div><div class="name"><i class="ic-notes"></i>Notes</div></div>
+          <div><div class="thumb music" style="--i:2"></div><div class="name"><i class="ic-music"></i>Music</div></div>
+          <div><div class="thumb cal" style="--i:3"><div class="bar"></div><div class="days"><b>S</b><b>M</b><b>T</b><b>W</b><b>T</b><b>F</b><b>S</b><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span></div></div><div class="name"><i class="ic-cal"></i>Calendar</div></div>
+          <div><div class="thumb msg" style="--i:4"><div class="bar"></div><div class="body"><span></span><span></span><span></span></div></div><div class="name"><i class="ic-msg"></i>Messages</div></div>
+          <div><div class="thumb code" style="--i:5"><div class="bar"></div><div class="lines"><span></span><span></span><span></span></div></div><div class="name"><i class="ic-code"></i>Code</div></div>
+        </div>
+      </div>
+      <p class="cap">Arrows to move · release ⌘ to switch</p>
+    </div>
+  </template>
+  <template id="scene-dock">
+    <div class="stage dock" aria-hidden="true">
+      <div class="row">
+        <div class="dockbar">
+          <i style="background:#3d78f6"></i>
+          <i style="background:#3cba6f"></i>
+          <i class="on" style="background:#f6e27a"></i>
+          <i style="background:#e07a45"></i>
+          <i style="background:#7b61c9"></i>
+        </div>
+        <div class="panel previews">
+          <div class="dwin" style="--i:0"><div class="thumb mail"><div class="face"><span></span><span></span><span></span></div><div class="pills"><span>Desktop 1</span><span>Quit</span></div></div><div class="name">Mail</div></div>
+          <div class="dwin" style="--i:1"><div class="thumb safari"><div class="bar"></div><div class="body"><div class="block"></div><div class="side"></div></div><div class="pills"><span>Desktop 1</span><span>Quit</span></div></div><div class="name">Safari</div></div>
+          <div class="dwin" style="--i:2"><div class="thumb music"><div class="pills"><span>Desktop 2</span><span>Quit</span></div></div><div class="name">Music</div></div>
+        </div>
+      </div>
+      <p class="copy"><strong>The window under the pointer lights up.</strong><span>Click a picture to focus it. X closes that window. Quit closes the app.</span></p>
+    </div>
+  </template>
+  <template id="scene-snap">
+    <div class="stage snap" aria-hidden="true">
+      <div class="screen">
+        <div class="menubar"></div>
+        <div class="window"><div class="title">Safari</div><div class="blue"></div></div>
+      </div>
+      <p class="cap"><span style="--i:0">Control-Option Left</span><span style="--i:1">Control-Option Right</span><span style="--i:2">Control-Option Return</span></p>
+    </div>
+  </template>
+  <template id="scene-clipboard">
+    <div class="stage clip" aria-hidden="true">
+      <div class="sheet">
+        <h3>Clipboard</h3>
+        <div class="search">Search copies</div>
+        <div class="item" style="--i:0"><i class="ic-safari"></i>https://example.com</div>
+        <div class="item" style="--i:1"><i class="ic-notes"></i>Meeting notes for Monday</div>
+        <div class="item" style="--i:2"><i class="ic-music"></i>Image</div>
+        <div class="item" style="--i:3"><i class="ic-code"></i>Screenshot</div>
+      </div>
+      <p class="cap">Control-Option V</p>
+    </div>
+  </template>
+  <template id="scene-shot">
+    <div class="stage shotcap" aria-hidden="true">
+      <div class="frame">
+        <div class="mini"><div class="block"></div><div class="side"></div></div>
+        <div class="foot"><span>Copied</span><span class="x">×</span></div>
+      </div>
+    </div>
+  </template>
   <script>
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduce) {
+      document.querySelectorAll("[data-scene]").forEach((host) => {
+        const tpl = document.getElementById("scene-" + host.dataset.scene);
+        if (!tpl) return;
+        host.insertBefore(tpl.content.cloneNode(true), host.firstChild);
+        host.classList.add("live");
+      });
+      const playing = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => entry.target.classList.toggle("run", entry.isIntersecting));
+      }, { threshold: 0.05 });
+      document.querySelectorAll(".live").forEach((host) => playing.observe(host));
+    }
     const items = document.querySelectorAll(".misses li");
     if (!reduce && items.length) {
       let current = 0;
