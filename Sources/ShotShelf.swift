@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import ImageIO
 import ScreenCaptureKit
 
 /// What happens after a screenshot is taken.
@@ -52,11 +53,14 @@ final class ShotShelf {
     private var preview: NSPanel?
     private var caption: NSTextField?
     private var shots: [CGImage] = []
+    /// resource: memory 8 — full-screen images stay in RAM only until the shelf closes.
+    private let shotLimit = 8
     private var saved: Set<Int> = []
     private var shelfScreen: NSScreen?
     private var copiedFiles: [URL] = []
     private var previousApp: NSRunningApplication?
     private var shutterSound: NSSound?
+    private var markup: ShotMarkup?
 
     private init() {}
 
@@ -243,6 +247,9 @@ final class ShotShelf {
 
     private func present(_ image: CGImage, on screen: NSScreen) {
         shots.append(image)
+        if shots.count > shotLimit {
+            shots.removeFirst(shots.count - shotLimit)
+        }
         switch ShotPreferences.after {
         case .copyClose:
             copy([image])
@@ -310,6 +317,7 @@ final class ShotShelf {
             imageView.wantsLayer = true
             imageView.layer?.cornerRadius = 6
             imageView.layer?.masksToBounds = true
+            imageView.onOpen = { [weak self] in self?.openMarkup(index: index) }
             root.addSubview(imageView)
             let drop = barButton(
                 symbol: "xmark",
@@ -327,6 +335,14 @@ final class ShotShelf {
             )
             copyOne.tag = index
             root.addSubview(copyOne)
+            let edit = barButton(
+                symbol: "pencil.tip",
+                label: "Open this screenshot to edit",
+                frame: NSRect(x: x + 4, y: bar + 4, width: 20, height: 20),
+                action: #selector(openOne(_:))
+            )
+            edit.tag = index
+            root.addSubview(edit)
         }
 
         let caption = NSTextField(labelWithString: shots.count == 1 ? "1 screenshot" : "\(shots.count) screenshots")
@@ -367,6 +383,8 @@ final class ShotShelf {
     }
 
     @objc private func closePreview() {
+        markup?.window.close()
+        markup = nil
         preview?.orderOut(nil)
         preview = nil
         caption = nil
@@ -387,6 +405,38 @@ final class ShotShelf {
             closePreview()
             return
         }
+        showShelf(on: screen)
+    }
+
+    @objc private func openOne(_ sender: NSButton) {
+        openMarkup(index: sender.tag)
+    }
+
+    /// Opens one picture large, in the Mac’s own markup editor. Done puts the edited picture back on the shelf.
+    private func openMarkup(index: Int) {
+        guard shots.indices.contains(index) else { return }
+        if let markup {
+            markup.window.orderFrontRegardless()
+            NSApp.activate()
+            return
+        }
+        let original = shots[index]
+        let editor = ShotMarkup(image: original)
+        editor.onDone = { [weak self] edited in
+            self?.applyEdit(original: original, edited: edited)
+        }
+        editor.onClose = { [weak self] in
+            self?.markup = nil
+        }
+        markup = editor
+        editor.show(on: shelfScreen ?? preview?.screen ?? NSScreen.main ?? NSScreen.screens.first)
+    }
+
+    private func applyEdit(original: CGImage, edited: CGImage) {
+        guard let index = shots.firstIndex(where: { $0 === original }) else { return }
+        shots[index] = edited
+        saved.remove(index)
+        guard let screen = shelfScreen ?? preview?.screen ?? NSScreen.main else { return }
         showShelf(on: screen)
     }
 
@@ -531,8 +581,8 @@ private enum ShotGrab {
         guard let display = content.displays.first(where: { $0.displayID == target.displayID }) else {
             throw ShotError.noDisplay
         }
-        let mine = content.applications.filter { $0.processID == getpid() }
-        let filter = SCContentFilter(display: display, excludingApplications: mine, exceptingWindows: [])
+        // Include Show Bar itself, so a screenshot can show the Dock preview and Command-Tab.
+        let filter = SCContentFilter(display: display, excludingWindows: [])
         let config = SCStreamConfiguration()
         // display.width is in points. The output size is in pixels. Using points
         // keeps only the top-left piece of a Retina screen.
@@ -696,6 +746,7 @@ private final class SelectionCanvas: NSView {
         }
         followPointer()
         guard cursorTimer == nil else { return }
+        // resource: active 0.016 — runs only while a crop is being dragged.
         let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             self?.followPointer()
         }
@@ -899,14 +950,168 @@ private final class SelectionCanvas: NSView {
 }
 
 private final class ShotImageView: NSImageView, NSDraggingSource {
+    var onOpen: (() -> Void)?
+    private var press: CGPoint?
+
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .copy
     }
 
+    override func mouseDown(with event: NSEvent) {
+        press = convert(event.locationInWindow, from: nil)
+    }
+
     override func mouseDragged(with event: NSEvent) {
+        press = nil
         guard let image else { return }
         let item = NSDraggingItem(pasteboardWriter: image)
         item.setDraggingFrame(bounds, contents: image)
         beginDraggingSession(with: [item], event: event, source: self)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard press != nil else { return }
+        press = nil
+        onOpen?()
+    }
+}
+
+/// The Mac’s screenshot markup window. MarkupUI is private, so it is loaded by name.
+private final class ShotMarkup: NSObject, NSWindowDelegate {
+    let window: NSWindow
+    private let controller: NSViewController?
+    private let image: CGImage
+    var onDone: ((CGImage) -> Void)?
+    var onClose: (() -> Void)?
+    private var previousApp: NSRunningApplication?
+
+    init(image: CGImage) {
+        self.image = image
+        _ = Bundle(path: "/System/Library/PrivateFrameworks/MarkupUI.framework")?.load()
+        let controller = NSClassFromString("MarkupViewController") as? NSViewController.Type
+        let markup = controller?.init()
+        markup?.setValue(true, forKey: "cropToolEnabled")
+        markup?.setValue(true, forKey: "wantsToolbarAndPadding")
+        self.controller = markup
+        let frame = NSRect(x: 0, y: 0, width: 960, height: 640)
+        window = NSWindow(
+            contentRect: frame,
+            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        super.init()
+        window.title = "Screenshot"
+        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)) + 1)
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.contentViewController = markup ?? Self.plainPreview(image)
+        installButtons()
+    }
+
+    func show(on screen: NSScreen?) {
+        previousApp = NSWorkspace.shared.frontmostApplication
+        window.orderFrontRegardless()
+        NSApp.activate()
+        DispatchQueue.main.async { [weak self] in
+            self?.loadImage(on: screen)
+        }
+    }
+
+    private func loadImage(on screen: NSScreen?) {
+        guard let controller else {
+            fit(on: screen)
+            return
+        }
+        let scale = max(screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2, 1)
+        let points = NSSize(
+            width: CGFloat(image.width) / scale,
+            height: CGFloat(image.height) / scale
+        )
+        let picture = NSImage(cgImage: image, size: points)
+        controller.perform(NSSelectorFromString("setImage:withArchivedModelData:"), with: picture, with: nil)
+        fit(on: screen)
+    }
+
+    private func fit(on screen: NSScreen?) {
+        let area = (screen ?? window.screen ?? NSScreen.main)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
+        let limit = area.insetBy(dx: 48, dy: 56)
+        let pixel = CGSize(width: image.width, height: image.height)
+        let scale = min(limit.width / max(pixel.width, 1), limit.height / max(pixel.height, 1), 1)
+        let size = NSSize(
+            width: max(640, floor(pixel.width * scale)),
+            height: max(420, floor(pixel.height * scale))
+        )
+        window.setContentSize(size)
+        window.setFrameOrigin(NSPoint(
+            x: area.midX - size.width / 2,
+            y: area.midY - size.height / 2
+        ))
+    }
+
+    private func installButtons() {
+        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+        cancel.bezelStyle = .rounded
+        let done = NSButton(title: "Done", target: self, action: #selector(commit))
+        done.bezelStyle = .rounded
+        done.keyEquivalent = "\r"
+        let box = NSView()
+        cancel.translatesAutoresizingMaskIntoConstraints = false
+        done.translatesAutoresizingMaskIntoConstraints = false
+        box.addSubview(cancel)
+        box.addSubview(done)
+        NSLayoutConstraint.activate([
+            cancel.leadingAnchor.constraint(equalTo: box.leadingAnchor),
+            cancel.centerYAnchor.constraint(equalTo: box.centerYAnchor),
+            done.leadingAnchor.constraint(equalTo: cancel.trailingAnchor, constant: 8),
+            done.trailingAnchor.constraint(equalTo: box.trailingAnchor),
+            done.centerYAnchor.constraint(equalTo: box.centerYAnchor),
+            box.heightAnchor.constraint(equalToConstant: 28)
+        ])
+        let accessory = NSTitlebarAccessoryViewController()
+        accessory.view = box
+        accessory.layoutAttribute = .right
+        window.addTitlebarAccessoryViewController(accessory)
+    }
+
+    @objc private func cancel() {
+        window.close()
+    }
+
+    @objc private func commit() {
+        let edited = flattened() ?? image
+        onDone?(edited)
+        window.close()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        onClose?()
+        onClose = nil
+        let previous = previousApp
+        previousApp = nil
+        guard let previous, previous.processIdentifier != getpid(), !previous.isTerminated else { return }
+        previous.activate(from: .current, options: [])
+    }
+
+    private func flattened() -> CGImage? {
+        guard let controller else { return nil }
+        let sel = NSSelectorFromString("dataRepresentationWithError:")
+        guard controller.responds(to: sel) else { return nil }
+        typealias DataFn = @convention(c) (AnyObject, Selector, UnsafeMutableRawPointer?) -> Unmanaged<AnyObject>?
+        let fn = unsafeBitCast(controller.method(for: sel), to: DataFn.self)
+        guard let data = fn(controller, sel, nil)?.takeUnretainedValue() as? Data,
+              let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+    }
+
+    private static func plainPreview(_ image: CGImage) -> NSViewController {
+        let controller = NSViewController()
+        let view = NSImageView()
+        view.image = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+        view.imageScaling = .scaleProportionallyUpOrDown
+        view.imageAlignment = .alignCenter
+        controller.view = view
+        return controller
     }
 }

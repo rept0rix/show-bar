@@ -76,7 +76,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     func noteUpdate(_ version: String?) {
         offeredUpdate = version
-        statusItem?.button?.image = menuBarIcon(updateReady: version != nil)
+        let ready = version != nil
+        statusItem?.length = ready ? 32 : NSStatusItem.squareLength
+        statusItem?.button?.image = menuBarIcon(updateReady: ready)
         statusItem?.button?.toolTip = version.map { "Show Bar — update \($0) is ready" } ?? "Show Bar"
     }
 
@@ -94,10 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         ClipboardShelf.shared.rememberTarget()
         menu.removeAllItems()
         if let version = offeredUpdate {
-            let ready = NSMenuItem(title: "Update to \(version)…", action: #selector(installOfferedUpdate), keyEquivalent: "")
-            ready.target = self
-            ready.image = menuBarDot
-            menu.addItem(ready)
+            menu.addItem(updateButtonItem(version))
             menu.addItem(.separator())
         }
         let toggle = NSMenuItem(
@@ -373,6 +372,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         NSApp.terminate(nil)
     }
 
+    private func updateButtonItem(_ version: String) -> NSMenuItem {
+        let item = NSMenuItem()
+        let button = NSButton(title: "Update to \(version)", target: self, action: #selector(installOfferedUpdate))
+        button.bezelStyle = .push
+        button.controlSize = .large
+        button.setButtonType(.momentaryPushIn)
+        button.frame = NSRect(x: 14, y: 8, width: 212, height: 30)
+        let wrap = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 46))
+        wrap.addSubview(button)
+        item.view = wrap
+        return item
+    }
+
     @objc private func checkForUpdates() {
         AppUpdate.checkManually()
     }
@@ -439,6 +451,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         permissionsTimer?.invalidate()
+        // resource: active 0.8 — runs only while the permissions window is open.
         permissionsTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
             self?.pollPermissions()
         }
@@ -474,23 +487,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         source.isTemplate = false
         guard updateReady else { return source }
         let canvas = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
-            source.draw(in: rect)
-            let ring = NSRect(x: side - 8, y: side - 8, width: 8, height: 8)
+            source.draw(in: NSRect(x: 0, y: 0, width: side - 2, height: side - 2))
+            let ring = NSRect(x: side - 9, y: side - 9, width: 9, height: 9)
             NSColor.white.setFill()
             NSBezierPath(ovalIn: ring).fill()
             NSColor.systemBlue.setFill()
-            NSBezierPath(ovalIn: ring.insetBy(dx: 1.5, dy: 1.5)).fill()
-            return true
-        }
-        canvas.isTemplate = false
-        return canvas
-    }
-
-    private var menuBarDot: NSImage {
-        let side: CGFloat = 12
-        let canvas = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
-            NSColor.systemBlue.setFill()
-            NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1)).fill()
+            NSBezierPath(ovalIn: ring.insetBy(dx: 1.2, dy: 1.2)).fill()
             return true
         }
         canvas.isTemplate = false
@@ -589,7 +591,7 @@ enum ShowBarSupport {
     static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.6" // showbar-version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.7" // showbar-version
     }
 }
 
@@ -825,7 +827,7 @@ struct PermissionsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Several shots sit together in the corner. The X on a picture leaves it out. Copy all puts the remaining pictures on the clipboard as files, so one paste sends all of them.")
+            Text("Several shots sit together in the corner. Click a picture, or the pencil, to open it large and mark it up. Done puts the edited picture back. The X on a picture leaves it out. Copy all puts the remaining pictures on the clipboard as files, so one paste sends all of them.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

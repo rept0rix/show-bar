@@ -143,13 +143,13 @@ enum DockReader {
         guard let screen = screens.first(where: { $0.intersects(frame) }) else { return false }
         let hit = frame.intersection(screen)
         guard hit.width > 1, hit.height > 1 else { return false }
-        return hit.width >= frame.width * 0.7 && hit.height >= frame.height * 0.7
+        return hit.width >= frame.width * 0.2 && hit.height >= frame.height * 0.2
     }
 
-    /// Auto-hidden Dock icons sit just off the screen edge. Still treat them as hover targets.
+    /// Auto-hidden Dock icons sit just off the screen edge. Icons at the far end of a long Dock do too.
     static func isHoverable(_ frame: CGRect) -> Bool {
         if isOnScreen(frame) { return true }
-        let pads = NSScreen.screens.map { Coordinates.flip($0.frame).insetBy(dx: -56, dy: -56) }
+        let pads = NSScreen.screens.map { Coordinates.flip($0.frame).insetBy(dx: -160, dy: -160) }
         return pads.contains { $0.intersects(frame) }
     }
 

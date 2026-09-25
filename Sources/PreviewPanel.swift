@@ -306,6 +306,7 @@ final class PreviewPanel {
 
     private func startPointerTimer() {
         guard pointerTimer == nil else { return }
+        // resource: active 0.033 — runs only while a window preview is visible.
         let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
             self?.markCardUnderMouse()
         }

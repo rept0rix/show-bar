@@ -24,6 +24,7 @@ final class ClipboardShelf: ObservableObject {
     private var returnTo: pid_t?
     private var window: NSWindow?
     private var thumbs: [UUID: NSImage] = [:]
+    /// resource: memory 100 — clipboard history stays on disk; only small thumbnails stay in RAM.
     private let limit = 100
     private let folder: URL
     private let indexURL: URL
@@ -39,7 +40,8 @@ final class ClipboardShelf: ObservableObject {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         load()
         timer?.invalidate()
-        let timer = Timer(timeInterval: 0.45, repeats: true) { _ in
+        // resource: idle 1.0 — reads the pasteboard change count, and copies only when it changes.
+        let timer = Timer(timeInterval: 1.0, repeats: true) { _ in
             ClipboardShelf.shared.captureIfNeeded()
         }
         RunLoop.main.add(timer, forMode: .common)

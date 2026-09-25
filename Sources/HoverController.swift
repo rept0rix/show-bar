@@ -8,6 +8,7 @@ final class HoverController: @unchecked Sendable {
     private var localMonitor: Any?
     private var iconTimer: Timer?
     private var pollTimer: Timer?
+    private var pollInterval: TimeInterval = 0
     private var edgeRefresh: DispatchWorkItem?
     private var edgeAttempts = 0
     private var sawMouse = false
@@ -93,7 +94,8 @@ final class HoverController: @unchecked Sendable {
         installMonitor()
         installPoll()
         watchActivation()
-        iconTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
+        // resource: idle 2.0 — Dock icons are read only while Show Bar is idle in the menu bar.
+        iconTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.refreshIcons()
         }
         // Global monitors sometimes stay quiet until the first RunLoop turn after launch.
@@ -262,10 +264,17 @@ final class HoverController: @unchecked Sendable {
         }
     }
 
-    /// Poll the pointer so hover works even when the global monitor is quiet after launch.
+    /// Backup for a quiet global monitor. Fast only while the pointer is at the Dock.
     private func installPoll() {
+        schedulePoll(interval: 1.0)
+    }
+
+    private func schedulePoll(interval: TimeInterval) {
+        guard abs(pollInterval - interval) > 0.01 || pollTimer == nil else { return }
+        pollInterval = interval
         pollTimer?.invalidate()
-        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+        // resource: idle 1.0 — 0.12 is used only while the pointer is on the Dock or a preview is open.
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             self?.pollHover()
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -274,7 +283,20 @@ final class HoverController: @unchecked Sendable {
 
     private func pollHover() {
         guard isRunning, NSEvent.pressedMouseButtons == 0 else { return }
-        mouseMoved(to: quartzMouse())
+        let point = quartzMouse()
+        let engaged = panel.isShown || pointerNearDock(point)
+        if engaged {
+            schedulePoll(interval: 0.12)
+        } else {
+            schedulePoll(interval: 1.0)
+        }
+        if !engaged, point == lastPoint { return }
+        mouseMoved(to: point)
+    }
+
+    private func pointerNearDock(_ point: CGPoint) -> Bool {
+        if mouseNearScreenEdge() { return true }
+        return icons.contains { DockReader.hitFrame($0.frame, edge: edge).insetBy(dx: -24, dy: -24).contains(point) }
     }
 
     private func watchActivation() {
@@ -318,7 +340,7 @@ final class HoverController: @unchecked Sendable {
         guard isRunning, NSEvent.pressedMouseButtons == 0 else { return }
         lastPoint = point
         sawMouse = true
-        if panel.isShown, panel.approachContains(point) {
+        if panel.pointerInside() || panel.containsAX(point) {
             cancelHide()
             panel.markCardUnderMouse()
             return
@@ -333,7 +355,7 @@ final class HoverController: @unchecked Sendable {
             return
         }
         emptyID = nil
-        if panel.pointerInside() || panel.containsAX(point) || bridgeContains(point) {
+        if panel.approachContains(point) || bridgeContains(point) {
             cancelHide()
             panel.markCardUnderMouse()
             return
@@ -355,7 +377,7 @@ final class HoverController: @unchecked Sendable {
         if icon.id == pendingID { return }
         pendingID = icon.id
         hoverTask?.cancel()
-        let delay: UInt64 = shownID == nil ? 70_000_000 : 30_000_000
+        let delay: UInt64 = shownID == nil ? 40_000_000 : 0
         let iconID = icon.id
         hoverTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: delay)
@@ -455,13 +477,40 @@ final class HoverController: @unchecked Sendable {
     }
 
     private func icon(at point: CGPoint) -> DockIcon? {
-        let hits = icons.filter {
-            DockReader.isHoverable($0.frame) && DockReader.hitFrame($0.frame, edge: edge).contains(point)
-        }
+        let hoverable = icons.filter { DockReader.isHoverable($0.frame) }
+        let hits = hoverable.filter { laneHit($0, among: hoverable).contains(point) }
         return hits.min { lhs, rhs in
             hypot(lhs.frame.midX - point.x, lhs.frame.midY - point.y)
                 < hypot(rhs.frame.midX - point.x, rhs.frame.midY - point.y)
         }
+    }
+
+    /// Each icon owns the Dock up to the midpoint of its neighbors, and the first and last reach the screen edge.
+    private func laneHit(_ icon: DockIcon, among icons: [DockIcon]) -> CGRect {
+        var rect = DockReader.hitFrame(icon.frame, edge: edge)
+        let screens = NSScreen.screens.map { Coordinates.flip($0.frame) }
+        let screen = screens.max { lhs, rhs in
+            let left = lhs.intersection(icon.frame)
+            let right = rhs.intersection(icon.frame)
+            return left.width * left.height < right.width * right.height
+        }
+        switch edge {
+        case .left, .right:
+            let above = icons.map(\.frame.minY).filter { $0 < icon.frame.minY }.max()
+            let below = icons.map(\.frame.maxY).filter { $0 > icon.frame.maxY }.min()
+            let top = above.map { ($0 + icon.frame.minY) / 2 } ?? screen?.minY ?? rect.minY
+            let bottom = below.map { ($0 + icon.frame.maxY) / 2 } ?? screen?.maxY ?? rect.maxY
+            rect.origin.y = min(rect.minY, top)
+            rect.size.height = max(rect.maxY, bottom) - rect.origin.y
+        case .bottom, .top:
+            let before = icons.map(\.frame.minX).filter { $0 < icon.frame.minX }.max()
+            let after = icons.map(\.frame.maxX).filter { $0 > icon.frame.maxX }.min()
+            let left = before.map { ($0 + icon.frame.minX) / 2 } ?? screen?.minX ?? rect.minX
+            let right = after.map { ($0 + icon.frame.maxX) / 2 } ?? screen?.maxX ?? rect.maxX
+            rect.origin.x = min(rect.minX, left)
+            rect.size.width = max(rect.maxX, right) - rect.origin.x
+        }
+        return rect
     }
 
     private func bridgeContains(_ point: CGPoint) -> Bool {

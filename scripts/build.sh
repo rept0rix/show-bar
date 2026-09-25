@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
+"$root/scripts/check-resources.sh"
 app="$root/build/Show Bar.app"
 binary="$app/Contents/MacOS/ShowBar"
 

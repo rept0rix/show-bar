@@ -2,6 +2,12 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.7
+
+- A screenshot includes Show Bar, so the Dock preview and Command-Tab can be captured.
+- Moving along the Dock switches to the next app immediately, including icons at the far ends. The same is true for a Dock on the left, the right, or the bottom.
+- When an update is ready, the menu-bar icon keeps a blue dot, and the menu keeps an Update button.
+
 ## 1.6
 
 - Admin is no longer in the app menu. Download counts are on a private page.
