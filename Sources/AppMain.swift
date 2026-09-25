@@ -15,7 +15,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var cropItem: NSStatusItem!
     private var hover = HoverController()
     private var permissionsWindow: NSWindow?
-    private var adminWindow: NSWindow?
     private var rateWindow: NSWindow?
     private var offeredUpdate: String?
     private var permissionsModel: PermissionsModel?
@@ -213,10 +212,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         updates.target = self
         menu.addItem(updates)
 
-        let admin = NSMenuItem(title: "Admin…", action: #selector(openAdmin), keyEquivalent: "")
-        admin.target = self
-        menu.addItem(admin)
-
         menu.addItem(.separator())
 
         let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
@@ -386,29 +381,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         AppUpdate.askAgain()
     }
 
-    @objc private func openAdmin() {
-        if let adminWindow {
-            adminWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-        let host = NSHostingView(rootView: AdminView(model: AdminModel()))
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 520),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "Admin"
-        window.contentView = host
-        window.isReleasedWhenClosed = false
-        window.delegate = self
-        window.center()
-        adminWindow = window
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
     @objc private func quit() {
         hover.stop()
         WindowSwitcher.shared.stop()
@@ -527,10 +499,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
-        if window === adminWindow {
-            adminWindow = nil
-            return
-        }
         if window === rateWindow {
             UserDefaults.standard.set(false, forKey: ShowBarSupport.askForRateKey)
             rateWindow = nil
@@ -621,7 +589,7 @@ enum ShowBarSupport {
     static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.5" // showbar-version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.6" // showbar-version
     }
 }
 

@@ -2,6 +2,10 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.6
+
+- Admin is no longer in the app menu. Download counts are on a private page.
+
 ## 1.5
 
 - Command-Tab follows the app in front. A window that stays above the others, such as Spotify, is no longer stuck first.
