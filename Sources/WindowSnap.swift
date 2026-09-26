@@ -65,6 +65,19 @@ enum WindowSnap {
         apply(close(current, left) ? .right : .left, window: window, current: current, screen: screen)
     }
 
+    /// Moves the window that was in front to the left half, then the right half, then back.
+    static func cycleFrontHalf() {
+        guard AXIsProcessTrusted() else { return }
+        let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let pid = (front != nil && front != getpid()) ? front! : lastOtherPID
+        guard let pid, pid != getpid() else { return }
+        guard let window = focusedWindow(pid: pid) else { return }
+        guard let current = AXValueReader.rect(window) else { return }
+        let screen = screen(forAXRect: current)
+        let left = Coordinates.flip(SnapZone.left.frame(inside: screen.visibleFrame))
+        apply(close(current, left) ? .right : .left, window: window, current: current, screen: screen)
+    }
+
     static func apply(_ zone: SnapZone) {
         guard AXIsProcessTrusted() else { return }
         let front = NSWorkspace.shared.frontmostApplication?.processIdentifier

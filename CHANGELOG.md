@@ -2,6 +2,13 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.9
+
+- Quick Command-Tab switches to the previous window immediately without getting stuck on screen.
+- Choosing a window in Command-Tab accurately raises and focuses that exact window, even when multiple windows of the same app are open.
+- Suppresses the native macOS Command-Tab switcher to prevent conflicting double switchers.
+- Windows across all Desktops and Spaces are listed with desktop badges, and selecting one switches directly to its Space.
+
 ## 1.8
 
 - After an update, Show Bar opens one preview so the window pictures start loading.

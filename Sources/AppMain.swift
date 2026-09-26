@@ -13,6 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var statusItem: NSStatusItem!
     private var captureItem: NSStatusItem!
     private var cropItem: NSStatusItem!
+    private var clipboardItem: NSStatusItem!
+    private var snapItem: NSStatusItem!
     private var hover = HoverController()
     private var permissionsWindow: NSWindow?
     private var rateWindow: NSWindow?
@@ -53,6 +55,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         captureItem = NSStatusBar.system.statusItem(withLength: 28)
         cropItem = NSStatusBar.system.statusItem(withLength: 28)
+        clipboardItem = NSStatusBar.system.statusItem(withLength: 28)
+        snapItem = NSStatusBar.system.statusItem(withLength: 28)
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(rememberFrontApp),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
         UNUserNotificationCenter.current().delegate = self
         noteUpdate(nil)
         let menu = NSMenu()
@@ -157,6 +167,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         preview.target = self
         menu.addItem(preview)
 
+        let resetSwitcher = NSMenuItem(title: "Reset Command-Tab", action: #selector(resetCommandTab), keyEquivalent: "")
+        resetSwitcher.target = self
+        menu.addItem(resetSwitcher)
+
         let snap = NSMenuItem(title: "Snap window", action: nil, keyEquivalent: "")
         let snapMenu = NSMenu()
         for zone in SnapZone.allCases {
@@ -241,6 +255,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         showPermissions()
     }
 
+    @objc private func resetCommandTab() {
+        WindowSwitcher.shared.reset()
+    }
+
     @objc private func showSample() {
         if let message = hover.showSamplePreview() {
             let alert = NSAlert()
@@ -270,6 +288,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             button.target = self
             button.action = #selector(copySelection)
         }
+        if let button = clipboardItem.button {
+            button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Clipboard history")
+            button.image?.isTemplate = true
+            button.toolTip = "Clipboard history"
+            button.target = self
+            button.action = #selector(showClipboard)
+        }
+        if let button = snapItem.button {
+            button.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Move this window to half the screen")
+            button.image?.isTemplate = true
+            button.toolTip = "Move this window to the other half"
+            button.target = self
+            button.action = #selector(snapFrontHalf)
+        }
+    }
+
+    @objc private func rememberFrontApp() {
+        WindowSnap.rememberFront()
+        ClipboardShelf.shared.rememberTarget()
+    }
+
+    @objc private func snapFrontHalf() {
+        WindowSnap.cycleFrontHalf()
     }
 
     @objc private func copyScreen() {
@@ -604,7 +645,7 @@ enum ShowBarSupport {
     static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.8" // showbar-version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.9" // showbar-version
     }
 }
 

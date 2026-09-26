@@ -52,7 +52,17 @@ enum DesktopSpaces {
         return spaces.compactMap { ($0 as? NSNumber)?.uint64Value }.filter { $0 != 0 }
     }
 
-    /// Brings that desktop forward. The window itself is focused afterwards.
+    /// The window's own desktop, when it is not the one already in front.
+    static func spaceToOpen(_ windowID: CGWindowID) -> UInt64? {
+        let known = Set(desks().map(\.id))
+        let mine = spaceIDs(for: windowID).filter { known.contains($0) }
+        guard !mine.isEmpty else { return nil }
+        let visible = currentIDs()
+        if mine.contains(where: { visible.contains($0) }) { return nil }
+        return mine.first
+    }
+
+    /// Brings that desktop forward on the display that owns it. A desktop already in front is left alone.
     static func show(_ spaceID: UInt64) {
         guard let connection = connectionID(),
               let copy: @convention(c) (Int32) -> Unmanaged<CFArray>? = symbol("SLSCopyManagedDisplaySpaces"),
@@ -62,6 +72,10 @@ enum DesktopSpaces {
         for case let display as NSDictionary in displays {
             let spaces = display["Spaces"] as? [NSDictionary] ?? []
             guard spaces.contains(where: { ($0["id64"] as? NSNumber)?.uint64Value == spaceID }) else { continue }
+            if let current = display["Current Space"] as? NSDictionary,
+               (current["id64"] as? NSNumber)?.uint64Value == spaceID {
+                return
+            }
             guard let uuid = display["Display Identifier"] as? String else { continue }
             setSpace(connection, uuid as CFString, spaceID)
             return

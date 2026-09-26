@@ -547,6 +547,7 @@ final class HoverController: @unchecked Sendable {
     }
 
     private func hideNow() {
+        WindowCatalog.endReveal(committing: nil)
         cancelHide()
         hoverTask?.cancel()
         watchTask?.cancel()

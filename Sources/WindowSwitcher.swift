@@ -32,6 +32,8 @@ final class WindowSwitcher {
     private var captureTask: Task<Void, Never>?
     private let lock = NSLock()
     private var visible = false
+    private var switchingActive = false
+    private var commandReleased = false
 
     private init() {
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)))
@@ -91,8 +93,7 @@ final class WindowSwitcher {
         }
     }
 
-    /// Most recently used app first. The first window in the system list is not "recent":
-    /// that list often starts with a window that stays above the others, such as Spotify.
+    /// Most recently used app first. Within an app, windows stay front to back.
     private func remember(_ pid: pid_t) {
         guard pid > 0, pid != getpid() else { return }
         recentPIDs.removeAll { $0 == pid }
@@ -101,6 +102,8 @@ final class WindowSwitcher {
 
     private func orderedByRecency(_ cards: [WindowCard]) -> [WindowCard] {
         if let front = NSWorkspace.shared.frontmostApplication?.processIdentifier {
+            remember(front)
+        } else if let front = cards.first?.pid {
             remember(front)
         }
         for card in cards where !recentPIDs.contains(card.pid) {
@@ -144,22 +147,22 @@ final class WindowSwitcher {
             | (1 << CGEventType.keyUp.rawValue)
             | (1 << CGEventType.flagsChanged.rawValue)
         let events = CGEventMask(mask)
-        let tap = CGEvent.tapCreate(
+        guard let tap = CGEvent.tapCreate(
             tap: .cghidEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: events,
             callback: switcherKeyCallback,
             userInfo: nil
-        ) ?? CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .defaultTap,
-            eventsOfInterest: events,
-            callback: switcherKeyCallback,
-            userInfo: nil
-        )
-        guard let tap else { return }
+        ) else {
+            lock.lock()
+            tapStarted = false
+            lock.unlock()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.start()
+            }
+            return
+        }
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         let loop = CFRunLoopGetCurrent()
         CFRunLoopAddSource(loop, source, .commonModes)
@@ -206,6 +209,30 @@ final class WindowSwitcher {
         return visible
     }
 
+    func isSwitching() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return switchingActive || visible
+    }
+
+    func startSwitching() {
+        lock.lock()
+        switchingActive = true
+        commandReleased = false
+        lock.unlock()
+    }
+
+    func endSwitching() {
+        lock.lock()
+        switchingActive = false
+        commandReleased = true
+        lock.unlock()
+    }
+
+    private func isCommandHeld() -> Bool {
+        CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
+    }
+
     func cycle(backward: Bool) {
         if !isVisible() {
             show(backward: backward)
@@ -222,62 +249,90 @@ final class WindowSwitcher {
     fileprivate func move(_ direction: ArrowDirection) {
         guard isVisible(), !cards.isEmpty else { return }
         moved = true
-        let span = max(columns, 1)
+        let place = slot(index)
         switch direction {
         case .left:
             index = (index - 1 + cards.count) % cards.count
         case .right:
             index = (index + 1) % cards.count
         case .up:
-            if index >= span {
-                index -= span
-            } else if span >= cards.count {
-                index = (index - 1 + cards.count) % cards.count
+            if let next = index(column: place.column, row: place.row - 1) {
+                index = next
             }
         case .down:
-            if index + span < cards.count {
-                index += span
-            } else if span >= cards.count {
-                index = (index + 1) % cards.count
+            if let next = index(column: place.column, row: place.row + 1) {
+                index = next
             }
         }
         applySelection()
     }
 
     func commit() {
-        guard isVisible(), cards.indices.contains(index) else {
-            hide()
-            return
-        }
-        let card = cards[index]
+        endSwitching()
+        let chosen: WindowCard? = cards.indices.contains(index) ? cards[index] : nil
         hide()
+        guard let card = chosen else { return }
         WindowCatalog.endReveal(committing: card)
         WindowCatalog.focus(card)
     }
 
     func cancel() {
+        endSwitching()
         hide()
+        WindowCatalog.endReveal(committing: nil)
     }
 
-    private func show(backward _: Bool) {
+    /// Clears the remembered app order and any window still painted above every desktop.
+    func reset() {
+        endSwitching()
+        hide()
+        recentPIDs.removeAll()
+        WindowCatalog.resetSwitcherState()
+        enable()
+    }
+
+    private func show(backward: Bool) {
+        startSwitching()
         let next = orderedByRecency(WindowCatalog.switcherCards())
-        guard !next.isEmpty else { return }
+        guard !next.isEmpty else {
+            endSwitching()
+            return
+        }
         onWillShow?()
         cards = next
-        index = next.firstIndex(where: \.isCurrent) ?? 0
-        moved = false
+        if cards.count > 1 {
+            index = backward ? (cards.count - 1) : 1
+            moved = true
+        } else {
+            index = 0
+            moved = false
+        }
+
+        lock.lock()
+        let released = commandReleased || !isCommandHeld()
+        lock.unlock()
+
+        if released {
+            commit()
+            return
+        }
+
         rebuild()
         place()
         lock.lock()
         visible = true
         lock.unlock()
+        if !isCommandHeld() {
+            commit()
+            return
+        }
         panel.orderFrontRegardless()
         captureTask?.cancel()
         let shown = cards
-        captureTask = Task { [weak self] in
+        captureTask = Task { @MainActor [weak self] in
             let refresh = await WindowCatalog.refresh(shown)
             if Task.isCancelled { return }
-            await MainActor.run { self?.apply(refresh.thumbnails, titles: refresh.cards) }
+            self?.apply(refresh.thumbnails, titles: refresh.cards)
         }
     }
 
@@ -286,6 +341,7 @@ final class WindowSwitcher {
         captureTask = nil
         lock.lock()
         visible = false
+        switchingActive = false
         lock.unlock()
         panel.orderOut(nil)
     }
@@ -298,15 +354,30 @@ final class WindowSwitcher {
         titleFields = []
         bars = []
         let screen = activeScreen()
-        let metrics = gridMetrics(count: max(cards.count, 1), screen: screen)
+        let metrics = gridMetrics(count: max(cards.count, 1), split: deskSplit, screen: screen)
         columns = metrics.columns
         let thumbW = metrics.thumbW
         let thumbH = metrics.thumbH
         let gap = metrics.gap
         let cardH = thumbH + metrics.label
+        if metrics.bar > 0 {
+            let line = NSView()
+            line.wantsLayer = true
+            line.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.35).cgColor
+            line.translatesAutoresizingMaskIntoConstraints = false
+            grid.addSubview(line)
+            let lineY = sectionTop(row: sectionRows(deskSplit), cardH: cardH, gap: gap, bar: metrics.bar) - metrics.bar + (metrics.bar - 1) / 2
+            NSLayoutConstraint.activate([
+                line.leadingAnchor.constraint(equalTo: grid.leadingAnchor),
+                line.trailingAnchor.constraint(equalTo: grid.trailingAnchor),
+                line.topAnchor.constraint(equalTo: grid.topAnchor, constant: lineY),
+                line.heightAnchor.constraint(equalToConstant: 1),
+            ])
+        }
         for (offset, card) in cards.enumerated() {
-            let column = offset % columns
-            let row = offset / columns
+            let place = slot(offset)
+            let column = place.column
+            let row = place.row
             let app = NSRunningApplication(processIdentifier: card.pid)
             let appName = app?.localizedName ?? card.title
             let cardView = SwitcherCard()
@@ -394,7 +465,7 @@ final class WindowSwitcher {
             grid.addSubview(cardView)
             NSLayoutConstraint.activate([
                 cardView.leadingAnchor.constraint(equalTo: grid.leadingAnchor, constant: CGFloat(column) * (thumbW + gap)),
-                cardView.topAnchor.constraint(equalTo: grid.topAnchor, constant: CGFloat(row) * (cardH + gap)),
+                cardView.topAnchor.constraint(equalTo: grid.topAnchor, constant: sectionTop(row: row, cardH: cardH, gap: gap, bar: metrics.bar)),
                 cardView.widthAnchor.constraint(equalToConstant: thumbW),
                 cardView.heightAnchor.constraint(equalToConstant: cardH),
                 image.leadingAnchor.constraint(equalTo: cardView.leadingAnchor),
@@ -435,8 +506,44 @@ final class WindowSwitcher {
             ?? NSScreen.screens[0]
     }
 
+    /// Windows on the desktop in front, then every other desktop.
+    private var deskSplit: Int {
+        cards.firstIndex(where: { !$0.isCurrent }) ?? cards.count
+    }
+
+    private func sectionRows(_ count: Int) -> Int {
+        guard count > 0 else { return 0 }
+        return (count + max(columns, 1) - 1) / max(columns, 1)
+    }
+
+    private func slot(_ index: Int) -> (column: Int, row: Int) {
+        let cols = max(columns, 1)
+        let split = deskSplit
+        if index < split {
+            return (index % cols, index / cols)
+        }
+        let local = index - split
+        return (local % cols, sectionRows(split) + local / cols)
+    }
+
+    private func index(column: Int, row: Int) -> Int? {
+        let matches = cards.indices.filter { slot($0).row == row }
+        guard let first = matches.first else { return nil }
+        if let exact = matches.first(where: { slot($0).column == column }) { return exact }
+        return column > slot(first).column ? matches.last : nil
+    }
+
+    private func sectionTop(row: Int, cardH: CGFloat, gap: CGFloat, bar: CGFloat) -> CGFloat {
+        let head = sectionRows(deskSplit)
+        if bar <= 0 || row < head {
+            return CGFloat(row) * (cardH + gap)
+        }
+        let headHeight = CGFloat(head) * cardH + CGFloat(max(head - 1, 0)) * gap
+        return headHeight + bar + CGFloat(row - head) * (cardH + gap)
+    }
+
     /// Every card is sized from the visible screen, so the panel cannot extend past it.
-    private func gridMetrics(count: Int, screen: NSScreen) -> (columns: Int, thumbW: CGFloat, thumbH: CGFloat, gap: CGFloat, label: CGFloat, grid: CGSize, panel: CGSize) {
+    private func gridMetrics(count: Int, split: Int, screen: NSScreen) -> (columns: Int, thumbW: CGFloat, thumbH: CGFloat, gap: CGFloat, label: CGFloat, bar: CGFloat, grid: CGSize, panel: CGSize) {
         let bounds = screen.visibleFrame.insetBy(dx: 18, dy: 18)
         let count = max(count, 1)
         let gap: CGFloat = 8
@@ -445,8 +552,17 @@ final class WindowSwitcher {
         let chromeY: CGFloat = 48
         let innerW = bounds.width - padX
         let innerH = bounds.height - chromeY
+        let bar: CGFloat = split > 0 && split < count ? 16 : 0
+        func blockHeight(cols: Int, cardH: CGFloat) -> CGFloat {
+            func rows(_ n: Int) -> Int { n == 0 ? 0 : (n + cols - 1) / cols }
+            let head = rows(min(split, count))
+            let tail = rows(max(count - split, 0))
+            let headHeight = CGFloat(head) * cardH + CGFloat(max(head - 1, 0)) * gap
+            let tailHeight = CGFloat(tail) * cardH + CGFloat(max(tail - 1, 0)) * gap
+            return headHeight + (tail > 0 ? bar : 0) + tailHeight
+        }
         guard innerW > 40, innerH > 40 else {
-            return (1, 80, 48, gap, label, CGSize(width: 80, height: 93), CGSize(width: 108, height: 141))
+            return (1, 80, 48, gap, label, bar, CGSize(width: 80, height: 93), CGSize(width: 108, height: 141))
         }
         var best: (columns: Int, thumbW: CGFloat, thumbH: CGFloat, grid: CGSize, panel: CGSize, score: CGFloat)?
         for cols in 1...count {
@@ -458,9 +574,10 @@ final class WindowSwitcher {
             let thumbH = min(floor(min(maxThumbW, 200) * 0.62), maxThumbH)
             let thumbW = min(maxThumbW, min(200, floor(thumbH / 0.62)))
             guard thumbW >= 28, thumbH >= 20 else { continue }
+            let cardH = thumbH + label
             let grid = CGSize(
                 width: thumbW * CGFloat(cols) + gap * CGFloat(cols - 1),
-                height: (thumbH + label) * CGFloat(rows) + gap * CGFloat(max(rows - 1, 0))
+                height: blockHeight(cols: cols, cardH: cardH)
             )
             let panel = CGSize(width: grid.width + padX, height: grid.height + chromeY)
             guard panel.width <= bounds.width + 0.5, panel.height <= bounds.height + 0.5 else { continue }
@@ -470,17 +587,17 @@ final class WindowSwitcher {
             }
         }
         if let best {
-            return (best.columns, best.thumbW, best.thumbH, gap, label, best.grid, best.panel)
+            return (best.columns, best.thumbW, best.thumbH, gap, label, bar, best.grid, best.panel)
         }
         let cols = max(1, min(count, Int(innerW / 36)))
-        let rows = Int(ceil(Double(count) / Double(cols)))
         let thumbW = max(24, floor((innerW - gap * CGFloat(cols - 1)) / CGFloat(cols)))
+        let rows = Int(ceil(Double(count) / Double(cols)))
         let thumbH = max(16, floor((innerH - gap * CGFloat(max(rows - 1, 0))) / CGFloat(rows)) - label)
         let grid = CGSize(
             width: min(innerW, thumbW * CGFloat(cols) + gap * CGFloat(max(cols - 1, 0))),
-            height: min(innerH, (thumbH + label) * CGFloat(rows) + gap * CGFloat(max(rows - 1, 0)))
+            height: min(innerH, blockHeight(cols: cols, cardH: thumbH + label))
         )
-        return (cols, thumbW, thumbH, gap, label, grid, CGSize(width: grid.width + padX, height: min(bounds.height, grid.height + chromeY)))
+        return (cols, thumbW, thumbH, gap, label, bar, grid, CGSize(width: grid.width + padX, height: min(bounds.height, grid.height + chromeY)))
     }
 
     private var panelSize = CGSize(width: 480, height: 220)
@@ -536,6 +653,9 @@ private final class SwitcherGrid: NSView {
 private final class SwitcherCard: NSView {
     var onClick: (() -> Void)?
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(convert(point, from: superview)) ? self : nil
+    }
     override func mouseDown(with event: NSEvent) { onClick?() }
 }
 
@@ -551,11 +671,12 @@ private func switcherKeyCallback(
 ) -> Unmanaged<CGEvent>? {
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         WindowSwitcher.shared.enable()
-        return Unmanaged.passUnretained(event)
+        return nil
     }
     let command = event.flags.contains(.maskCommand)
     if type == .flagsChanged {
-        if WindowSwitcher.shared.isVisible(), !command {
+        if !command, WindowSwitcher.shared.isSwitching() {
+            WindowSwitcher.shared.endSwitching()
             DispatchQueue.main.async { WindowSwitcher.shared.commit() }
         }
         return Unmanaged.passUnretained(event)
@@ -571,7 +692,14 @@ private func switcherKeyCallback(
     if key == 48, command, !extra {
         if type == .keyDown {
             let backward = shift
+            WindowSwitcher.shared.startSwitching()
             DispatchQueue.main.async { WindowSwitcher.shared.cycle(backward: backward) }
+        }
+        return nil
+    }
+    if key == 50, command, !extra, WindowSwitcher.shared.isSwitching() {
+        if type == .keyDown {
+            DispatchQueue.main.async { WindowSwitcher.shared.cycle(backward: true) }
         }
         return nil
     }
@@ -594,7 +722,7 @@ private func switcherKeyCallback(
         DispatchQueue.main.async { WindowSnap.apply(zone) }
         return nil
     }
-    if WindowSwitcher.shared.isVisible() {
+    if WindowSwitcher.shared.isSwitching() {
         let direction: ArrowDirection?
         switch key {
         case 123: direction = .left
@@ -608,7 +736,8 @@ private func switcherKeyCallback(
             return nil
         }
     }
-    if key == 53, WindowSwitcher.shared.isVisible() {
+    if key == 53, WindowSwitcher.shared.isSwitching() {
+        WindowSwitcher.shared.endSwitching()
         DispatchQueue.main.async { WindowSwitcher.shared.cancel() }
         return nil
     }

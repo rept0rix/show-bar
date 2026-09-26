@@ -59,8 +59,7 @@ final class ClipboardShelf: ObservableObject {
         let panel = window ?? makeWindow()
         window = panel
         panel.center()
-        panel.makeKeyAndOrderFront(nil)
-        NSRunningApplication.current.activate(from: .current, options: [])
+        panel.orderFrontRegardless()
     }
 
     func paste(id: String) {
@@ -190,13 +189,17 @@ final class ClipboardShelf: ObservableObject {
 
     private func makeWindow() -> NSWindow {
         let host = NSHostingView(rootView: ClipboardView(shelf: self))
-        let panel = NSWindow(
+        let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 440, height: 520),
-            styleMask: [.titled, .closable, .miniaturizable],
+            styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         panel.title = "Clipboard"
+        panel.level = .floating
+        panel.hidesOnDeactivate = false
+        panel.isFloatingPanel = true
+        panel.becomesKeyOnlyIfNeeded = true
         panel.contentView = host
         panel.isReleasedWhenClosed = false
         return panel

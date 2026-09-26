@@ -250,13 +250,13 @@ final class ShotShelf {
         if shots.count > shotLimit {
             shots.removeFirst(shots.count - shotLimit)
         }
+        // A screenshot replaces whatever was copied before it, including text.
+        copy([image])
         switch ShotPreferences.after {
         case .copyClose:
-            copy([image])
             closePreview()
         case .saveClose:
             _ = save(image, index: shots.count - 1)
-            copy([image])
             closePreview()
         case .saveKeep:
             _ = save(image, index: shots.count - 1)
@@ -328,10 +328,10 @@ final class ShotShelf {
             drop.tag = index
             root.addSubview(drop)
             let copyOne = barButton(
-                symbol: "doc.on.doc",
-                label: "Copy this screenshot",
+                symbol: "doc.on.clipboard",
+                label: "Clipboard history",
                 frame: NSRect(x: x + thumbW - 24, y: bar + thumbH - 24, width: 20, height: 20),
-                action: #selector(copyOne(_:))
+                action: #selector(showCopies)
             )
             copyOne.tag = index
             root.addSubview(copyOne)
@@ -440,6 +440,10 @@ final class ShotShelf {
         saved.remove(index)
         guard let screen = shelfScreen ?? preview?.screen ?? NSScreen.main else { return }
         showShelf(on: screen)
+    }
+
+    @objc private func showCopies() {
+        ClipboardShelf.shared.show()
     }
 
     @objc private func copyOne(_ sender: NSButton) {
@@ -996,26 +1000,29 @@ private final class ShotMarkup: NSObject, NSWindowDelegate {
         markup?.setValue(true, forKey: "wantsToolbarAndPadding")
         self.controller = markup
         let frame = NSRect(x: 0, y: 0, width: 960, height: 640)
-        window = NSWindow(
+        let panel = NSPanel(
             contentRect: frame,
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            styleMask: [.titled, .closable, .resizable, .utilityWindow, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
+        window = panel
         super.init()
-        window.title = "Screenshot"
-        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)) + 1)
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        window.isReleasedWhenClosed = false
-        window.delegate = self
-        window.contentViewController = markup ?? Self.plainPreview(image)
+        panel.title = "Screenshot"
+        panel.level = .floating
+        panel.hidesOnDeactivate = false
+        panel.isFloatingPanel = true
+        panel.becomesKeyOnlyIfNeeded = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.isReleasedWhenClosed = false
+        panel.delegate = self
+        panel.contentViewController = markup ?? Self.plainPreview(image)
         installButtons()
     }
 
     func show(on screen: NSScreen?) {
         previousApp = NSWorkspace.shared.frontmostApplication
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        window.orderFrontRegardless()
         _ = controller?.view
         loadImage(on: screen)
         DispatchQueue.main.async { [weak self] in
