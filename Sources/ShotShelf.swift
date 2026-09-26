@@ -416,8 +416,6 @@ final class ShotShelf {
     private func openMarkup(index: Int) {
         guard shots.indices.contains(index) else { return }
         if let markup {
-            markup.window.orderFrontRegardless()
-            NSApp.activate()
             markup.reload()
             return
         }
@@ -1000,54 +998,50 @@ private final class ShotMarkup: NSObject, NSWindowDelegate {
         markup?.setValue(true, forKey: "wantsToolbarAndPadding")
         self.controller = markup
         let frame = NSRect(x: 0, y: 0, width: 960, height: 640)
-        let panel = NSPanel(
+        window = NSWindow(
             contentRect: frame,
-            styleMask: [.titled, .closable, .resizable, .utilityWindow, .nonactivatingPanel],
+            styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
-        window = panel
         super.init()
-        panel.title = "Screenshot"
-        panel.level = .floating
-        panel.hidesOnDeactivate = false
-        panel.isFloatingPanel = true
-        panel.becomesKeyOnlyIfNeeded = true
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.isReleasedWhenClosed = false
-        panel.delegate = self
-        panel.contentViewController = markup ?? Self.plainPreview(image)
+        window.title = "Screenshot"
+        window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.contentViewController = markup ?? Self.plainPreview(image)
         installButtons()
     }
 
     func show(on screen: NSScreen?) {
         previousApp = NSWorkspace.shared.frontmostApplication
-        window.orderFrontRegardless()
-        _ = controller?.view
+        fit(on: screen)
         loadImage(on: screen)
-        DispatchQueue.main.async { [weak self] in
-            self?.loadImage(on: screen)
-        }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func reload() {
-        loadImage(on: window.screen)
+        fit(on: window.screen)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func loadImage(on screen: NSScreen?) {
-        guard let controller else {
-            fit(on: screen)
-            return
-        }
+        guard let controller else { return }
         let scale = max(screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2, 1)
         let points = NSSize(
             width: CGFloat(image.width) / scale,
             height: CGFloat(image.height) / scale
         )
         let picture = NSImage(cgImage: image, size: points)
-        let empty = Data()
-        controller.perform(NSSelectorFromString("setImage:withArchivedModelData:"), with: picture, with: empty)
-        fit(on: screen)
+        typealias SetImageFn = @convention(c) (AnyObject, Selector, AnyObject?, AnyObject?) -> Void
+        let sel = NSSelectorFromString("setImage:withArchivedModelData:")
+        if controller.responds(to: sel) {
+            let fn = unsafeBitCast(controller.method(for: sel), to: SetImageFn.self)
+            fn(controller, sel, picture, nil)
+        }
     }
 
     private func fit(on screen: NSScreen?) {
@@ -1072,19 +1066,11 @@ private final class ShotMarkup: NSObject, NSWindowDelegate {
         let done = NSButton(title: "Done", target: self, action: #selector(commit))
         done.bezelStyle = .rounded
         done.keyEquivalent = "\r"
-        let box = NSView()
-        cancel.translatesAutoresizingMaskIntoConstraints = false
-        done.translatesAutoresizingMaskIntoConstraints = false
+        let box = NSView(frame: NSRect(x: 0, y: 0, width: 146, height: 28))
+        cancel.frame = NSRect(x: 0, y: 2, width: 68, height: 24)
+        done.frame = NSRect(x: 74, y: 2, width: 64, height: 24)
         box.addSubview(cancel)
         box.addSubview(done)
-        NSLayoutConstraint.activate([
-            cancel.leadingAnchor.constraint(equalTo: box.leadingAnchor),
-            cancel.centerYAnchor.constraint(equalTo: box.centerYAnchor),
-            done.leadingAnchor.constraint(equalTo: cancel.trailingAnchor, constant: 8),
-            done.trailingAnchor.constraint(equalTo: box.trailingAnchor),
-            done.centerYAnchor.constraint(equalTo: box.centerYAnchor),
-            box.heightAnchor.constraint(equalToConstant: 28)
-        ])
         let accessory = NSTitlebarAccessoryViewController()
         accessory.view = box
         accessory.layoutAttribute = .right
