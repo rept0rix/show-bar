@@ -2,6 +2,10 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.9.1
+
+- Opening a screenshot from the shelf opens the full markup editor properly, fixing the white blank screen issue.
+
 ## 1.9
 
 - Quick Command-Tab switches to the previous window immediately without getting stuck on screen.
