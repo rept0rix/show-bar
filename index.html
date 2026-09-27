@@ -662,6 +662,62 @@
       46%, 86% { opacity: 1; }
       100% { opacity: 0; }
     }
+    /* Free vs paid comparison */
+    .compare { margin-top: 80px; }
+    .compare h2 { font-size: clamp(36px, 5vw, 56px); line-height: 1; margin: 0 0 12px; }
+    .compare > p { color: var(--muted); margin: 0 0 26px; max-width: 40rem; font-size: 18px; line-height: 1.45; }
+    .compare table { width: 100%; border-collapse: collapse; border-top: 1px solid var(--line); }
+    .compare th, .compare td { text-align: left; vertical-align: top; padding: 18px 18px 18px 0; border-bottom: 1px solid var(--line); }
+    .compare thead th {
+      font-weight: 400; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+      padding-top: 14px; padding-bottom: 14px; vertical-align: middle;
+    }
+    .compare thead th.sb { padding-right: 0; }
+    .compare .sb-head { display: inline-flex; align-items: center; gap: 10px; }
+    .compare .feat strong {
+      display: block; font-family: Palatino, "Iowan Old Style", Georgia, serif;
+      font-weight: 500; font-size: 22px; line-height: 1.15;
+    }
+    .compare .feat span { display: block; color: var(--muted); font-size: 14px; margin-top: 4px; }
+    .compare .tool, .compare .price { display: flex; align-items: center; min-height: 36px; }
+    .compare .tool + .tool, .compare .price + .price { margin-top: 8px; }
+    .compare .tool { gap: 10px; font-size: 17px; }
+    .compare .price { color: var(--muted); font-size: 15px; white-space: nowrap; }
+    .compare .price b { color: var(--ink); font-weight: 600; margin-right: 6px; }
+    .compare img.icon { width: 28px; height: 28px; border-radius: 22%; display: block; flex: none; }
+    .compare img.icon.own { width: 36px; height: 36px; }
+    .compare .icon-gap { width: 28px; height: 28px; flex: none; }
+    .compare td.sb { padding-right: 0; vertical-align: middle; }
+    .compare .free {
+      font-family: Palatino, "Iowan Old Style", Georgia, serif; font-size: 24px; color: var(--ink);
+      display: inline-block; border-bottom: 3px solid var(--blush); line-height: 1.1;
+    }
+    .compare tfoot td { border-bottom: 0; padding-top: 20px; }
+    .compare tfoot .sum { color: var(--muted); font-size: 15px; }
+    .compare tfoot .sum b { color: var(--ink); font-size: 20px; font-weight: 600; display: block; margin-top: 2px; }
+    .compare .fine { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 18px 0 0; max-width: 44rem; }
+    .compare th.feat-h { width: 34%; }
+    @media (max-width: 800px) {
+      .compare thead { display: none; }
+      .compare table, .compare tbody, .compare tfoot, .compare tr, .compare td { display: block; width: 100%; }
+      .compare tr { border-bottom: 1px solid var(--line); padding: 18px 0 16px; }
+      .compare td { border: 0; padding: 0; }
+      .compare td.feat { margin-bottom: 12px; }
+      .compare tbody tr { display: grid; grid-template-columns: 1fr auto; column-gap: 14px; }
+      .compare tbody td.feat, .compare tbody td.sb-row { grid-column: 1 / -1; }
+      .compare tbody td.tools { grid-column: 1; }
+      .compare tbody td.prices { grid-column: 2; text-align: right; }
+      .compare tbody td.prices .price { justify-content: flex-end; }
+      .compare tbody td.sb { grid-column: 1 / -1; margin-top: 12px; display: flex; align-items: center; gap: 10px; }
+      .compare tbody td.sb::before, .compare tfoot td.sb::before { content: ""; width: 32px; height: 32px; flex: none; background: url(logo.png) center / contain no-repeat; order: -2; }
+      .compare tbody td.sb::after, .compare tfoot td.sb::after { content: "Show Bar"; order: -1; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-right: auto; }
+      .compare .price { white-space: normal; }
+      .compare tfoot tr { display: grid; grid-template-columns: 1fr auto; column-gap: 14px; border-bottom: 0; }
+      .compare tfoot td { padding: 0; }
+      .compare tfoot td.sum { text-align: right; }
+      .compare tfoot td.gap { display: none; }
+      .compare tfoot td.sb { grid-column: 1 / -1; margin-top: 12px; display: flex; align-items: center; gap: 10px; }
+    }
     @media (prefers-reduced-motion: reduce) {
       .invite .kicker, .invite h1, .invite .lede, .actions, .poster,
       .reveal {
@@ -674,6 +730,8 @@
       .live > .still { display: block; }
     }
     @media (max-width: 800px) {
+      header { flex-wrap: wrap; }
+      header nav { flex-wrap: wrap; gap: 8px 16px; }
       .gallery { grid-template-columns: 1fr; }
       .feature.reverse .copy { order: 0; }
       .feature.stack { grid-template-columns: 1fr; }
@@ -750,6 +808,88 @@
           <p>They collect in the corner. One paste sends them together.</p>
         </div>
       </article>
+    </section>
+
+    <section class="compare" id="free">
+      <h2>Everything here, one app, free.</h2>
+      <p>Each of these jobs has its own Mac app, and some of those apps cost money. Each goes deeper in its own job. If you want the five basics, they are in one download that costs nothing.</p>
+      <table>
+        <thead>
+          <tr>
+            <th class="feat-h" scope="col">What it does</th>
+            <th scope="col">A paid app that does it</th>
+            <th scope="col">Its price</th>
+            <th class="sb" scope="col"><span class="sb-head"><img class="icon own" src="logo.png" alt="" width="36" height="36">Show Bar</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="feat"><strong>Command-Tab shows every window</strong><span>Across all Desktops and screens</span></td>
+            <td class="tools">
+              <div class="tool"><img class="icon" src="logos/witch.png" alt="" width="28" height="28">Witch</div>
+              <div class="tool"><span class="icon-gap" aria-hidden="true"></span>Contexts</div>
+            </td>
+            <td class="prices">
+              <div class="price"><b>$14</b>one-time</div>
+              <div class="price"><b>$9.99</b>one-time</div>
+            </td>
+            <td class="sb"><span class="free">Free</span></td>
+          </tr>
+          <tr>
+            <td class="feat"><strong>Window previews on the Dock</strong><span>Hover an icon to see its windows</span></td>
+            <td class="tools">
+              <div class="tool"><img class="icon" src="logos/ubar.png" alt="" width="28" height="28">uBar</div>
+            </td>
+            <td class="prices">
+              <div class="price"><b>$30</b>one-time</div>
+            </td>
+            <td class="sb"><span class="free">Free</span></td>
+          </tr>
+          <tr>
+            <td class="feat"><strong>Window snapping</strong><span>Control-Option and an arrow key</span></td>
+            <td class="tools">
+              <div class="tool"><img class="icon" src="logos/magnet.png" alt="" width="28" height="28">Magnet</div>
+              <div class="tool"><img class="icon" src="logos/bettersnaptool.png" alt="" width="28" height="28">BetterSnapTool</div>
+            </td>
+            <td class="prices">
+              <div class="price"><b>$4.99</b>one-time</div>
+              <div class="price"><b>$1.99</b>one-time</div>
+            </td>
+            <td class="sb"><span class="free">Free</span></td>
+          </tr>
+          <tr>
+            <td class="feat"><strong>Clipboard history</strong><span>Control-Option-V opens the list</span></td>
+            <td class="tools">
+              <div class="tool"><img class="icon" src="logos/pastebot.png" alt="" width="28" height="28">Pastebot</div>
+              <div class="tool"><img class="icon" src="logos/paste.jpg" alt="" width="28" height="28">Paste</div>
+            </td>
+            <td class="prices">
+              <div class="price"><b>$39</b>one-time</div>
+              <div class="price"><b>$29.99</b>a year</div>
+            </td>
+            <td class="sb"><span class="free">Free</span></td>
+          </tr>
+          <tr>
+            <td class="feat"><strong>A shelf for screenshots</strong><span>Copy them all at once, mark them up</span></td>
+            <td class="tools">
+              <div class="tool"><img class="icon" src="logos/cleanshot.png" alt="" width="28" height="28">CleanShot X</div>
+            </td>
+            <td class="prices">
+              <div class="price"><b>$35</b>one-time</div>
+            </td>
+            <td class="sb"><span class="free">Free</span></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td class="feat"><strong>All five</strong><span>The cheapest one-time price in each row, added up</span></td>
+            <td class="gap"></td>
+            <td class="sum"><b>$115.97</b>one-time</td>
+            <td class="sb"><span class="free">Free</span></td>
+          </tr>
+        </tfoot>
+      </table>
+      <p class="fine">Prices in US dollars from each developer’s site or its Mac App Store page, checked September 27, 2026. Some one-time licenses include one year of updates. Free tools like AltTab, Rectangle, Maccy, and DockDoor also exist; Show Bar puts it all in one app. All product names and logos belong to their owners. Show Bar is not affiliated with them.</p>
     </section>
 
     <section class="versions" id="versions">
