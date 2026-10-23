@@ -9,14 +9,26 @@
 /* Begin PBXBuildFile section */
 		01A514C0D45C669C5B806C24 /* ShotShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 193E5E84FE91580EEBFC7D13 /* ShotShelf.swift */; };
 		0611C80CB32FC44ECB8A12E8 /* WindowSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2AC4FD5EA1B5D86DEBE426 /* WindowSwitcher.swift */; };
+		076CCE8D8E9F5474A1CDE418 /* AppMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D948AD9BCA8874568CDC5B /* AppMain.swift */; };
+		0955486D3F6D9C4A037F95A9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */; };
+		0C09437B96A5F5B1D27487B2 /* AppUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C022EA9B7117327DA90BAF2F /* AppUpdate.swift */; };
+		2A48BEA786E40A716883319D /* WindowSnap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB291E911905222A0872EF1 /* WindowSnap.swift */; };
+		3B80A5E46C1F8E554F0B51AB /* DockReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE878EE69C4B80E64A5329FC /* DockReader.swift */; };
+		3FBEE4B36347A0B555FA8109 /* WindowCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */; };
+		43B62F3D9E08DA7BA4C3BC75 /* WindowSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2AC4FD5EA1B5D86DEBE426 /* WindowSwitcher.swift */; };
 		4EB27EC1B36C921D7EF89CA8 /* AppUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C022EA9B7117327DA90BAF2F /* AppUpdate.swift */; };
+		52CE2EB8F1DB9DEB4B27D05B /* HoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE676386D6BC306A115E6E1 /* HoverController.swift */; };
 		5CD9BA627889D98B3C938A50 /* WindowCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */; };
 		6A84CA6A2C23FA50FFAD9CA4 /* AppMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D948AD9BCA8874568CDC5B /* AppMain.swift */; };
 		709F29A9B7E54CB43CCDE2A3 /* ClipboardShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */; };
+		A19427C00348225398334FC1 /* ShotShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 193E5E84FE91580EEBFC7D13 /* ShotShelf.swift */; };
 		A44AE13D6129C660D35EADEF /* HoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE676386D6BC306A115E6E1 /* HoverController.swift */; };
+		A62135C4B7C68C3A73AE5E06 /* DesktopSpaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */; };
+		B66EB38951077F9FB06A23E4 /* ClipboardShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */; };
 		BA7158F451A85D139C2386F0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */; };
 		D0F97DFF332577086A64A5AF /* WindowSnap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB291E911905222A0872EF1 /* WindowSnap.swift */; };
 		EB3DEF5013066AAC56D0FBB0 /* DesktopSpaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */; };
+		ECC603EF17E13E77BB34573C /* PreviewPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982797167FF4B05B085F95F9 /* PreviewPanel.swift */; };
 		F4619A2F563642434ACB3952 /* PreviewPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982797167FF4B05B085F95F9 /* PreviewPanel.swift */; };
 		F5FF8E6DC4B433E2EB30C8D4 /* DockReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE878EE69C4B80E64A5329FC /* DockReader.swift */; };
 /* End PBXBuildFile section */
@@ -26,6 +38,7 @@
 		2EE676386D6BC306A115E6E1 /* HoverController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverController.swift; sourceTree = "<group>"; };
 		3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardShelf.swift; sourceTree = "<group>"; };
 		4A2AC4FD5EA1B5D86DEBE426 /* WindowSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSwitcher.swift; sourceTree = "<group>"; };
+		6379D56694A7F6904A5DDE0F /* ShowBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7626EC1DFBFD052726B38204 /* ShowBarStore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowBarStore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopSpaces.swift; sourceTree = "<group>"; };
@@ -41,6 +54,7 @@
 		77815968379B4E1FEC3BC7EB /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				6379D56694A7F6904A5DDE0F /* ShowBar.app */,
 				7626EC1DFBFD052726B38204 /* ShowBarStore.app */,
 			);
 			name = Products;
@@ -77,6 +91,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		37746CB3D2E8A0E6AB3D3FAF /* ShowBar */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 357FA0613932E4F281C8989A /* Build configuration list for PBXNativeTarget "ShowBar" */;
+			buildPhases = (
+				645C27E2D9D9E8707B132E2A /* Sources */,
+				34F7E70EAC02E9208610C1C8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShowBar;
+			packageProductDependencies = (
+			);
+			productName = ShowBar;
+			productReference = 6379D56694A7F6904A5DDE0F /* ShowBar.app */;
+			productType = "com.apple.product-type.application";
+		};
 		58825EF987BE173C09753C9F /* ShowBarStore */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2A1B0C413A18532D54113384 /* Build configuration list for PBXNativeTarget "ShowBarStore" */;
@@ -104,6 +136,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					37746CB3D2E8A0E6AB3D3FAF = {
+						DevelopmentTeam = CM9QNMLQMQ;
+						ProvisioningStyle = Automatic;
+					};
 					58825EF987BE173C09753C9F = {
 						DevelopmentTeam = CM9QNMLQMQ;
 						ProvisioningStyle = Automatic;
@@ -124,12 +160,21 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				37746CB3D2E8A0E6AB3D3FAF /* ShowBar */,
 				58825EF987BE173C09753C9F /* ShowBarStore */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		34F7E70EAC02E9208610C1C8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0955486D3F6D9C4A037F95A9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3B4B3244EA1DBE28F42C34AE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -141,6 +186,24 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		645C27E2D9D9E8707B132E2A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				076CCE8D8E9F5474A1CDE418 /* AppMain.swift in Sources */,
+				0C09437B96A5F5B1D27487B2 /* AppUpdate.swift in Sources */,
+				B66EB38951077F9FB06A23E4 /* ClipboardShelf.swift in Sources */,
+				A62135C4B7C68C3A73AE5E06 /* DesktopSpaces.swift in Sources */,
+				3B80A5E46C1F8E554F0B51AB /* DockReader.swift in Sources */,
+				52CE2EB8F1DB9DEB4B27D05B /* HoverController.swift in Sources */,
+				ECC603EF17E13E77BB34573C /* PreviewPanel.swift in Sources */,
+				A19427C00348225398334FC1 /* ShotShelf.swift in Sources */,
+				3FBEE4B36347A0B555FA8109 /* WindowCatalog.swift in Sources */,
+				2A48BEA786E40A716883319D /* WindowSnap.swift in Sources */,
+				43B62F3D9E08DA7BA4C3BC75 /* WindowSwitcher.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D893A824E7BD758EB4DD5C67 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -162,10 +225,41 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		6C8521AEE546F5EE31F7BCAA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "ShowBar-Desktop.entitlements";
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_KEY_NSApplicationCategoryType = "public.app-category.utilities";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		750577E7B582E4CF42643A87 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "ShowBar-Desktop.entitlements";
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_KEY_NSApplicationCategoryType = "public.app-category.utilities";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
 		80C0E771F7CC41E15195A3E2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ShowBar.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_KEY_NSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -209,10 +303,9 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = ShowBar.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 12;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = CM9QNMLQMQ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -229,7 +322,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.9.3;
+				MARKETING_VERSION = 1.9.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.naoryanko.showbar;
@@ -275,10 +368,9 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = ShowBar.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 12;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = CM9QNMLQMQ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -301,7 +393,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.9.3;
+				MARKETING_VERSION = 1.9.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -319,6 +411,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ShowBar.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_KEY_NSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -337,6 +430,15 @@
 			buildConfigurations = (
 				DE68B0C8DEBB8406E998B727 /* Debug */,
 				80C0E771F7CC41E15195A3E2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		357FA0613932E4F281C8989A /* Build configuration list for PBXNativeTarget "ShowBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				750577E7B582E4CF42643A87 /* Debug */,
+				6C8521AEE546F5EE31F7BCAA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

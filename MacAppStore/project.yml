@@ -10,15 +10,25 @@ settings:
     PRODUCT_BUNDLE_IDENTIFIER: com.naoryanko.showbar
     PRODUCT_NAME: Show Bar
     INFOPLIST_FILE: Info.plist
-    CODE_SIGN_ENTITLEMENTS: ShowBar.entitlements
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: CM9QNMLQMQ
     ENABLE_HARDENED_RUNTIME: YES
     GENERATE_INFOPLIST_FILE: NO
-    CURRENT_PROJECT_VERSION: "14"
-    MARKETING_VERSION: "1.9.3"
+    CURRENT_PROJECT_VERSION: "12"
+    MARKETING_VERSION: "1.9.2"
     SWIFT_EMIT_LOC_STRINGS: YES
 targets:
+  ShowBar:
+    type: application
+    platform: macOS
+    sources:
+      - path: ../Sources
+      - path: Assets.xcassets
+        buildPhase: resources
+    settings:
+      base:
+        CODE_SIGN_ENTITLEMENTS: ShowBar-Desktop.entitlements
+        INFOPLIST_KEY_NSApplicationCategoryType: public.app-category.utilities
   ShowBarStore:
     type: application
     platform: macOS
@@ -28,4 +38,5 @@ targets:
         buildPhase: resources
     settings:
       base:
+        CODE_SIGN_ENTITLEMENTS: ShowBar.entitlements
         INFOPLIST_KEY_NSApplicationCategoryType: public.app-category.utilities
