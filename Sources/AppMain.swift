@@ -44,6 +44,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     static func main() {
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.naoryanko.showbar"
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        let others = running.filter { $0.processIdentifier != currentPID }
+        if let existing = others.first {
+            existing.activate()
+            exit(0)
+        }
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         app.delegate = shared
@@ -69,7 +77,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
-        installMainMenu()
         installQuickShots()
         DockAutohide.restore()
         ClipboardShelf.shared.start()
@@ -82,22 +89,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         recommendKeepingTheDockIcon()
         AppUpdate.restoreBadge()
         AppUpdate.checkOnLaunch()
+        AppGate.checkPolicyOnLaunch()
         previewAfterUpdateIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
             self?.presentRateRequestIfNeeded()
         }
     }
 
-    private func installMainMenu() {
-        let mainBar = NSMenu()
-        let appItem = NSMenuItem()
-        mainBar.addItem(appItem)
-        let appMenu = NSMenu(title: "Show Bar")
-        appMenu.delegate = self
-        populateMenu(appMenu)
-        appItem.submenu = appMenu
-        NSApp.mainMenu = mainBar
-    }
 
     func noteUpdate(_ version: String?) {
         offeredUpdate = version
@@ -110,6 +108,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     func relaunchAfterUpdate() {
         WindowSwitcher.shared.stop()
         relaunch()
+    }
+
+    func pauseForUpdate() {
+        hover.stop()
+        WindowSwitcher.shared.stop()
     }
 
     /// The first capture after an update is the slow one. Open a preview once per version so the windows are already loading.
@@ -227,6 +230,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         shot.submenu = shotMenu
         menu.addItem(shot)
 
+        let video = NSMenuItem(title: "Screen Recording", action: nil, keyEquivalent: "")
+        let videoMenu = NSMenu()
+        let isRec = VideoRecorder.shared.isRecording
+        let recTitle = isRec ? "Stop Recording" : "Record Screen"
+        let recItem = NSMenuItem(title: recTitle, action: #selector(toggleScreenRecording), keyEquivalent: "")
+        recItem.target = self
+        videoMenu.addItem(recItem)
+        video.submenu = videoMenu
+        menu.addItem(video)
+
         let clips = NSMenuItem(title: "Clipboard", action: nil, keyEquivalent: "")
         let clipMenu = NSMenu()
         let recent = Array(ClipboardShelf.shared.clips.prefix(8))
@@ -330,6 +343,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             button.target = self
             button.action = #selector(snapFrontHalf)
         }
+        VideoRecorder.shared.onStatusChanged = { [weak self] isRec, elapsed in
+            DispatchQueue.main.async {
+                guard let button = self?.captureItem.button else { return }
+                if isRec {
+                    button.image = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Recording screen")
+                    button.image?.isTemplate = false
+                    button.contentTintColor = .systemRed
+                    let m = Int(elapsed) / 60
+                    let s = Int(elapsed) % 60
+                    button.toolTip = String(format: "Recording (%02d:%02d) — Click to stop and edit", m, s)
+                } else {
+                    button.image = NSImage(systemSymbolName: "camera", accessibilityDescription: "Copy this screen")
+                    button.image?.isTemplate = true
+                    button.contentTintColor = nil
+                    button.toolTip = "Copy this screen"
+                }
+            }
+        }
     }
 
     @objc private func rememberFrontApp() {
@@ -341,7 +372,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         WindowSnap.cycleFrontHalf()
     }
 
+    @objc private func toggleScreenRecording() {
+        VideoRecorder.shared.toggleRecording()
+    }
+
     @objc private func copyScreen() {
+        if VideoRecorder.shared.isRecording {
+            VideoRecorder.shared.stopRecording()
+            return
+        }
         ShotShelf.shared.captureScreen()
     }
 
@@ -767,29 +806,6 @@ struct PermissionsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack(spacing: 12) {
-                Image(systemName: "sparkles")
-                    .font(.title2)
-                    .foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Want full Dock integration & Command-Tab?")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Get the unrestricted Desktop edition with all system features for free.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("Get Full App") {
-                    if let url = URL(string: "https://github.com/rept0rix/show-bar/releases/download/v1.9.2/Show-Bar-1.9.2.dmg") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-            .padding(12)
-            .background(Color.accentColor.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             Picker("Section", selection: $tab) {
                 ForEach(SettingsPage.allCases, id: \.self) { page in
