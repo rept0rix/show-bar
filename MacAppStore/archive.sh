@@ -3,8 +3,8 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")" && pwd)"
 team="${DEVELOPMENT_TEAM:-CM9QNMLQMQ}"
-version="${MARKETING_VERSION:-1.9.2}"
-build="${CURRENT_PROJECT_VERSION:-12}"
+version="${MARKETING_VERSION:-1.9.3}"
+build="${CURRENT_PROJECT_VERSION:-14}"
 archive="${ARCHIVE_PATH:-$root/build/ShowBarStore-$version-build$build.xcarchive}"
 
 mkdir -p "$root/build"

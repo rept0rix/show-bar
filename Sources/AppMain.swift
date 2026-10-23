@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import ScreenCaptureKit
 import ServiceManagement
 import SwiftUI
 import UserNotifications
@@ -657,6 +658,9 @@ enum PermissionsState {
 
     static func promptScreenRecording() {
         _ = CGRequestScreenCaptureAccess()
+        Task {
+            _ = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        }
         if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)
         }
@@ -762,6 +766,30 @@ struct PermissionsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Want full Dock integration & Command-Tab?")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Get the unrestricted Desktop edition with all system features for free.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Get Full App") {
+                    if let url = URL(string: "https://github.com/rept0rix/show-bar/releases/download/v1.9.2/Show-Bar-1.9.2.dmg") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+            .padding(12)
+            .background(Color.accentColor.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             Picker("Section", selection: $tab) {
                 ForEach(SettingsPage.allCases, id: \.self) { page in
