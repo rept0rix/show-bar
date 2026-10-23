@@ -68,9 +68,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
+        installMainMenu()
         installQuickShots()
         DockAutohide.restore()
         ClipboardShelf.shared.start()
+        ShotShelf.cleanupLaunchTempFiles()
         syncHover()
         ensureLaunchAtLogin()
         if !PermissionsState.allGranted {
@@ -83,6 +85,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
             self?.presentRateRequestIfNeeded()
         }
+    }
+
+    private func installMainMenu() {
+        let mainBar = NSMenu()
+        let appItem = NSMenuItem()
+        mainBar.addItem(appItem)
+        let appMenu = NSMenu(title: "Show Bar")
+        appMenu.delegate = self
+        populateMenu(appMenu)
+        appItem.submenu = appMenu
+        NSApp.mainMenu = mainBar
     }
 
     func noteUpdate(_ version: String?) {
@@ -114,14 +127,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         false
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            showPermissions()
+        }
+        return true
+    }
+
     func menuWillOpen(_ menu: NSMenu) {
         WindowSnap.rememberFront()
         ClipboardShelf.shared.rememberTarget()
+        populateMenu(menu)
+    }
+
+    private func populateMenu(_ menu: NSMenu) {
         menu.removeAllItems()
         if let version = offeredUpdate {
             menu.addItem(updateButtonItem(version))
             menu.addItem(.separator())
         }
+        let version = NSMenuItem(title: "Version \(ShowBarSupport.version)", action: nil, keyEquivalent: "")
+        version.isEnabled = false
+        menu.addItem(version)
+
         let toggle = NSMenuItem(
             title: enabled ? "Previews enabled" : "Previews disabled",
             action: #selector(toggleEnabled),
@@ -184,14 +212,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
         let shot = NSMenuItem(title: "Screenshot", action: nil, keyEquivalent: "")
         let shotMenu = NSMenu()
-        let wholeTitle = NSScreen.screens.count > 1 ? "Copy every screen    ⌘⇧3" : "Copy entire screen    ⌘⇧3"
-        let whole = NSMenuItem(title: wholeTitle, action: #selector(copyScreen), keyEquivalent: "")
-        whole.target = self
-        shotMenu.addItem(whole)
+        let thisItem = NSMenuItem(title: "Copy this screen    ⌘⇧3", action: #selector(copyThisScreen), keyEquivalent: "")
+        thisItem.target = self
+        shotMenu.addItem(thisItem)
         if NSScreen.screens.count > 1 {
-            let one = NSMenuItem(title: "Copy this screen", action: #selector(copyThisScreen), keyEquivalent: "")
-            one.target = self
-            shotMenu.addItem(one)
+            let allItem = NSMenuItem(title: "Copy every screen", action: #selector(copyAllScreens), keyEquivalent: "")
+            allItem.target = self
+            shotMenu.addItem(allItem)
         }
         let area = NSMenuItem(title: "Copy selection    ⌘⇧4", action: #selector(copySelection), keyEquivalent: "")
         area.target = self
@@ -275,9 +302,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     private func installQuickShots() {
         if let button = captureItem.button {
-            button.image = NSImage(systemSymbolName: "camera", accessibilityDescription: "Copy the screen")
+            button.image = NSImage(systemSymbolName: "camera", accessibilityDescription: "Copy this screen")
             button.image?.isTemplate = true
-            button.toolTip = "Copy the screen"
+            button.toolTip = "Copy this screen"
             button.target = self
             button.action = #selector(copyScreen)
         }
@@ -319,6 +346,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     @objc private func copyThisScreen() {
         ShotShelf.shared.captureScreenUnderPointer()
+    }
+
+    @objc private func copyAllScreens() {
+        ShotShelf.shared.captureAllScreens()
     }
 
     @objc private func copySelection() {
@@ -645,7 +676,7 @@ enum ShowBarSupport {
     static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.9.1" // showbar-version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.9.2" // showbar-version
     }
 }
 
@@ -847,7 +878,7 @@ struct PermissionsView: View {
             }
             Text("Screenshots")
                 .font(.headline)
-            Text("Command-Shift-3 copies every screen. Command-Shift-4 drags a part, and the pointer turns into a crosshair. The Shots tab chooses whether the shelf stays, saves, or closes.")
+            Text("Command-Shift-3 copies this screen. Command-Shift-4 drags a part, and the pointer turns into a crosshair. The Shots tab chooses whether the shelf stays, saves, or closes.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

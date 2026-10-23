@@ -38,9 +38,14 @@ enum WindowCatalog {
         let target = resolve(icon)
         guard !target.pids.isEmpty else { return [] }
 
+        let auxiliaryIDs = auxiliaryWindowIDs(pids: target.pids)
         let listed = listWindows().filter { window in
             target.pids.contains(window.pid)
                 || window.ownerName.caseInsensitiveCompare(icon.title) == .orderedSame
+        }
+        .filter { !auxiliaryIDs.contains($0.id) }
+        .filter { window in
+            window.onScreen || DesktopSpaces.space(of: window.id) != nil
         }
         .sorted { lhs, rhs in
             if lhs.onScreen != rhs.onScreen { return lhs.onScreen && !rhs.onScreen }
@@ -76,12 +81,19 @@ enum WindowCatalog {
         let desks = DesktopSpaces.desks()
         let currents = DesktopSpaces.currentIDs()
         let currentIndex = desks.first { currents.contains($0.id) }?.index ?? 1
-        return listWindows().compactMap { window in
-            guard belongsInSwitcher(window) else { return nil }
+        let listed = listWindows().filter { belongsInSwitcher($0) }
+        let auxiliaryIDs = auxiliaryWindowIDs(pids: Set(listed.map(\.pid)))
+        return listed.compactMap { window in
+            guard !auxiliaryIDs.contains(window.id) else { return nil }
             let ids = Set(DesktopSpaces.spaceIDs(for: window.id))
             let home = desks.first { ids.contains($0.id) }
+
+            // A window must either be on screen or belong to a known desktop space.
+            // Off-screen helper/cached webviews that do not belong to any space are ignored.
+            guard window.onScreen || home != nil else { return nil }
+
             let onCurrent = !ids.isEmpty && !ids.isDisjoint(with: currents)
-            let isCurrent = ids.isEmpty ? window.onScreen : onCurrent
+            let isCurrent = home != nil ? onCurrent : window.onScreen
             return WindowCard(
                 id: window.id,
                 pid: window.pid,
@@ -91,6 +103,26 @@ enum WindowCatalog {
                 isCurrent: isCurrent
             )
         }
+    }
+
+    /// Window Server lists utility panels alongside document windows. Use exact
+    /// AX window IDs so excluding a panel cannot hide another window of the app.
+    private static func auxiliaryWindowIDs(pids: Set<pid_t>) -> Set<CGWindowID> {
+        var excluded = Set<CGWindowID>()
+        let auxiliarySubroles: Set<String> = [
+            "AXFloatingWindow", "AXSystemFloatingWindow", "AXSystemDialog"
+        ]
+        for pid in pids {
+            let app = AXUIElementCreateApplication(pid)
+            AXUIElementSetMessagingTimeout(app, 0.05)
+            for element in AXValueReader.elements(app, kAXWindowsAttribute as String) {
+                guard let id = windowID(element),
+                      let subrole = AXValueReader.string(element, kAXSubroleAttribute as String),
+                      auxiliarySubroles.contains(subrole) else { continue }
+                excluded.insert(id)
+            }
+        }
+        return excluded
     }
 
     /// Command-Tab is for switching to a real window. Password panels and Quick Look are not.
@@ -130,7 +162,14 @@ enum WindowCatalog {
         for window in windows {
             guard let index = titled.firstIndex(where: { $0.id == window.windowID }) else { continue }
             let next = betterTitle(titled[index].title, window.title ?? "")
-            titled[index] = WindowCard(id: titled[index].id, pid: titled[index].pid, title: next, frame: titled[index].frame)
+            titled[index] = WindowCard(
+                id: titled[index].id,
+                pid: titled[index].pid,
+                title: next,
+                frame: titled[index].frame,
+                desktopIndex: titled[index].desktopIndex,
+                isCurrent: titled[index].isCurrent
+            )
         }
         var images: [Thumbnail] = []
         let limit = 4
@@ -141,7 +180,7 @@ enum WindowCatalog {
                 let window = pending.removeFirst()
                 group.addTask {
                     if Task.isCancelled { return nil }
-                    guard let image = try? await capture(window), !looksBlank(image) else { return nil }
+                    guard let image = try? await capture(window) else { return nil }
                     let thumbnail = Thumbnail(windowID: window.windowID, image: image)
                     onThumbnail?(thumbnail)
                     return thumbnail
@@ -412,34 +451,6 @@ enum WindowCatalog {
         let smaller = min(lhs.width * lhs.height, rhs.width * rhs.height)
         guard smaller > 1 else { return 0 }
         return area / smaller
-    }
-
-    private static func looksBlank(_ image: CGImage) -> Bool {
-        let width = 16
-        let height = 16
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
-        guard let context = CGContext(
-            data: &pixels,
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bytesPerRow: width * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return false }
-        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-        var sum = 0.0
-        var sumSquares = 0.0
-        let count = width * height
-        for index in 0..<count {
-            let offset = index * 4
-            let luminance = (0.2126 * Double(pixels[offset]) + 0.7152 * Double(pixels[offset + 1]) + 0.0722 * Double(pixels[offset + 2])) / 255
-            sum += luminance
-            sumSquares += luminance * luminance
-        }
-        let mean = sum / Double(count)
-        let variance = max(0, sumSquares / Double(count) - mean * mean)
-        return mean < 0.12 && variance < 0.004
     }
 
     private static func accessibilityWindows(pids: Set<pid_t>, appName: String) -> [WindowCard] {

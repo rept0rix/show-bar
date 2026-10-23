@@ -101,6 +101,12 @@ enum DesktopSpaces {
         return ids
     }
 
+    static func currentDeskIndex() -> Int {
+        let all = desks()
+        let currents = currentIDs()
+        return all.first { currents.contains($0.id) }?.index ?? 1
+    }
+
     static func move(windowID: CGWindowID, to spaceID: UInt64) {
         if bridgedMove(windowID: windowID, to: spaceID) { return }
         guard let connection = connectionID(),

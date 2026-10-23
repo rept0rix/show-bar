@@ -40,7 +40,7 @@ enum PreviewPreferences {
 
     static var showTitles: Bool {
         get {
-            if UserDefaults.standard.object(forKey: titlesKey) == nil { return true }
+            if UserDefaults.standard.object(forKey: titlesKey) == nil { return false }
             return UserDefaults.standard.bool(forKey: titlesKey)
         }
         set {
@@ -164,7 +164,7 @@ final class PreviewPanel {
         effect.blendingMode = .withinWindow
         effect.state = .active
         effect.wantsLayer = true
-        effect.layer?.cornerRadius = 16
+        effect.layer?.cornerRadius = 20
         effect.layer?.masksToBounds = true
         effect.layer?.backgroundColor = NSColor(srgbRed: 0.09, green: 0.09, blue: 0.10, alpha: 1).cgColor
         effect.layer?.borderWidth = 1
@@ -556,7 +556,7 @@ final class PreviewCardView: NSView {
         imageView.setContentHuggingPriority(.defaultLow, for: .horizontal)
         imageView.setContentHuggingPriority(.defaultLow, for: .vertical)
         imageView.wantsLayer = true
-        imageView.layer?.cornerRadius = 8
+        imageView.layer?.cornerRadius = 10
         imageView.layer?.masksToBounds = true
         imageView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
         imageView.layer?.borderWidth = 1

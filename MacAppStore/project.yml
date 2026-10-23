@@ -1,0 +1,31 @@
+name: ShowBarStore
+options:
+  bundleIdPrefix: com.naoryanko
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    PRODUCT_BUNDLE_IDENTIFIER: com.naoryanko.showbar
+    PRODUCT_NAME: Show Bar
+    INFOPLIST_FILE: Info.plist
+    CODE_SIGN_ENTITLEMENTS: ShowBar.entitlements
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: CM9QNMLQMQ
+    ENABLE_HARDENED_RUNTIME: YES
+    GENERATE_INFOPLIST_FILE: NO
+    CURRENT_PROJECT_VERSION: "12"
+    MARKETING_VERSION: "1.9.2"
+    SWIFT_EMIT_LOC_STRINGS: YES
+targets:
+  ShowBarStore:
+    type: application
+    platform: macOS
+    sources:
+      - path: ../Sources
+      - path: Assets.xcassets
+        buildPhase: resources
+    settings:
+      base:
+        INFOPLIST_KEY_NSApplicationCategoryType: public.app-category.utilities

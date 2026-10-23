@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import ImageIO
+import QuartzCore
 import ScreenCaptureKit
 
 /// What happens after a screenshot is taken.
@@ -42,6 +43,17 @@ enum ShotPreferences {
     }
 }
 
+private enum ShotShelfStyle {
+    static let panelRadius: CGFloat = 20
+    static let imageRadius: CGFloat = 12
+    static let controlSize: CGFloat = 24
+    static let gap: CGFloat = 8
+    static let chromeHeight: CGFloat = 40
+    static let showDuration: TimeInterval = 0.24
+    static let hideDuration: TimeInterval = 0.17
+    static let travel: CGFloat = 9
+}
+
 /// Screenshot shortcuts collect pictures in the corner shelf.
 /// Save writes a picture to the Desktop.
 final class ShotShelf {
@@ -55,9 +67,9 @@ final class ShotShelf {
     private var shots: [CGImage] = []
     /// resource: memory 8 — full-screen images stay in RAM only until the shelf closes.
     private let shotLimit = 8
-    private var saved: Set<Int> = []
+    private var saved: Set<ObjectIdentifier> = []
     private var shelfScreen: NSScreen?
-    private var copiedFiles: [URL] = []
+    private var fileForShot: [ObjectIdentifier: URL] = [:]
     private var previousApp: NSRunningApplication?
     private var shutterSound: NSSound?
     private var markup: ShotMarkup?
@@ -92,8 +104,13 @@ final class ShotShelf {
         return true
     }
 
-    /// Copies every display, the whole picture, not a dragged area.
+    /// Copies the screen under the pointer, avoiding multi-monitor canvas merging.
     func captureScreen() {
+        captureScreenUnderPointer()
+    }
+
+    /// Copies every display as individual screenshots.
+    func captureAllScreens() {
         let screens = NSScreen.screens
         guard !screens.isEmpty else { return }
         grab(screens: screens, crop: nil)
@@ -116,7 +133,6 @@ final class ShotShelf {
             setSelecting(false)
             return
         }
-        previousApp = NSWorkspace.shared.frontmostApplication
         let panel = ShotSelector(screen: screen)
         panel.onCancel = { [weak self] in self?.cancelSelection() }
         panel.onCrop = { [weak self] rect in self?.finishSelection(rect, on: screen) }
@@ -124,23 +140,19 @@ final class ShotShelf {
             guard let self else { return }
             self.tearDownSelector()
             self.grab(screens: [screen], crop: nil)
-            self.restoreFrontApp()
         }
         selector = panel
         setSelecting(true)
-        NSRunningApplication.current.activate(from: .current, options: [])
         panel.makeKeyAndOrderFront(nil)
     }
 
     private func finishSelection(_ crop: CGRect, on screen: NSScreen) {
         tearDownSelector()
         grab(screens: [screen], crop: crop)
-        restoreFrontApp()
     }
 
     func cancelSelection() {
         tearDownSelector()
-        restoreFrontApp()
     }
 
     private func tearDownSelector() {
@@ -148,13 +160,6 @@ final class ShotShelf {
         selector?.orderOut(nil)
         selector = nil
         setSelecting(false)
-    }
-
-    private func restoreFrontApp() {
-        let previous = previousApp
-        previousApp = nil
-        guard let previous, previous.processIdentifier != getpid(), !previous.isTerminated else { return }
-        previous.activate(from: .current, options: [])
     }
 
     private var isSelecting: Bool {
@@ -192,13 +197,12 @@ final class ShotShelf {
         playShutter()
         Task {
             do {
-                var pieces: [(CGImage, CGRect)] = []
+                var images: [CGImage] = []
                 for target in targets {
                     let image = try await ShotGrab.capture(target)
-                    pieces.append((image, target.frame))
+                    images.append(image)
                 }
-                guard let image = ShotGrab.combine(pieces) else { return }
-                DispatchQueue.main.async { self.present(image, on: presentOn) }
+                DispatchQueue.main.async { self.present(images, on: presentOn) }
             } catch {
                 DispatchQueue.main.async {
                     if !CGPreflightScreenCaptureAccess() {
@@ -246,39 +250,50 @@ final class ShotShelf {
     }
 
     private func present(_ image: CGImage, on screen: NSScreen) {
-        shots.append(image)
+        present([image], on: screen)
+    }
+
+    private func present(_ images: [CGImage], on screen: NSScreen) {
+        guard !images.isEmpty else { return }
+        for image in images {
+            shots.append(image)
+        }
         if shots.count > shotLimit {
+            let removed = shots.prefix(shots.count - shotLimit)
             shots.removeFirst(shots.count - shotLimit)
+            for old in removed {
+                let key = ObjectIdentifier(old)
+                fileForShot.removeValue(forKey: key)
+                saved.remove(key)
+            }
         }
         // A screenshot replaces whatever was copied before it, including text.
-        copy([image])
+        copy(images)
         switch ShotPreferences.after {
         case .copyClose:
             closePreview()
         case .saveClose:
-            _ = save(image, index: shots.count - 1)
+            for image in images { _ = save(image) }
             closePreview()
         case .saveKeep:
-            _ = save(image, index: shots.count - 1)
-            showShelf(on: screen)
+            for image in images { _ = save(image) }
+            showShelf(on: screen, animating: images)
         case .keep:
-            showShelf(on: screen)
+            showShelf(on: screen, animating: images)
         }
     }
 
-    private func showShelf(on screen: NSScreen) {
-        preview?.orderOut(nil)
-        shelfScreen = screen
+    private func showShelf(on screen: NSScreen, animating newImages: [CGImage] = []) {
         let shown = shots
-        let gap: CGFloat = 6
-        let bar: CGFloat = 34
-        let available = max(280, screen.visibleFrame.width - 36)
+        let gap = ShotShelfStyle.gap
+        let bar = ShotShelfStyle.chromeHeight
+        let available = max(280, screen.visibleFrame.width - 32)
         let count = CGFloat(max(shown.count, 1))
-        var thumbW = floor((available - 12 - gap * max(count - 1, 0)) / count)
-        thumbW = min(shown.count == 1 ? 248 : 160, max(84, thumbW))
-        let thumbH: CGFloat = shown.count == 1 ? 150 : max(58, floor(thumbW * 0.62))
-        let width = min(available, thumbW * count + gap * max(count - 1, 0) + 12)
-        let size = NSSize(width: max(width, 220), height: thumbH + bar + 8)
+        var thumbW = floor((available - 20 - gap * max(count - 1, 0)) / count)
+        thumbW = min(shown.count == 1 ? 264 : 168, max(92, thumbW))
+        let thumbH: CGFloat = shown.count == 1 ? 164 : max(62, floor(thumbW * 0.62))
+        let width = min(available, thumbW * count + gap * max(count - 1, 0) + 20)
+        let size = NSSize(width: max(width, 220), height: thumbH + bar + 10)
         let area = screen.visibleFrame
         let frame = NSRect(
             x: area.maxX - size.width - 14,
@@ -286,6 +301,117 @@ final class ShotShelf {
             width: size.width,
             height: size.height
         )
+        let sameScreen = shelfScreen === screen
+        let panel = preview ?? makeShelfPanel(frame: frame)
+        let entering = !panel.isVisible
+        if entering {
+            panel.setFrame(frame.offsetBy(dx: 0, dy: -ShotShelfStyle.travel), display: false)
+            panel.alphaValue = 0
+        } else if !sameScreen {
+            panel.setFrame(frame, display: false)
+        }
+
+        let root = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+        root.material = .hudWindow
+        root.blendingMode = .withinWindow
+        root.state = .active
+        root.wantsLayer = true
+        root.autoresizingMask = [.width, .height]
+        root.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.24).cgColor
+        root.layer?.cornerRadius = ShotShelfStyle.panelRadius
+        root.layer?.masksToBounds = true
+        root.layer?.borderWidth = 1
+        root.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        let animatedKeys = Set(newImages.map { ObjectIdentifier($0) })
+        var enteringViews: [(NSView, NSRect)] = []
+
+        for (index, image) in shown.enumerated() {
+            let x = 10 + CGFloat(index) * (thumbW + gap)
+            let targetFrame = NSRect(x: x, y: bar, width: thumbW, height: thumbH)
+            let isNew = animatedKeys.contains(ObjectIdentifier(image))
+            let imageView = ShotImageView(frame: isNew ? targetFrame.offsetBy(dx: 0, dy: -7) : targetFrame)
+            imageView.alphaValue = isNew ? 0 : 1
+            imageView.image = NSImage(cgImage: image, size: NSSize(width: thumbW, height: thumbH))
+            imageView.imageScaling = .scaleProportionallyUpOrDown
+            imageView.imageAlignment = .alignCenter
+            imageView.wantsLayer = true
+            imageView.layer?.cornerRadius = ShotShelfStyle.imageRadius
+            imageView.layer?.masksToBounds = true
+            imageView.layer?.borderWidth = 1
+            imageView.layer?.borderColor = NSColor.white.withAlphaComponent(0.13).cgColor
+            imageView.onOpen = { [weak self] in self?.openMarkup(index: index) }
+            imageView.dragItemProvider = { [weak self] in
+                guard let self else { return nil }
+                guard let url = self.file(for: image) else { return nil }
+                return (url, image)
+            }
+            root.addSubview(imageView)
+            if isNew { enteringViews.append((imageView, targetFrame)) }
+            let drop = barButton(
+                symbol: "xmark",
+                label: "Leave this screenshot out",
+                frame: NSRect(x: x + 8, y: bar + thumbH - 32, width: ShotShelfStyle.controlSize, height: ShotShelfStyle.controlSize),
+                action: #selector(dropOne(_:))
+            )
+            drop.tag = index
+            root.addSubview(drop)
+            let copyOne = barButton(
+                symbol: "doc.on.clipboard",
+                label: "Copy screenshot",
+                frame: NSRect(x: x + thumbW - 32, y: bar + thumbH - 32, width: ShotShelfStyle.controlSize, height: ShotShelfStyle.controlSize),
+                action: #selector(copyOne(_:))
+            )
+            copyOne.tag = index
+            root.addSubview(copyOne)
+            let edit = barButton(
+                symbol: "pencil.tip",
+                label: "Open this screenshot to edit",
+                frame: NSRect(x: x + 8, y: bar + 8, width: ShotShelfStyle.controlSize, height: ShotShelfStyle.controlSize),
+                action: #selector(openOne(_:))
+            )
+            edit.tag = index
+            root.addSubview(edit)
+        }
+
+        let caption = NSTextField(labelWithString: shots.count == 1 ? "1 screenshot" : "\(shots.count) screenshots")
+        caption.font = .systemFont(ofSize: 12, weight: .medium)
+        caption.textColor = .white
+        caption.frame = NSRect(x: 12, y: 10, width: size.width - 112, height: 18)
+        caption.lineBreakMode = .byTruncatingTail
+        root.addSubview(caption)
+        self.caption = caption
+
+        let copyAll = barButton(
+            symbol: "doc.on.doc.fill",
+            label: "Copy every screenshot",
+            frame: NSRect(x: size.width - 90, y: 8, width: ShotShelfStyle.controlSize, height: ShotShelfStyle.controlSize),
+            action: #selector(copyAll)
+        )
+        root.addSubview(copyAll)
+
+        let save = barButton(
+            symbol: "square.and.arrow.down",
+            label: "Save screenshots to Desktop",
+            frame: NSRect(x: size.width - 62, y: 8, width: ShotShelfStyle.controlSize, height: ShotShelfStyle.controlSize),
+            action: #selector(savePreview)
+        )
+        root.addSubview(save)
+
+        let close = barButton(
+            symbol: "xmark",
+            label: "Close screenshots",
+            frame: NSRect(x: size.width - 34, y: 8, width: ShotShelfStyle.controlSize, height: ShotShelfStyle.controlSize),
+            action: #selector(closePreview)
+        )
+        root.addSubview(close)
+
+        panel.contentView = root
+        preview = panel
+        shelfScreen = screen
+        presentShelf(panel, at: frame, entering: entering, animateFrame: sameScreen, enteringViews: enteringViews)
+    }
+
+    private func makeShelfPanel(frame: NSRect) -> NSPanel {
         let panel = NSPanel(
             contentRect: frame,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -301,106 +427,82 @@ final class ShotShelf {
         panel.isFloatingPanel = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
         panel.isReleasedWhenClosed = false
+        panel.isExcludedFromWindowsMenu = true
+        panel.appearance = NSAppearance(named: .darkAqua)
+        return panel
+    }
 
-        let root = NSView(frame: NSRect(origin: .zero, size: size))
-        root.wantsLayer = true
-        root.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.88).cgColor
-        root.layer?.cornerRadius = 12
-        root.layer?.masksToBounds = true
-
-        for (index, image) in shown.enumerated() {
-            let x = 6 + CGFloat(index) * (thumbW + gap)
-            let imageView = ShotImageView(frame: NSRect(x: x, y: bar, width: thumbW, height: thumbH))
-            imageView.image = NSImage(cgImage: image, size: NSSize(width: thumbW, height: thumbH))
-            imageView.imageScaling = .scaleProportionallyUpOrDown
-            imageView.imageAlignment = .alignCenter
-            imageView.wantsLayer = true
-            imageView.layer?.cornerRadius = 6
-            imageView.layer?.masksToBounds = true
-            imageView.onOpen = { [weak self] in self?.openMarkup(index: index) }
-            root.addSubview(imageView)
-            let drop = barButton(
-                symbol: "xmark",
-                label: "Leave this screenshot out",
-                frame: NSRect(x: x + 4, y: bar + thumbH - 24, width: 20, height: 20),
-                action: #selector(dropOne(_:))
-            )
-            drop.tag = index
-            root.addSubview(drop)
-            let copyOne = barButton(
-                symbol: "doc.on.clipboard",
-                label: "Clipboard history",
-                frame: NSRect(x: x + thumbW - 24, y: bar + thumbH - 24, width: 20, height: 20),
-                action: #selector(showCopies)
-            )
-            copyOne.tag = index
-            root.addSubview(copyOne)
-            let edit = barButton(
-                symbol: "pencil.tip",
-                label: "Open this screenshot to edit",
-                frame: NSRect(x: x + 4, y: bar + 4, width: 20, height: 20),
-                action: #selector(openOne(_:))
-            )
-            edit.tag = index
-            root.addSubview(edit)
+    private func presentShelf(
+        _ panel: NSPanel,
+        at frame: NSRect,
+        entering: Bool,
+        animateFrame: Bool,
+        enteringViews: [(NSView, NSRect)]
+    ) {
+        let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : ShotShelfStyle.showDuration
+        guard duration > 0 else {
+            panel.setFrame(frame, display: true)
+            panel.alphaValue = 1
+            for (view, targetFrame) in enteringViews {
+                view.frame = targetFrame
+                view.alphaValue = 1
+            }
+            panel.orderFrontRegardless()
+            return
         }
 
-        let caption = NSTextField(labelWithString: shots.count == 1 ? "1 screenshot" : "\(shots.count) screenshots")
-        caption.font = .systemFont(ofSize: 12, weight: .medium)
-        caption.textColor = .white
-        caption.frame = NSRect(x: 10, y: 8, width: size.width - 100, height: 18)
-        caption.lineBreakMode = .byTruncatingTail
-        root.addSubview(caption)
-        self.caption = caption
-
-        let copyAll = barButton(
-            symbol: "doc.on.doc.fill",
-            label: "Copy every screenshot",
-            frame: NSRect(x: size.width - 78, y: 6, width: 22, height: 22),
-            action: #selector(copyAll)
-        )
-        root.addSubview(copyAll)
-
-        let save = barButton(
-            symbol: "square.and.arrow.down",
-            label: "Save screenshots to Desktop",
-            frame: NSRect(x: size.width - 52, y: 6, width: 22, height: 22),
-            action: #selector(savePreview)
-        )
-        root.addSubview(save)
-
-        let close = barButton(
-            symbol: "xmark",
-            label: "Close screenshots",
-            frame: NSRect(x: size.width - 26, y: 6, width: 22, height: 22),
-            action: #selector(closePreview)
-        )
-        root.addSubview(close)
-
-        panel.contentView = root
-        preview = panel
         panel.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.8, 0.2, 1)
+            if entering { panel.animator().alphaValue = 1 }
+            if entering || (animateFrame && panel.frame != frame) {
+                panel.animator().setFrame(frame, display: true)
+            } else if panel.frame != frame {
+                panel.setFrame(frame, display: true)
+            }
+            for (view, targetFrame) in enteringViews {
+                view.animator().alphaValue = 1
+                view.animator().frame = targetFrame
+            }
+        }, completionHandler: nil)
     }
 
     @objc private func closePreview() {
         markup?.window.close()
         markup = nil
-        preview?.orderOut(nil)
+        let panel = preview
         preview = nil
         caption = nil
         shots = []
         saved = []
+        fileForShot = [:]
         shelfScreen = nil
+        guard let panel else { return }
+        panel.ignoresMouseEvents = true
+        let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : ShotShelfStyle.hideDuration
+        guard duration > 0 else {
+            panel.close()
+            return
+        }
+        let frame = panel.frame.offsetBy(dx: 0, dy: -ShotShelfStyle.travel * 0.6)
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+            panel.animator().setFrame(frame, display: true)
+        }, completionHandler: {
+            panel.close()
+        })
     }
 
     @objc private func dropOne(_ sender: NSButton) {
         let index = sender.tag
         guard shots.indices.contains(index) else { return }
-        shots.remove(at: index)
-        saved = Set(saved.compactMap { old in
-            if old == index { return nil }
-            return old > index ? old - 1 : old
-        })
+        let removed = shots.remove(at: index)
+        let key = ObjectIdentifier(removed)
+        fileForShot.removeValue(forKey: key)
+        saved.remove(key)
         guard !shots.isEmpty, let screen = shelfScreen ?? preview?.screen ?? NSScreen.main else {
             closePreview()
             return
@@ -435,13 +537,11 @@ final class ShotShelf {
     private func applyEdit(original: CGImage, edited: CGImage) {
         guard let index = shots.firstIndex(where: { $0 === original }) else { return }
         shots[index] = edited
-        saved.remove(index)
+        let oldKey = ObjectIdentifier(original)
+        saved.remove(oldKey)
+        fileForShot.removeValue(forKey: oldKey)
         guard let screen = shelfScreen ?? preview?.screen ?? NSScreen.main else { return }
-        showShelf(on: screen)
-    }
-
-    @objc private func showCopies() {
-        ClipboardShelf.shared.show()
+        showShelf(on: screen, animating: [edited])
     }
 
     @objc private func copyOne(_ sender: NSButton) {
@@ -458,15 +558,16 @@ final class ShotShelf {
 
     @objc private func savePreview() {
         var wrote = 0
-        for (index, image) in shots.enumerated() where !saved.contains(index) {
-            if save(image, index: index) { wrote += 1 }
+        for image in shots where !saved.contains(ObjectIdentifier(image)) {
+            if save(image) { wrote += 1 }
         }
         caption?.stringValue = wrote > 0 ? "Saved" : "Saved already"
     }
 
     @discardableResult
-    private func save(_ image: CGImage, index: Int) -> Bool {
-        guard !saved.contains(index) else { return false }
+    private func save(_ image: CGImage) -> Bool {
+        let key = ObjectIdentifier(image)
+        guard !saved.contains(key) else { return false }
         guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]),
               let url = Self.desktopScreenshotURL() else {
             caption?.stringValue = "Not saved"
@@ -474,7 +575,8 @@ final class ShotShelf {
         }
         do {
             try png.write(to: url, options: .atomic)
-            saved.insert(index)
+            saved.insert(key)
+            fileForShot[key] = url
             return true
         } catch {
             caption?.stringValue = "Not saved"
@@ -490,8 +592,10 @@ final class ShotShelf {
         button.imageScaling = .scaleProportionallyDown
         button.contentTintColor = .white
         button.wantsLayer = true
-        button.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.18).cgColor
-        button.layer?.cornerRadius = 11
+        button.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.20).cgColor
+        button.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+        button.layer?.borderWidth = 1
+        button.layer?.cornerRadius = frame.height / 2
         button.target = self
         button.action = action
         return button
@@ -512,14 +616,73 @@ final class ShotShelf {
         return url
     }
 
+    private func file(for image: CGImage) -> URL? {
+        let key = ObjectIdentifier(image)
+        if let existing = fileForShot[key], FileManager.default.fileExists(atPath: existing.path) {
+            return existing
+        }
+        guard let url = makeFile(for: image) else { return nil }
+        fileForShot[key] = url
+        return url
+    }
+
+    private func makeFile(for image: CGImage) -> URL? {
+        guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else { return nil }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ShowBarShots", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        cleanupOldTempFiles(in: dir)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
+        let stamp = formatter.string(from: Date())
+        var url = dir.appendingPathComponent("Screenshot \(stamp).png")
+        var extra = 2
+        while FileManager.default.fileExists(atPath: url.path), extra < 50 {
+            url = dir.appendingPathComponent("Screenshot \(stamp) \(extra).png")
+            extra += 1
+        }
+        do {
+            try png.write(to: url, options: .atomic)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    private func cleanupOldTempFiles(in dir: URL) {
+        Self.cleanupTempFiles(in: dir, olderThan: Date().addingTimeInterval(-300))
+    }
+
+    private static func cleanupTempFiles(in dir: URL, olderThan cutoff: Date) {
+        guard let items = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey], options: .skipsHiddenFiles) else { return }
+        let clipboardFiles = Set(clipboardFileURLs().map(\.standardizedFileURL))
+        for item in items {
+            guard !clipboardFiles.contains(item.standardizedFileURL),
+                  let date = (try? item.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
+                  date < cutoff else { continue }
+            try? FileManager.default.removeItem(at: item)
+        }
+    }
+
+    private static func clipboardFileURLs() -> [URL] {
+        let board = NSPasteboard.general
+        var urls = board.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] ?? []
+        for item in board.pasteboardItems ?? [] {
+            guard let value = item.string(forType: .fileURL), let url = URL(string: value), url.isFileURL else { continue }
+            urls.append(url)
+        }
+        return urls
+    }
+
+    static func cleanupLaunchTempFiles() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ShowBarShots", isDirectory: true)
+        cleanupTempFiles(in: dir, olderThan: .distantFuture)
+    }
+
     /// Several pictures are copied as files. A chat paste then attaches every file, not only the first picture.
     private func copy(_ images: [CGImage]) {
-        let files = images.compactMap { tempPNG($0) }
+        let files = images.compactMap { file(for: $0) }
         guard !files.isEmpty else { return }
-        for old in copiedFiles where !files.contains(old) {
-            try? FileManager.default.removeItem(at: old)
-        }
-        copiedFiles = files
         let board = NSPasteboard.general
         board.clearContents()
         if files.count == 1, let image = images.first,
@@ -534,19 +697,6 @@ final class ShotShelf {
             return
         }
         board.writeObjects(files as [NSURL])
-    }
-
-    private func tempPNG(_ image: CGImage) -> URL? {
-        guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else { return nil }
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ShowBarShots", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent("Screenshot-\(UUID().uuidString).png")
-        do {
-            try png.write(to: url, options: .atomic)
-            return url
-        } catch {
-            return nil
-        }
     }
 
     private func playShutter() {
@@ -602,39 +752,6 @@ private enum ShotGrab {
         return cropImage(image, points: crop, screen: target) ?? image
     }
 
-    static func combine(_ pieces: [(CGImage, CGRect)]) -> CGImage? {
-        guard let first = pieces.first else { return nil }
-        guard pieces.count > 1 else { return first.0 }
-        let union = pieces.dropFirst().reduce(first.1) { $0.union($1.1) }
-        var canvas = CGSize(width: 1, height: 1)
-        for piece in pieces {
-            let scaleX = CGFloat(piece.0.width) / max(piece.1.width, 1)
-            let scaleY = CGFloat(piece.0.height) / max(piece.1.height, 1)
-            canvas.width = max(canvas.width, (piece.1.maxX - union.minX) * scaleX)
-            canvas.height = max(canvas.height, (piece.1.maxY - union.minY) * scaleY)
-        }
-        guard let context = CGContext(
-            data: nil,
-            width: Int(canvas.width.rounded(.up)),
-            height: Int(canvas.height.rounded(.up)),
-            bitsPerComponent: 8,
-            bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return first.0 }
-        for piece in pieces {
-            let scaleX = CGFloat(piece.0.width) / max(piece.1.width, 1)
-            let scaleY = CGFloat(piece.0.height) / max(piece.1.height, 1)
-            let dest = CGRect(
-                x: (piece.1.minX - union.minX) * scaleX,
-                y: (piece.1.minY - union.minY) * scaleY,
-                width: CGFloat(piece.0.width),
-                height: CGFloat(piece.0.height)
-            )
-            context.draw(piece.0, in: dest)
-        }
-        return context.makeImage() ?? first.0
-    }
 
     private static func cropImage(_ image: CGImage, points: CGRect, screen: ShotTarget) -> CGImage? {
         guard screen.width > 1, screen.height > 1 else { return nil }
@@ -731,6 +848,8 @@ private final class SelectionCanvas: NSView {
     private let hint = NSTextField(labelWithString: "")
 
     override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     func installHint() {
         hint.font = .systemFont(ofSize: 13, weight: .medium)
@@ -738,7 +857,7 @@ private final class SelectionCanvas: NSView {
         hint.alignment = .center
         hint.wantsLayer = true
         hint.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
-        hint.layer?.cornerRadius = 8
+        hint.layer?.cornerRadius = 10
         addSubview(hint)
         refreshHint()
     }
@@ -955,7 +1074,12 @@ private final class SelectionCanvas: NSView {
 
 private final class ShotImageView: NSImageView, NSDraggingSource {
     var onOpen: (() -> Void)?
+    var dragItemProvider: (() -> (URL, CGImage)?)?
     private var press: CGPoint?
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .copy
@@ -966,17 +1090,65 @@ private final class ShotImageView: NSImageView, NSDraggingSource {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        press = nil
-        guard let image else { return }
-        let item = NSDraggingItem(pasteboardWriter: image)
-        item.setDraggingFrame(bounds, contents: image)
+        guard let press else { return }
+        let current = convert(event.locationInWindow, from: nil)
+        let distance = hypot(current.x - press.x, current.y - press.y)
+        guard distance >= 3 else { return }
+        self.press = nil
+        guard let (url, fullImage) = dragItemProvider?() else { return }
+        let writer = ShotPasteboardWriter(fileURL: url, image: fullImage)
+        let item = NSDraggingItem(pasteboardWriter: writer)
+        if let dragImage = image {
+            item.setDraggingFrame(bounds, contents: dragImage)
+        }
         beginDraggingSession(with: [item], event: event, source: self)
     }
 
     override func mouseUp(with event: NSEvent) {
         guard press != nil else { return }
         press = nil
-        onOpen?()
+        let upLocation = convert(event.locationInWindow, from: nil)
+        if bounds.contains(upLocation) {
+            onOpen?()
+        }
+    }
+}
+
+private final class ShotPasteboardWriter: NSObject, NSPasteboardWriting {
+    let fileURL: URL
+    let image: CGImage
+
+    init(fileURL: URL, image: CGImage) {
+        self.fileURL = fileURL
+        self.image = image
+        super.init()
+    }
+
+    func writableTypes(for pasteboard: NSPasteboard) -> [NSPasteboard.PasteboardType] {
+        return [.fileURL, .png, .tiff]
+    }
+
+    func writingOptions(forType type: NSPasteboard.PasteboardType, pasteboard: NSPasteboard) -> NSPasteboard.WritingOptions {
+        if type == .fileURL {
+            return (fileURL as NSURL).writingOptions(forType: type, pasteboard: pasteboard)
+        }
+        return []
+    }
+
+    func pasteboardPropertyList(forType type: NSPasteboard.PasteboardType) -> Any? {
+        if type == .fileURL {
+            return (fileURL as NSURL).pasteboardPropertyList(forType: type)
+        }
+        if type == .png {
+            if let data = try? Data(contentsOf: fileURL) {
+                return data
+            }
+            return NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+        }
+        if type == .tiff {
+            return NSBitmapImageRep(cgImage: image).tiffRepresentation
+        }
+        return nil
     }
 }
 

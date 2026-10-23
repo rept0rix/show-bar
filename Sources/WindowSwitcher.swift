@@ -53,7 +53,7 @@ final class WindowSwitcher {
         effect.blendingMode = .withinWindow
         effect.state = .active
         effect.wantsLayer = true
-        effect.layer?.cornerRadius = 16
+        effect.layer?.cornerRadius = 20
         effect.layer?.masksToBounds = true
         effect.layer?.backgroundColor = NSColor(srgbRed: 0.09, green: 0.09, blue: 0.10, alpha: 1).cgColor
         effect.layer?.borderWidth = 1
@@ -399,20 +399,24 @@ final class WindowSwitcher {
             image.setContentHuggingPriority(.defaultLow, for: .horizontal)
             image.setContentHuggingPriority(.defaultLow, for: .vertical)
             image.wantsLayer = true
-            image.layer?.cornerRadius = 8
+            image.layer?.cornerRadius = 10
             image.layer?.masksToBounds = true
             image.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.45).cgColor
             image.translatesAutoresizingMaskIntoConstraints = false
 
             if !card.isCurrent {
-                let badge = NSTextField(labelWithString: card.desktopIndex > 0 ? "Desktop \(card.desktopIndex)" : "Other desktop")
+                let current = DesktopSpaces.currentDeskIndex()
+                let badgeText = (card.desktopIndex > 0 && card.desktopIndex != current)
+                    ? "Desktop \(card.desktopIndex)"
+                    : "Other desktop"
+                let badge = NSTextField(labelWithString: badgeText)
                 badge.font = .systemFont(ofSize: 10, weight: .bold)
                 badge.textColor = .white
                 badge.translatesAutoresizingMaskIntoConstraints = false
                 let pill = NSView()
                 pill.wantsLayer = true
                 pill.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
-                pill.layer?.cornerRadius = 7
+                pill.layer?.cornerRadius = 9
                 pill.translatesAutoresizingMaskIntoConstraints = false
                 image.addSubview(pill)
                 pill.addSubview(badge)

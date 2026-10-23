@@ -2,6 +2,12 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.9.2
+
+- Command-Shift-3 and the menu-bar camera capture only the active screen under the pointer, preventing dual-monitor canvas stitching and blank border gaps.
+- Capturing every screen saves each display as its own clean, individual screenshot on the shelf.
+- Shelf screenshots support smooth drag-and-drop directly into chats, editors, and other apps.
+
 ## 1.9.1
 
 - Opening a screenshot from the shelf opens the full markup editor properly, fixing the white blank screen issue.

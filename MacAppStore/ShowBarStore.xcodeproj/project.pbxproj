@@ -1,0 +1,356 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		01A514C0D45C669C5B806C24 /* ShotShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 193E5E84FE91580EEBFC7D13 /* ShotShelf.swift */; };
+		0611C80CB32FC44ECB8A12E8 /* WindowSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2AC4FD5EA1B5D86DEBE426 /* WindowSwitcher.swift */; };
+		4EB27EC1B36C921D7EF89CA8 /* AppUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C022EA9B7117327DA90BAF2F /* AppUpdate.swift */; };
+		5CD9BA627889D98B3C938A50 /* WindowCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */; };
+		6A84CA6A2C23FA50FFAD9CA4 /* AppMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D948AD9BCA8874568CDC5B /* AppMain.swift */; };
+		709F29A9B7E54CB43CCDE2A3 /* ClipboardShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */; };
+		A44AE13D6129C660D35EADEF /* HoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE676386D6BC306A115E6E1 /* HoverController.swift */; };
+		BA7158F451A85D139C2386F0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */; };
+		D0F97DFF332577086A64A5AF /* WindowSnap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB291E911905222A0872EF1 /* WindowSnap.swift */; };
+		EB3DEF5013066AAC56D0FBB0 /* DesktopSpaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */; };
+		F4619A2F563642434ACB3952 /* PreviewPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982797167FF4B05B085F95F9 /* PreviewPanel.swift */; };
+		F5FF8E6DC4B433E2EB30C8D4 /* DockReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE878EE69C4B80E64A5329FC /* DockReader.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		193E5E84FE91580EEBFC7D13 /* ShotShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShotShelf.swift; sourceTree = "<group>"; };
+		2EE676386D6BC306A115E6E1 /* HoverController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverController.swift; sourceTree = "<group>"; };
+		3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardShelf.swift; sourceTree = "<group>"; };
+		4A2AC4FD5EA1B5D86DEBE426 /* WindowSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSwitcher.swift; sourceTree = "<group>"; };
+		7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7626EC1DFBFD052726B38204 /* ShowBarStore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowBarStore.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopSpaces.swift; sourceTree = "<group>"; };
+		902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCatalog.swift; sourceTree = "<group>"; };
+		982797167FF4B05B085F95F9 /* PreviewPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPanel.swift; sourceTree = "<group>"; };
+		9FB291E911905222A0872EF1 /* WindowSnap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSnap.swift; sourceTree = "<group>"; };
+		C022EA9B7117327DA90BAF2F /* AppUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdate.swift; sourceTree = "<group>"; };
+		D1D948AD9BCA8874568CDC5B /* AppMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMain.swift; sourceTree = "<group>"; };
+		DE878EE69C4B80E64A5329FC /* DockReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockReader.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		77815968379B4E1FEC3BC7EB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7626EC1DFBFD052726B38204 /* ShowBarStore.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		825618FF73FDC42CC6CA8E92 = {
+			isa = PBXGroup;
+			children = (
+				7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */,
+				BA22583F10EAB8BD367EBA57 /* Sources */,
+				77815968379B4E1FEC3BC7EB /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		BA22583F10EAB8BD367EBA57 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				D1D948AD9BCA8874568CDC5B /* AppMain.swift */,
+				C022EA9B7117327DA90BAF2F /* AppUpdate.swift */,
+				3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */,
+				8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */,
+				DE878EE69C4B80E64A5329FC /* DockReader.swift */,
+				2EE676386D6BC306A115E6E1 /* HoverController.swift */,
+				982797167FF4B05B085F95F9 /* PreviewPanel.swift */,
+				193E5E84FE91580EEBFC7D13 /* ShotShelf.swift */,
+				902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */,
+				9FB291E911905222A0872EF1 /* WindowSnap.swift */,
+				4A2AC4FD5EA1B5D86DEBE426 /* WindowSwitcher.swift */,
+			);
+			name = Sources;
+			path = ../Sources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		58825EF987BE173C09753C9F /* ShowBarStore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2A1B0C413A18532D54113384 /* Build configuration list for PBXNativeTarget "ShowBarStore" */;
+			buildPhases = (
+				D893A824E7BD758EB4DD5C67 /* Sources */,
+				3B4B3244EA1DBE28F42C34AE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShowBarStore;
+			packageProductDependencies = (
+			);
+			productName = ShowBarStore;
+			productReference = 7626EC1DFBFD052726B38204 /* ShowBarStore.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F056A7351B8E83C8CA812EDD /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					58825EF987BE173C09753C9F = {
+						DevelopmentTeam = CM9QNMLQMQ;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = D72AB25839AC2935B9309BA1 /* Build configuration list for PBXProject "ShowBarStore" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 825618FF73FDC42CC6CA8E92;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 77815968379B4E1FEC3BC7EB /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				58825EF987BE173C09753C9F /* ShowBarStore */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3B4B3244EA1DBE28F42C34AE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BA7158F451A85D139C2386F0 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D893A824E7BD758EB4DD5C67 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6A84CA6A2C23FA50FFAD9CA4 /* AppMain.swift in Sources */,
+				4EB27EC1B36C921D7EF89CA8 /* AppUpdate.swift in Sources */,
+				709F29A9B7E54CB43CCDE2A3 /* ClipboardShelf.swift in Sources */,
+				EB3DEF5013066AAC56D0FBB0 /* DesktopSpaces.swift in Sources */,
+				F5FF8E6DC4B433E2EB30C8D4 /* DockReader.swift in Sources */,
+				A44AE13D6129C660D35EADEF /* HoverController.swift in Sources */,
+				F4619A2F563642434ACB3952 /* PreviewPanel.swift in Sources */,
+				01A514C0D45C669C5B806C24 /* ShotShelf.swift in Sources */,
+				5CD9BA627889D98B3C938A50 /* WindowCatalog.swift in Sources */,
+				D0F97DFF332577086A64A5AF /* WindowSnap.swift in Sources */,
+				0611C80CB32FC44ECB8A12E8 /* WindowSwitcher.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		80C0E771F7CC41E15195A3E2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_KEY_NSApplicationCategoryType = "public.app-category.utilities";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		8FA9A777A09B8708AB778F77 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = ShowBar.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 12;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = CM9QNMLQMQ;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.9.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.naoryanko.showbar;
+				PRODUCT_NAME = "Show Bar";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		9BD66D05A6F328C7D0C370C5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = ShowBar.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 12;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = CM9QNMLQMQ;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.9.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.naoryanko.showbar;
+				PRODUCT_NAME = "Show Bar";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		DE68B0C8DEBB8406E998B727 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_KEY_NSApplicationCategoryType = "public.app-category.utilities";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2A1B0C413A18532D54113384 /* Build configuration list for PBXNativeTarget "ShowBarStore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DE68B0C8DEBB8406E998B727 /* Debug */,
+				80C0E771F7CC41E15195A3E2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D72AB25839AC2935B9309BA1 /* Build configuration list for PBXProject "ShowBarStore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9BD66D05A6F328C7D0C370C5 /* Debug */,
+				8FA9A777A09B8708AB778F77 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F056A7351B8E83C8CA812EDD /* Project object */;
+}

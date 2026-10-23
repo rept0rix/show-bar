@@ -132,7 +132,7 @@ final class ClipboardShelf: ObservableObject {
         guard count != lastSeen else { return }
         lastSeen = count
         guard count != suppressChange else { return }
-        guard let clip = read(board) else { return }
+        guard let clip = read(board), shouldStoreAutomatically(clip) else { return }
         if let newest = clips.first, newest.kind == clip.kind, newest.text == clip.text, newest.imageName == nil, clip.imageName == nil {
             return
         }
@@ -147,6 +147,12 @@ final class ClipboardShelf: ObservableObject {
             clips = Array(clips.prefix(limit))
         }
         save()
+    }
+
+    private func shouldStoreAutomatically(_ clip: Clip) -> Bool {
+        // TODO: Choose whether clipboard history captures every eligible item,
+        // only selected kinds, or waits for the user to enable capture.
+        return true
     }
 
     private func read(_ board: NSPasteboard) -> Clip? {
@@ -315,7 +321,7 @@ struct ClipboardView: View {
                 Image(nsImage: thumb)
                     .resizable()
                     .frame(width: 72, height: 48)
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             } else {
                 Image(systemName: clip.kind == .link ? "link" : "doc.text")
                     .frame(width: 28)

@@ -1,4 +1,5 @@
 build/
+MacAppStore/build/
 *.dmg
 .DS_Store
 *.xcuserstate
