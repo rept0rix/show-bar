@@ -377,10 +377,14 @@ final class HoverController: @unchecked Sendable {
         if icon.id == pendingID { return }
         pendingID = icon.id
         hoverTask?.cancel()
-        let delay: UInt64 = shownID == nil ? 40_000_000 : 0
+        if shownID != nil {
+            pendingID = nil
+            show(icon)
+            return
+        }
         let iconID = icon.id
         hoverTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: delay)
+            try? await Task.sleep(nanoseconds: 40_000_000)
             guard !Task.isCancelled else { return }
             let controller = self
             await MainActor.run { controller?.commitHover(id: iconID) }
@@ -485,28 +489,26 @@ final class HoverController: @unchecked Sendable {
         }
     }
 
-    /// Each icon owns the Dock up to the midpoint of its neighbors, and the first and last reach the screen edge.
+    /// Each icon owns the Dock up to the midpoint of its neighbors, and outer edges stay close to the icon.
     private func laneHit(_ icon: DockIcon, among icons: [DockIcon]) -> CGRect {
         var rect = DockReader.hitFrame(icon.frame, edge: edge)
-        let screens = NSScreen.screens.map { Coordinates.flip($0.frame) }
-        let screen = screens.max { lhs, rhs in
-            let left = lhs.intersection(icon.frame)
-            let right = rhs.intersection(icon.frame)
-            return left.width * left.height < right.width * right.height
-        }
         switch edge {
         case .left, .right:
             let above = icons.map(\.frame.minY).filter { $0 < icon.frame.minY }.max()
             let below = icons.map(\.frame.maxY).filter { $0 > icon.frame.maxY }.min()
-            let top = above.map { ($0 + icon.frame.minY) / 2 } ?? screen?.minY ?? rect.minY
-            let bottom = below.map { ($0 + icon.frame.maxY) / 2 } ?? screen?.maxY ?? rect.maxY
+            let capTop = icon.frame.minY - 16
+            let capBottom = icon.frame.maxY + 16
+            let top = above.map { ($0 + icon.frame.minY) / 2 } ?? capTop
+            let bottom = below.map { ($0 + icon.frame.maxY) / 2 } ?? capBottom
             rect.origin.y = min(rect.minY, top)
             rect.size.height = max(rect.maxY, bottom) - rect.origin.y
         case .bottom, .top:
             let before = icons.map(\.frame.minX).filter { $0 < icon.frame.minX }.max()
             let after = icons.map(\.frame.maxX).filter { $0 > icon.frame.maxX }.min()
-            let left = before.map { ($0 + icon.frame.minX) / 2 } ?? screen?.minX ?? rect.minX
-            let right = after.map { ($0 + icon.frame.maxX) / 2 } ?? screen?.maxX ?? rect.maxX
+            let capLeft = icon.frame.minX - 16
+            let capRight = icon.frame.maxX + 16
+            let left = before.map { ($0 + icon.frame.minX) / 2 } ?? capLeft
+            let right = after.map { ($0 + icon.frame.maxX) / 2 } ?? capRight
             rect.origin.x = min(rect.minX, left)
             rect.size.width = max(rect.maxX, right) - rect.origin.x
         }

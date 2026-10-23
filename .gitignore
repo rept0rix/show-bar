@@ -3,3 +3,6 @@ MacAppStore/build/
 *.dmg
 .DS_Store
 *.xcuserstate
+.agents/
+.build/
+output/

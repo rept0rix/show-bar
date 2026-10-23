@@ -23,6 +23,32 @@ struct Thumbnail: @unchecked Sendable {
     let image: CGImage
 }
 
+final class ThumbnailCache: @unchecked Sendable {
+    static let shared = ThumbnailCache()
+    private var cache: [CGWindowID: CGImage] = [:]
+    private var order: [CGWindowID] = []
+    private let lock = NSLock()
+    private let capacity = 16
+
+    func get(_ id: CGWindowID) -> CGImage? {
+        lock.lock()
+        defer { lock.unlock() }
+        return cache[id]
+    }
+
+    func set(_ id: CGWindowID, image: CGImage) {
+        lock.lock()
+        defer { lock.unlock() }
+        cache[id] = image
+        order.removeAll(where: { $0 == id })
+        order.append(id)
+        while order.count > capacity {
+            let oldest = order.removeFirst()
+            cache.removeValue(forKey: oldest)
+        }
+    }
+}
+
 enum WindowCatalog {
     private struct ListedWindow {
         let id: CGWindowID
@@ -31,21 +57,56 @@ enum WindowCatalog {
         let frame: CGRect
         let ownerName: String
         let onScreen: Bool
+        let alpha: Double
         let order: Int
+    }
+
+    private struct AppWindowsInfo {
+        let realIDs: Set<CGWindowID>
+        let titles: [CGWindowID: String]
+    }
+
+    private static func appWindowsInfo(pids: Set<pid_t>) -> AppWindowsInfo {
+        var realIDs = Set<CGWindowID>()
+        var titles: [CGWindowID: String] = [:]
+        let blockedSubroles: Set<String> = [
+            "AXFloatingWindow", "AXSystemFloatingWindow", "AXSystemDialog", "AXUnknown"
+        ]
+        for pid in pids {
+            let app = AXUIElementCreateApplication(pid)
+            AXUIElementSetMessagingTimeout(app, 0.08)
+            for element in AXValueReader.elements(app, kAXWindowsAttribute as String) {
+                guard let id = windowID(element) else { continue }
+                let subrole = AXValueReader.string(element, kAXSubroleAttribute as String) ?? ""
+                if blockedSubroles.contains(subrole) { continue }
+                realIDs.insert(id)
+                if let title = AXValueReader.string(element, kAXTitleAttribute as String), !title.isEmpty {
+                    titles[id] = title
+                }
+            }
+        }
+        return AppWindowsInfo(realIDs: realIDs, titles: titles)
     }
 
     static func windows(for icon: DockIcon) -> [WindowCard] {
         let target = resolve(icon)
         guard !target.pids.isEmpty else { return [] }
 
-        let auxiliaryIDs = auxiliaryWindowIDs(pids: target.pids)
+        let info = appWindowsInfo(pids: target.pids)
         let listed = listWindows().filter { window in
             target.pids.contains(window.pid)
                 || window.ownerName.caseInsensitiveCompare(icon.title) == .orderedSame
         }
-        .filter { !auxiliaryIDs.contains($0.id) }
         .filter { window in
-            window.onScreen || DesktopSpaces.space(of: window.id) != nil
+            guard window.alpha > 0.04 else { return false }
+            if !info.realIDs.isEmpty {
+                return info.realIDs.contains(window.id)
+            }
+            guard window.onScreen || DesktopSpaces.space(of: window.id) != nil else { return false }
+            if !window.onScreen && window.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return false
+            }
+            return true
         }
         .sorted { lhs, rhs in
             if lhs.onScreen != rhs.onScreen { return lhs.onScreen && !rhs.onScreen }
@@ -54,10 +115,11 @@ enum WindowCatalog {
 
         if !listed.isEmpty {
             let cards = listed.map { window in
-                WindowCard(
+                let preferredTitle = info.titles[window.id] ?? window.title
+                return WindowCard(
                     id: window.id,
                     pid: window.pid,
-                    title: listedTitle(window.title, appName: icon.title),
+                    title: listedTitle(preferredTitle, appName: icon.title),
                     frame: window.frame
                 )
             }
@@ -182,6 +244,7 @@ enum WindowCatalog {
                     if Task.isCancelled { return nil }
                     guard let image = try? await capture(window) else { return nil }
                     let thumbnail = Thumbnail(windowID: window.windowID, image: image)
+                    ThumbnailCache.shared.set(window.windowID, image: image)
                     onThumbnail?(thumbnail)
                     return thumbnail
                 }
@@ -408,7 +471,7 @@ enum WindowCatalog {
             let onScreen = (dict[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue
                 ?? (dict[kCGWindowIsOnscreen as String] as? Bool ?? false)
             let alpha = (dict[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1
-            if onScreen && alpha <= 0.04 { continue }
+            if alpha <= 0.04 { continue }
             let title = dict[kCGWindowName as String] as? String ?? ""
             let owner = dict[kCGWindowOwnerName as String] as? String ?? ""
             windows.append(ListedWindow(
@@ -418,6 +481,7 @@ enum WindowCatalog {
                 frame: frame,
                 ownerName: owner,
                 onScreen: onScreen,
+                alpha: alpha,
                 order: index
             ))
         }

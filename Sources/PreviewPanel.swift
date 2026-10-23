@@ -333,11 +333,21 @@ final class PreviewPanel {
         isShown = true
         footer.isHidden = CGPreflightScreenCaptureAccess()
         if appearing {
+            let targetFrame = panel.frame
+            var startFrame = targetFrame
+            switch edge {
+            case .bottom: startFrame.origin.y -= 8
+            case .top: startFrame.origin.y += 8
+            case .left: startFrame.origin.x -= 8
+            case .right: startFrame.origin.x += 8
+            }
+            panel.setFrame(startFrame, display: false)
             panel.alphaValue = 0
             panel.orderFrontRegardless()
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.16
+                context.duration = 0.18
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(targetFrame, display: true)
                 panel.animator().alphaValue = 1
             }
         } else {
@@ -568,6 +578,12 @@ final class PreviewCardView: NSView {
         iconView.imageScaling = .scaleProportionallyUpOrDown
         iconView.translatesAutoresizingMaskIntoConstraints = false
         imageView.addSubview(iconView)
+
+        if let cached = ThumbnailCache.shared.get(card.id) {
+            let image = NSImage(cgImage: cached, size: NSSize(width: cached.width, height: cached.height))
+            imageView.image = image
+            iconView.isHidden = true
+        }
 
         titleField.stringValue = card.title
         titleField.isHidden = !PreviewPreferences.showTitles

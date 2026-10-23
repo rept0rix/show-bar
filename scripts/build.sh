@@ -26,6 +26,9 @@ swiftc -O -parse-as-library -swift-version 5 -target arm64-apple-macos14.0 \
   -framework ScreenCaptureKit \
   -framework CoreGraphics \
   -framework ServiceManagement \
+  -framework IOKit \
+  -framework AVFoundation \
+  -framework AVKit \
   "$root/Sources/"*.swift \
   -o "$binary"
 

@@ -79,8 +79,6 @@ enum AppUpdate {
                 UserDefaults.standard.set(offer.version, forKey: offeredKey)
                 AppDelegate.shared.noteUpdate(offer.version)
                 notifyOnce(offer)
-                let declined = UserDefaults.standard.string(forKey: declinedKey) == offer.version
-                if automatic && declined { return }
                 ask(offer)
             }
         } catch {
@@ -142,18 +140,20 @@ enum AppUpdate {
 
     @MainActor
     private static func ask(_ offer: Offer) {
+        AppDelegate.shared.pauseForUpdate()
         let alert = NSAlert()
-        alert.messageText = "Update Show Bar to \(offer.version)?"
+        alert.alertStyle = .critical
+        alert.messageText = "Update Required: Show Bar \(offer.version)"
         alert.informativeText = offer.notes.isEmpty
-            ? "A new version is ready. Show Bar will download it and relaunch."
-            : trimmed(offer.notes)
-        alert.addButton(withTitle: "Update")
-        alert.addButton(withTitle: "Not now")
-        NSRunningApplication.current.activate(from: .current, options: [])
+            ? "A new version of Show Bar is required to continue. It will download quickly and relaunch."
+            : "A new version of Show Bar is required to continue:\n\n\(trimmed(offer.notes))\n\nPlease update now."
+        alert.addButton(withTitle: "Update Now")
+        alert.addButton(withTitle: "Quit Show Bar")
+        NSRunningApplication.current.activate()
         if alert.runModal() == .alertFirstButtonReturn {
             beginInstall(offer)
         } else {
-            UserDefaults.standard.set(offer.version, forKey: declinedKey)
+            NSApp.terminate(nil)
         }
     }
 
