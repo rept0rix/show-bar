@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Show Bar — Admin Control Panel</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-bright: #f0f6fc;
+      --accent: #58a6ff;
+      --danger: #f85149;
+      --success: #3fb950;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 40px 20px; display: flex; justify-content: center; }
+    .container { max-width: 760px; width: 100%; }
+    header { margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+    h1 { font-size: 24px; color: var(--text-bright); display: flex; align-items: center; gap: 10px; }
+    .badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: rgba(88, 166, 255, 0.15); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.3); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .card h2 { font-size: 16px; margin-bottom: 14px; color: var(--text-bright); }
+    .field { margin-bottom: 15px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-bright); }
+    input[type="text"], textarea { width: 100%; background: #0b0e14; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text-bright); font-size: 13px; font-family: ui-monospace, SFMono-Regular, monospace; }
+    input[type="text"]:focus, textarea:focus { border-color: var(--accent); outline: none; }
+    .row { display: flex; gap: 15px; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+    .toggle-label { font-size: 14px; }
+    .toggle-desc { font-size: 12px; color: #8b949e; }
+    input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
+    .btn { background: #21262d; border: 1px solid var(--border); color: var(--text-bright); padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+    .btn:hover { background: #30363d; border-color: #8b949e; }
+    .btn-primary { background: #238636; border-color: rgba(240, 246, 252, 0.1); color: #fff; }
+    .btn-primary:hover { background: #2ea043; }
+    .btn-danger { background: rgba(248, 81, 73, 0.15); border-color: var(--danger); color: var(--danger); }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .output-box { margin-top: 15px; }
+    pre { background: #0b0e14; border: 1px solid var(--border); padding: 12px; border-radius: 6px; font-size: 12px; color: #7ee787; overflow-x: auto; max-height: 200px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Show Bar Admin Control <span class="badge">v2.0 Ready</span></h1>
+      <button class="btn btn-primary" onclick="exportJSON()">Export app-policy.json</button>
+    </header>
+
+    <div class="card">
+      <h2>Global Version & Forced Update Enforcement</h2>
+      <div class="field">
+        <label>Minimum Required Version (Blocks older versions):</label>
+        <input type="text" id="minVersion" value="1.9.2" placeholder="e.g. 2.0.0">
+      </div>
+      <div class="field">
+        <label>Lock Screen Message:</label>
+        <input type="text" id="lockMessage" value="A mandatory update is required to continue using Show Bar. Please update now.">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Device Access & Blocklist</h2>
+      <div class="field">
+        <label>Add Device Hardware UUID to Block:</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="newBlockedUUID" placeholder="e.g. 9BD97A5C-386C-551A-936D-574109B38177">
+          <button class="btn btn-danger" onclick="addBlocked()">Block Device</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Currently Blocked Devices (One per line):</label>
+        <textarea id="blockedList" rows="4" placeholder="No blocked devices"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Emergency Controls & Monetization</h2>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Emergency Remote Kill-Switch</div>
+          <div class="toggle-desc">Instantly locks Show Bar globally for all users.</div>
+        </div>
+        <input type="checkbox" id="killSwitch">
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Paywall / License Enforced</div>
+          <div class="toggle-desc">Requires users to have an active Pro license key.</div>
+        </div>
+        <input type="checkbox" id="paywallEnabled">
+      </div>
+      <div class="field" style="margin-top: 15px;">
+        <label>Quick License Key Generator:</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="genKey" readonly placeholder="Click Generate to create Pro Key">
+          <button class="btn" onclick="generateKey()">Generate Key</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Generated Policy File Preview</h2>
+      <button class="btn" onclick="updatePreview()">Refresh JSON Preview</button>
+      <div class="output-box">
+        <pre id="jsonPreview"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function getBlockedArray() {
+      return document.getElementById('blockedList').value
+        .split('\n')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+    }
+
+    function addBlocked() {
+      const val = document.getElementById('newBlockedUUID').value.trim();
+      if (!val) return;
+      const arr = getBlockedArray();
+      if (!arr.includes(val)) {
+        arr.push(val);
+        document.getElementById('blockedList').value = arr.join('\n');
+      }
+      document.getElementById('newBlockedUUID').value = '';
+      updatePreview();
+    }
+
+    function generateKey() {
+      const seg = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+      document.getElementById('genKey').value = `SB-PRO-${seg()}-${seg()}-${seg()}`;
+    }
+
+    function getPolicyObject() {
+      return {
+        min_version: document.getElementById('minVersion').value.trim() || '1.9.2',
+        blocked_devices: getBlockedArray(),
+        kill_switch: document.getElementById('killSwitch').checked,
+        paywall_enabled: document.getElementById('paywallEnabled').checked,
+        message: document.getElementById('lockMessage').value.trim()
+      };
+    }
+
+    function updatePreview() {
+      const obj = getPolicyObject();
+      document.getElementById('jsonPreview').textContent = JSON.stringify(obj, null, 2);
+    }
+
+    function exportJSON() {
+      const obj = getPolicyObject();
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'app-policy.json';
+      a.click();
+    }
+
+    updatePreview();
+  </script>
+</body>
+</html>
