@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://rept0rix.github.io/show-bar/sitemap.xml
