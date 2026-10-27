@@ -79,6 +79,8 @@ enum AppUpdate {
                 UserDefaults.standard.set(offer.version, forKey: offeredKey)
                 AppDelegate.shared.noteUpdate(offer.version)
                 notifyOnce(offer)
+                let declined = UserDefaults.standard.string(forKey: declinedKey) == offer.version
+                if automatic && declined { return }
                 ask(offer)
             }
         } catch {
@@ -140,20 +142,19 @@ enum AppUpdate {
 
     @MainActor
     private static func ask(_ offer: Offer) {
-        AppDelegate.shared.pauseForUpdate()
         let alert = NSAlert()
-        alert.alertStyle = .critical
-        alert.messageText = "Update Required: Show Bar \(offer.version)"
+        alert.alertStyle = .informational
+        alert.messageText = "Update Show Bar to \(offer.version)?"
         alert.informativeText = offer.notes.isEmpty
-            ? "A new version of Show Bar is required to continue. It will download quickly and relaunch."
-            : "A new version of Show Bar is required to continue:\n\n\(trimmed(offer.notes))\n\nPlease update now."
+            ? "A new version of Show Bar is ready. It will download quickly and relaunch."
+            : "\(trimmed(offer.notes))\n\nShow Bar will download the update and relaunch."
         alert.addButton(withTitle: "Update Now")
-        alert.addButton(withTitle: "Quit Show Bar")
+        alert.addButton(withTitle: "Later")
         NSRunningApplication.current.activate()
         if alert.runModal() == .alertFirstButtonReturn {
             beginInstall(offer)
         } else {
-            NSApp.terminate(nil)
+            UserDefaults.standard.set(offer.version, forKey: declinedKey)
         }
     }
 
@@ -163,15 +164,20 @@ enum AppUpdate {
         Task {
             do {
                 let file = try await download(offer.download)
+                await MainActor.run {
+                    AppDelegate.shared.pauseForUpdate()
+                }
                 try install(file)
                 await MainActor.run {
                     UserDefaults.standard.set(true, forKey: ShowBarSupport.askForRateKey)
                     UserDefaults.standard.removeObject(forKey: offeredKey)
+                    UserDefaults.standard.removeObject(forKey: declinedKey)
                     window.close()
                     AppDelegate.shared.relaunchAfterUpdate()
                 }
             } catch {
                 await MainActor.run {
+                    AppDelegate.shared.resumeAfterUpdateFailure()
                     window.close()
                     NSWorkspace.shared.open(offer.download)
                     let alert = NSAlert()
@@ -218,12 +224,16 @@ enum AppUpdate {
         let source = mount.appendingPathComponent("Show Bar.app")
         guard FileManager.default.fileExists(atPath: source.path) else { throw UpdateError.noInstaller }
         try verifyReplacement(source)
+        let target = Bundle.main.bundleURL
+        let staged = target.deletingLastPathComponent().appendingPathComponent(".ShowBar-Update-\(UUID().uuidString).app")
+        defer { try? FileManager.default.removeItem(at: staged) }
         let copy = Process()
         copy.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-        copy.arguments = [source.path, Bundle.main.bundleURL.path]
+        copy.arguments = [source.path, staged.path]
         try copy.run()
         copy.waitUntilExit()
         guard copy.terminationStatus == 0 else { throw UpdateError.copyFailed }
+        _ = try FileManager.default.replaceItemAt(target, withItemAt: staged)
     }
 
     /// Refuses to replace Show Bar unless the disk contains this app, signed by this team.
@@ -252,7 +262,8 @@ enum AppUpdate {
         guard detail.terminationStatus == 0 else { throw UpdateError.untrustedApp }
         guard text.contains("TeamIdentifier=\(expectedTeam)") else { throw UpdateError.untrustedApp }
         guard text.contains("Identifier=\(expectedBundle)") else { throw UpdateError.untrustedApp }
-        let fromThisTeam = text.contains("Authority=Apple Development") || text.contains("Authority=Developer ID Application")
+        let fromThisTeam = text.contains("Authority=Developer ID Application")
+            || text.contains("Authority=Apple Development")
         guard fromThisTeam else { throw UpdateError.untrustedApp }
     }
 

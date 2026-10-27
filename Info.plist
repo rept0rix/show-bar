@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>Show Bar</string>
 	<key>CFBundleExecutable</key>
-	<string>ShowBar</string>
+	<string>Show Bar</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>

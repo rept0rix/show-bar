@@ -12,7 +12,8 @@ out="$root/Show-Bar-${version}.dmg"
 vol="Install Show Bar"
 mount="/Volumes/${vol}"
 
-if [[ ! -d "$app" ]]; then
+app_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" 2>/dev/null || echo "")"
+if [[ ! -d "$app" ]] || [[ "$app_version" != "$version" ]] || ! codesign --verify --strict --deep "$app" >/dev/null 2>&1; then
   "$root/scripts/build.sh"
 fi
 
@@ -78,4 +79,15 @@ chflags hidden "$mount/.background" || true
 hdiutil detach "$mount" -quiet
 hdiutil convert "$rw" -format UDZO -ov -o "$out" >/dev/null
 rm -f "$rw"
+
+api_key="/Users/naoryanko/.private_keys/AuthKey_Q2Q7AWQ232.p8"
+if [[ -f "$api_key" ]] && codesign -dvv "$app" 2>&1 | grep -q "Authority=Developer ID Application"; then
+  xcrun notarytool submit "$out" \
+    --key "$api_key" \
+    --key-id "Q2Q7AWQ232" \
+    --issuer "70c9685e-8bd7-4050-9947-46e8d30e0a3f" \
+    --wait
+  xcrun stapler staple "$out"
+fi
+
 echo "Built $out"

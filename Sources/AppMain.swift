@@ -67,11 +67,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     static func main() {
         let bundleID = Bundle.main.bundleIdentifier ?? "com.naoryanko.showbar"
         let currentPID = ProcessInfo.processInfo.processIdentifier
-        let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-        let others = running.filter { $0.processIdentifier != currentPID }
-        if let existing = others.first {
-            existing.activate()
-            exit(0)
+        if CommandLine.arguments.contains("--relaunch") {
+            for _ in 0..<30 {
+                let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+                    .filter { $0.processIdentifier != currentPID && !$0.isTerminated }
+                if others.isEmpty { break }
+                Thread.sleep(forTimeInterval: 0.08)
+            }
+        } else {
+            let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            let others = running.filter { $0.processIdentifier != currentPID }
+            if let existing = others.first {
+                existing.activate()
+                exit(0)
+            }
         }
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
@@ -134,6 +143,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     func pauseForUpdate() {
         hover.stop()
         WindowSwitcher.shared.stop()
+    }
+
+    func resumeAfterUpdateFailure() {
+        syncHover()
     }
 
     /// The first capture after an update is the slow one. Open a preview once per version so the windows are already loading.
@@ -680,25 +693,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func pollPermissions() {
-        let hadAccessibility = sawAccessibility
-        let hadScreen = sawScreenRecording
         permissionsModel?.refresh()
         let hasAccessibility = AXIsProcessTrusted()
         let hasScreen = CGPreflightScreenCaptureAccess()
         sawAccessibility = hasAccessibility
         sawScreenRecording = hasScreen
-        permissionsModel?.dockCount = hover.iconCount
         syncHover()
-        if (!hadAccessibility && hasAccessibility) || (!hadScreen && hasScreen) {
-            relaunch()
-        }
+        permissionsModel?.dockCount = hover.iconCount
     }
 
     private func relaunch() {
         let url = Bundle.main.bundleURL
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
+        configuration.arguments = ["--relaunch"]
         hover.stop()
+        WindowSwitcher.shared.stop()
         NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, _ in
             DispatchQueue.main.async {
                 NSApp.terminate(nil)
