@@ -57,16 +57,26 @@ between(
     "<!-- /showbar:download -->",
     f"Show Bar is for macOS 14 or later. The install disk is [Show Bar {version}]({url}). Open it and drag Show Bar into Applications.",
 )
-between(
-    root / "site/index.html",
-    "<!-- showbar:download -->",
-    "<!-- /showbar:download -->",
-    "\n".join([
-        f'          <a class="download" href="{url}">Download Free</a>',
-        '          <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="na0ryank0r" data-color="#FFDD00" data-emoji="" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>',
-        f'          <p class="note">Version {version}. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>',
-    ]),
-)
+site_index = root / "site/index.html"
+site_text = site_index.read_text()
+if "<!-- showbar:download -->" in site_text:
+    between(
+        site_index,
+        "<!-- showbar:download -->",
+        "<!-- /showbar:download -->",
+        "\n".join([
+            f'          <a class="download" href="{url}">Download Free</a>',
+            '          <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="na0ryank0r" data-color="#FFDD00" data-emoji="" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>',
+            f'          <p class="note">Version {version}. Open the disk image and drag Show Bar into Applications. macOS 14 or later. Not on the Mac App Store. This build opens on the Mac it was signed on.</p>',
+        ]),
+    )
+else:
+    import re
+    site_text = re.sub(r'<span class="ver-tag">v[0-9.]+</span>', f'<span class="ver-tag">v{version}</span>', site_text)
+    site_text = re.sub(r'Download for macOS \(v[0-9.]+\)', f'Download for macOS (v{version})', site_text)
+    site_text = re.sub(r'https://github\.com/rept0rix/show-bar/releases/download/v[0-9.]+/Show-Bar-[0-9.]+\.dmg', url, site_text)
+    site_text = re.sub(r'Show-Bar-[0-9.]+\.dmg', f'Show-Bar-{version}.dmg', site_text)
+    site_index.write_text(site_text)
 PY
 
 echo "version=$version"

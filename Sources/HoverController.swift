@@ -61,6 +61,9 @@ final class HoverController: @unchecked Sendable {
         guard AXIsProcessTrusted() else {
             return "Accessibility is off. Turn it on, then click Show a preview."
         }
+        guard AppDelegate.shared.previewsAreEnabled else {
+            return "Window previews are turned off. Turn them on in Settings → Dock to see previews."
+        }
         // Preview must wake the same hover path as a normal launch.
         if !isRunning { start() }
         loadIcons()

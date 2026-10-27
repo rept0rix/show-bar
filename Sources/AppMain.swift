@@ -8,7 +8,8 @@ import UserNotifications
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     static let shared = AppDelegate()
-    private let defaultsKey = "ShowBar.enabled"
+    private let previewsKey = "ShowBar.previewsEnabled"
+    private let legacyEnabledKey = "ShowBar.enabled"
     private let loginKey = "ShowBar.launchAtLogin"
     private let dockTipKey = "ShowBar.explainedDock"
     private var statusItem: NSStatusItem!
@@ -16,7 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var cropItem: NSStatusItem!
     private var clipboardItem: NSStatusItem!
     private var snapItem: NSStatusItem!
-    private var hover = HoverController()
+    fileprivate var hover = HoverController()
     private var permissionsWindow: NSWindow?
     private var rateWindow: NSWindow?
     private var offeredUpdate: String?
@@ -25,7 +26,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private var sawAccessibility = false
     private var sawScreenRecording = false
 
-    var previewsAreEnabled: Bool { enabled }
+    var previewsAreEnabled: Bool {
+        get {
+            if let obj = UserDefaults.standard.object(forKey: previewsKey) {
+                return (obj as? Bool) ?? true
+            }
+            if let obj = UserDefaults.standard.object(forKey: legacyEnabledKey) {
+                return (obj as? Bool) ?? true
+            }
+            return true
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: previewsKey)
+            UserDefaults.standard.set(newValue, forKey: legacyEnabledKey)
+            syncHover()
+        }
+    }
+
+    var commandTabIsEnabled: Bool {
+        get { WindowSwitcher.shared.commandTabEnabled }
+        set {
+            WindowSwitcher.shared.commandTabEnabled = newValue
+            syncHover()
+        }
+    }
 
     fileprivate func applyPreviewPreferences() {
         hover.reloadAppearance()
@@ -36,11 +60,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private var enabled: Bool {
-        get {
-            if UserDefaults.standard.object(forKey: defaultsKey) == nil { return true }
-            return UserDefaults.standard.bool(forKey: defaultsKey)
-        }
-        set { UserDefaults.standard.set(newValue, forKey: defaultsKey) }
+        get { previewsAreEnabled }
+        set { previewsAreEnabled = newValue }
     }
 
     static func main() {
@@ -154,14 +175,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         version.isEnabled = false
         menu.addItem(version)
 
-        let toggle = NSMenuItem(
-            title: enabled ? "Previews enabled" : "Previews disabled",
-            action: #selector(toggleEnabled),
+        let previewsItem = NSMenuItem(
+            title: previewsAreEnabled ? "Window previews" : "Window previews (off)",
+            action: #selector(togglePreviews),
             keyEquivalent: ""
         )
-        toggle.target = self
-        toggle.state = enabled ? .on : .off
-        menu.addItem(toggle)
+        previewsItem.target = self
+        previewsItem.state = previewsAreEnabled ? .on : .off
+        menu.addItem(previewsItem)
+
+        let cmdTabItem = NSMenuItem(
+            title: commandTabIsEnabled ? "Command-Tab switcher" : "Command-Tab switcher (off)",
+            action: #selector(toggleCommandTab),
+            keyEquivalent: ""
+        )
+        cmdTabItem.target = self
+        cmdTabItem.state = commandTabIsEnabled ? .on : .off
+        menu.addItem(cmdTabItem)
 
         let accessibilityOn = AXIsProcessTrusted()
         let screenOn = CGPreflightScreenCaptureAccess()
@@ -284,12 +314,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
-        statusItem.button?.appearsDisabled = !enabled
+        statusItem.button?.appearsDisabled = !previewsAreEnabled && !commandTabIsEnabled
+    }
+
+    @objc fileprivate func togglePreviews() {
+        previewsAreEnabled.toggle()
+        permissionsModel?.refresh()
+    }
+
+    @objc fileprivate func toggleCommandTab() {
+        commandTabIsEnabled.toggle()
+        permissionsModel?.refresh()
     }
 
     @objc fileprivate func toggleEnabled() {
-        enabled.toggle()
-        syncHover()
+        togglePreviews()
     }
 
     @objc private func openPermissions() {
@@ -525,17 +564,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func syncHover() {
-        if enabled && AXIsProcessTrusted() {
+        if previewsAreEnabled && AXIsProcessTrusted() {
             hover.start()
+        } else {
+            hover.stop()
+        }
+        if AXIsProcessTrusted() {
             WindowSwitcher.shared.onWillShow = { [weak self] in
                 self?.hover.dismissPreview()
             }
             WindowSwitcher.shared.start()
         } else {
-            hover.stop()
             WindowSwitcher.shared.stop()
         }
-        statusItem?.button?.appearsDisabled = !enabled
+        statusItem?.button?.appearsDisabled = !previewsAreEnabled && !commandTabIsEnabled
     }
 
     private func showPermissions() {
@@ -719,7 +761,7 @@ enum ShowBarSupport {
     static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.9.2" // showbar-version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.9.5" // showbar-version
     }
 }
 
@@ -728,6 +770,7 @@ final class PermissionsModel: ObservableObject {
     @Published var screen = false
     @Published var dockCount = 0
     @Published var previewsEnabled = true
+    @Published var commandTabEnabled = true
     @Published var launchAtLogin = false
     @Published var previewSize = PreviewPreferences.sizeName
     @Published var maxWindows = PreviewPreferences.maxWindows
@@ -740,6 +783,7 @@ final class PermissionsModel: ObservableObject {
         accessibility = AXIsProcessTrusted()
         screen = CGPreflightScreenCaptureAccess()
         previewsEnabled = AppDelegate.shared.previewsAreEnabled
+        commandTabEnabled = AppDelegate.shared.commandTabIsEnabled
         launchAtLogin = SMAppService.mainApp.status == .enabled
         previewSize = PreviewPreferences.sizeName
         maxWindows = PreviewPreferences.maxWindows
@@ -859,55 +903,66 @@ struct PermissionsView: View {
                 Text("Right").tag(DockPlacement.right)
             }
             .pickerStyle(.segmented)
-            Toggle("Previews", isOn: Binding(
+            Toggle("Window previews", isOn: Binding(
                 get: { model.previewsEnabled },
                 set: { value in
                     guard value != model.previewsEnabled else { return }
-                    AppDelegate.shared.toggleEnabled()
+                    AppDelegate.shared.togglePreviews()
                     model.refresh()
                 }
             ))
-            Picker("Size", selection: Binding(
-                get: { model.previewSize },
-                set: { value in
-                    PreviewPreferences.sizeName = value
-                    model.refresh()
-                    AppDelegate.shared.applyPreviewPreferences()
+            Group {
+                Picker("Size", selection: Binding(
+                    get: { model.previewSize },
+                    set: { value in
+                        PreviewPreferences.sizeName = value
+                        model.refresh()
+                        AppDelegate.shared.applyPreviewPreferences()
+                    }
+                )) {
+                    Text("Small").tag("small")
+                    Text("Medium").tag("medium")
+                    Text("Large").tag("large")
                 }
-            )) {
-                Text("Small").tag("small")
-                Text("Medium").tag("medium")
-                Text("Large").tag("large")
+                .pickerStyle(.segmented)
+                Picker("How many", selection: Binding(
+                    get: { model.maxWindows },
+                    set: { value in
+                        PreviewPreferences.maxWindows = value
+                        model.refresh()
+                        AppDelegate.shared.applyPreviewPreferences()
+                    }
+                )) {
+                    Text("All").tag(0)
+                    Text("2").tag(2)
+                    Text("4").tag(4)
+                    Text("6").tag(6)
+                }
+                .pickerStyle(.segmented)
+                Toggle("Show window names", isOn: Binding(
+                    get: { model.showTitles },
+                    set: { value in
+                        PreviewPreferences.showTitles = value
+                        model.refresh()
+                        AppDelegate.shared.applyPreviewPreferences()
+                    }
+                ))
             }
-            .pickerStyle(.segmented)
-            Picker("How many", selection: Binding(
-                get: { model.maxWindows },
-                set: { value in
-                    PreviewPreferences.maxWindows = value
-                    model.refresh()
-                    AppDelegate.shared.applyPreviewPreferences()
-                }
-            )) {
-                Text("All").tag(0)
-                Text("2").tag(2)
-                Text("4").tag(4)
-                Text("6").tag(6)
-            }
-            .pickerStyle(.segmented)
-            Toggle("Show window names", isOn: Binding(
-                get: { model.showTitles },
-                set: { value in
-                    PreviewPreferences.showTitles = value
-                    model.refresh()
-                    AppDelegate.shared.applyPreviewPreferences()
-                }
-            ))
+            .disabled(!model.previewsEnabled)
         }
     }
 
     private var shortcutsPage: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Command-Tab shows the windows, including what is open on Desktop 2 and Desktop 3. A card marked Desktop 2 switches straight to that desktop. Arrows move. Release Command to switch.")
+            Toggle("Command-Tab window switcher", isOn: Binding(
+                get: { model.commandTabEnabled },
+                set: { value in
+                    guard value != model.commandTabEnabled else { return }
+                    AppDelegate.shared.toggleCommandTab()
+                    model.refresh()
+                }
+            ))
+            Text("Command-Tab shows the windows, including what is open on Desktop 2 and Desktop 3. A card marked Desktop 2 switches straight to that desktop. Arrows move. Release Command to switch. When turned off, the default macOS Command-Tab switcher is used.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

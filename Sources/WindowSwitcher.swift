@@ -6,6 +6,23 @@ final class WindowSwitcher {
     static let shared = WindowSwitcher()
     var onWillShow: (() -> Void)?
 
+    private let enabledKey = "ShowBar.commandTabEnabled"
+
+    var commandTabEnabled: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: enabledKey) == nil { return true }
+            return UserDefaults.standard.bool(forKey: enabledKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: enabledKey)
+            if !newValue {
+                DispatchQueue.main.async { [weak self] in
+                    self?.hide()
+                }
+            }
+        }
+    }
+
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var loop: CFRunLoop?
@@ -336,7 +353,7 @@ final class WindowSwitcher {
         }
     }
 
-    private func hide() {
+    fileprivate func hide() {
         captureTask?.cancel()
         captureTask = nil
         lock.lock()
@@ -694,6 +711,9 @@ private func switcherKeyCallback(
     let extra = control || option
     // Swallow the press and the release, or the Dock still opens its own bar.
     if key == 48, command, !extra {
+        guard WindowSwitcher.shared.commandTabEnabled else {
+            return Unmanaged.passUnretained(event)
+        }
         if type == .keyDown {
             let backward = shift
             WindowSwitcher.shared.startSwitching()
@@ -702,6 +722,9 @@ private func switcherKeyCallback(
         return nil
     }
     if key == 50, command, !extra, WindowSwitcher.shared.isSwitching() {
+        guard WindowSwitcher.shared.commandTabEnabled else {
+            return Unmanaged.passUnretained(event)
+        }
         if type == .keyDown {
             DispatchQueue.main.async { WindowSwitcher.shared.cycle(backward: true) }
         }

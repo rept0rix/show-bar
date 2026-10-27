@@ -2,6 +2,12 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.9.5
+
+- Added settings options to independently toggle window previews on hover (dock/side screens) and the Command-Tab window switcher.
+- When the Command-Tab window switcher is disabled, macOS native Command-Tab works normally while keeping other shortcuts active.
+- Added quick toggles for Window Previews and Command-Tab directly in the menu bar menu.
+
 ## 1.9.2
 
 - Command-Shift-3 and the menu-bar camera capture only the active screen under the pointer, preventing dual-monitor canvas stitching and blank border gaps.
