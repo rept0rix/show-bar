@@ -258,6 +258,44 @@ final class CompanionIntegrationTests: XCTestCase {
         XCTAssertNil(mac.commands.first?.shotID)
     }
 
+    func testInputControlsTransmitMouseMoveClickScrollAndKeys() async throws {
+        let mac = LoopbackMac()
+        let endpoint = try await mac.start()
+        let client = CompanionClient()
+        defer {
+            client.forgetPairing()
+            mac.stop()
+        }
+        client.connect(to: DiscoveredMac(id: UUID().uuidString, name: "Loopback Mac", endpoint: endpoint),
+                       pairingCode: mac.code)
+        try await eventually { client.isConnected }
+
+        client.sendMouseMove(dx: 15.5, dy: -20.0)
+        client.sendMouseClick(button: "right", type: "click")
+        client.sendMouseScroll(dx: 0, dy: 30.0)
+        client.sendKeyType("Show Bar")
+        client.sendKeyPress(keyCode: 53, modifiers: 1, keyAction: "press")
+
+        try await eventually { mac.commands.count == 5 }
+        XCTAssertEqual(mac.commands[0].action, .mouseMove)
+        XCTAssertEqual(mac.commands[0].dx, 15.5)
+        XCTAssertEqual(mac.commands[0].dy, -20.0)
+
+        XCTAssertEqual(mac.commands[1].action, .mouseClick)
+        XCTAssertEqual(mac.commands[1].button, "right")
+        XCTAssertEqual(mac.commands[1].clickType, "click")
+
+        XCTAssertEqual(mac.commands[2].action, .mouseScroll)
+        XCTAssertEqual(mac.commands[2].dy, 30.0)
+
+        XCTAssertEqual(mac.commands[3].action, .keyType)
+        XCTAssertEqual(mac.commands[3].text, "Show Bar")
+
+        XCTAssertEqual(mac.commands[4].action, .keyPress)
+        XCTAssertEqual(mac.commands[4].keyCode, 53)
+        XCTAssertEqual(mac.commands[4].modifiers, 1)
+    }
+
     private func eventually(_ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(8)
         while !condition() {

@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 enum CompanionSection: String, CaseIterable, Identifiable {
+    case remote = "Remote"
     case windows = "Windows"
     case clipboard = "Clipboard"
     case shots = "Shots"
@@ -10,6 +11,7 @@ enum CompanionSection: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var symbol: String {
         switch self {
+        case .remote: return "computermouse.fill"
         case .windows: return "rectangle.3.group"
         case .clipboard: return "doc.on.clipboard"
         case .shots: return "viewfinder"
@@ -84,10 +86,10 @@ struct CompanionRootView: View {
             Text(client.errorMessage ?? "")
         }
         .onChange(of: client.isConnected) { _, connected in
-            if connected && section == .connection { section = .windows }
+            if connected && section == .connection { section = .remote }
         }
         .onChange(of: client.isDemo) { _, demo in
-            if demo { section = .windows }
+            if demo { section = .remote }
         }
         .onChange(of: deskMode) { _, enabled in
             UIApplication.shared.isIdleTimerDisabled = enabled && scenePhase == .active
@@ -101,10 +103,11 @@ struct CompanionRootView: View {
         }
         .background {
             VStack {
-                Button("Windows") { section = .windows }.keyboardShortcut("1", modifiers: .command)
-                Button("Clipboard") { section = .clipboard }.keyboardShortcut("2", modifiers: .command)
-                Button("Shots") { section = .shots }.keyboardShortcut("3", modifiers: .command)
-                Button("Connect") { section = .connection }.keyboardShortcut("4", modifiers: .command)
+                Button("Remote") { section = .remote }.keyboardShortcut("1", modifiers: .command)
+                Button("Windows") { section = .windows }.keyboardShortcut("2", modifiers: .command)
+                Button("Clipboard") { section = .clipboard }.keyboardShortcut("3", modifiers: .command)
+                Button("Shots") { section = .shots }.keyboardShortcut("4", modifiers: .command)
+                Button("Connect") { section = .connection }.keyboardShortcut("5", modifiers: .command)
             }
             .hidden()
             .accessibilityHidden(true)
@@ -122,6 +125,7 @@ struct CompanionRootView: View {
     @ViewBuilder private func sectionContent(_ section: CompanionSection) -> some View {
         Group {
             switch section {
+            case .remote: CompanionRemoteView()
             case .windows: CompanionWindowsView()
             case .clipboard: CompanionClipboardView()
             case .shots: CompanionShotsView()

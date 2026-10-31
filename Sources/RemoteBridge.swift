@@ -50,6 +50,7 @@ final class RemoteBridge: ObservableObject, @unchecked Sendable {
     @Published private(set) var allowClose: Bool
     @Published private(set) var allowCopyToMac: Bool
     @Published private(set) var allowPasteToMac: Bool
+    @Published private(set) var allowInputControl: Bool
     @Published private(set) var pairingCode = ""
     @Published private(set) var status = "Companion is off"
     @Published private(set) var connectedCount = 0
@@ -64,6 +65,7 @@ final class RemoteBridge: ObservableObject, @unchecked Sendable {
         return BridgeCapabilities(allowFocus: allowFocus, allowSnap: allowSnap,
                                   allowClose: allowClose, allowCopyToMac: allowCopyToMac,
                                   allowPasteToMac: allowPasteToMac,
+                                  allowInputControl: allowInputControl,
                                   shareClipboard: shareClipboard,
                                   shareClipboardImages: shareClipboard && shareClipboardImages,
                                   shareWindowPreviews: shareWindowPreviews,
@@ -139,6 +141,7 @@ final class RemoteBridge: ObservableObject, @unchecked Sendable {
         allowClose = Self.actionPreference("allowClose", fallback: false)
         allowCopyToMac = Self.actionPreference("allowCopyToMac", fallback: false)
         allowPasteToMac = Self.actionPreference("allowPasteToMac", fallback: false)
+        allowInputControl = Self.actionPreference("allowInputControl", fallback: true)
         if let data = UserDefaults.standard.data(forKey: Self.pairedDevicesKey),
            let saved = try? JSONDecoder().decode([PairedDevice].self, from: data) {
             cachedPairedDevices = saved
@@ -190,6 +193,7 @@ final class RemoteBridge: ObservableObject, @unchecked Sendable {
                     allowClose: allowClose && custom.allowClose,
                     allowCopyToMac: allowCopyToMac && custom.allowCopyToMac,
                     allowPasteToMac: allowPasteToMac && custom.allowPasteToMac,
+                    allowInputControl: allowInputControl && custom.allowInputControl,
                     shareClipboard: shareClipboard && custom.shareClipboard,
                     shareClipboardImages: shareClipboard && shareClipboardImages && custom.shareClipboardImages,
                     shareWindowPreviews: shareWindowPreviews && custom.shareWindowPreviews,
@@ -286,6 +290,7 @@ final class RemoteBridge: ObservableObject, @unchecked Sendable {
         allowClose = false
         allowCopyToMac = false
         allowPasteToMac = false
+        allowInputControl = false
         testPairingCode = testCode
         cachedPairedDevices = []
         pairedDevices = []
@@ -365,6 +370,7 @@ final class RemoteBridge: ObservableObject, @unchecked Sendable {
     func setAllowClose(_ value: Bool) { allowClose = value; saveActionSetting("allowClose", value) }
     func setAllowCopyToMac(_ value: Bool) { allowCopyToMac = value; saveActionSetting("allowCopyToMac", value) }
     func setAllowPasteToMac(_ value: Bool) { allowPasteToMac = value; saveActionSetting("allowPasteToMac", value) }
+    func setAllowInputControl(_ value: Bool) { allowInputControl = value; saveActionSetting("allowInputControl", value) }
 
     private func saveActionSetting(_ name: String, _ value: Bool) {
         UserDefaults.standard.set(value, forKey: "ShowBar.companion." + name)
@@ -571,11 +577,12 @@ final class RemoteBridge: ObservableObject, @unchecked Sendable {
         }
         if message.kind == .ping { send(BridgeMessage(kind: .pong, requestID: message.requestID), to: session); return }
         guard message.kind == .command, let command = message.command else { return }
+        let isInput = (command.action == .mouseMove || command.action == .mouseClick || command.action == .mouseScroll || command.action == .keyPress || command.action == .keyType)
         if Date().timeIntervalSince(session.commandWindow) >= 1 {
             session.commandWindow = Date(); session.commandCount = 0
         }
         session.commandCount += 1
-        guard session.commandCount <= 12 else { remove(session); return }
+        guard session.commandCount <= (isInput ? 300 : 20) else { remove(session); return }
         if command.action == .requestShot || command.action == .requestClipImage {
             guard Date().timeIntervalSince(session.lastShotRequest) >= 1 else {
                 send(BridgeMessage(kind: .result, requestID: message.requestID,
@@ -756,6 +763,80 @@ final class RemoteBridge: ObservableObject, @unchecked Sendable {
                 result(false, "That clipboard image is no longer available, or is too large to transfer."); return
             }
             result(true, "Clipboard image ready", data: data, mimeType: "image/png")
+        case .mouseMove:
+            guard AXIsProcessTrusted() else { return }
+            let loc = CGEvent(source: nil)?.location ?? .zero
+            let target = CGPoint(x: loc.x + CGFloat(command.dx ?? 0), y: loc.y + CGFloat(command.dy ?? 0))
+            if let event = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: target, mouseButton: .left) {
+                event.post(tap: .cghidEventTap)
+            }
+        case .mouseClick:
+            guard AXIsProcessTrusted() else { return }
+            let loc = CGEvent(source: nil)?.location ?? .zero
+            let isRight = (command.button == "right")
+            let clickType = command.clickType ?? "click"
+            let downType: CGEventType = isRight ? .rightMouseDown : .leftMouseDown
+            let upType: CGEventType = isRight ? .rightMouseUp : .leftMouseUp
+            let btn: CGMouseButton = isRight ? .right : .left
+            switch clickType {
+            case "down":
+                CGEvent(mouseEventSource: nil, mouseType: downType, mouseCursorPosition: loc, mouseButton: btn)?.post(tap: .cghidEventTap)
+            case "up":
+                CGEvent(mouseEventSource: nil, mouseType: upType, mouseCursorPosition: loc, mouseButton: btn)?.post(tap: .cghidEventTap)
+            case "double":
+                for i in 1...2 {
+                    let d = CGEvent(mouseEventSource: nil, mouseType: downType, mouseCursorPosition: loc, mouseButton: btn)
+                    d?.setIntegerValueField(.mouseEventClickState, value: Int64(i))
+                    d?.post(tap: .cghidEventTap)
+                    let u = CGEvent(mouseEventSource: nil, mouseType: upType, mouseCursorPosition: loc, mouseButton: btn)
+                    u?.setIntegerValueField(.mouseEventClickState, value: Int64(i))
+                    u?.post(tap: .cghidEventTap)
+                }
+            default:
+                let d = CGEvent(mouseEventSource: nil, mouseType: downType, mouseCursorPosition: loc, mouseButton: btn)
+                d?.setIntegerValueField(.mouseEventClickState, value: 1)
+                d?.post(tap: .cghidEventTap)
+                let u = CGEvent(mouseEventSource: nil, mouseType: upType, mouseCursorPosition: loc, mouseButton: btn)
+                u?.setIntegerValueField(.mouseEventClickState, value: 1)
+                u?.post(tap: .cghidEventTap)
+            }
+        case .mouseScroll:
+            guard AXIsProcessTrusted() else { return }
+            let dy = Int32(command.dy ?? 0)
+            let dx = Int32(command.dx ?? 0)
+            let scroll = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: dy, wheel2: dx, wheel3: 0)
+            scroll?.post(tap: .cghidEventTap)
+        case .keyType:
+            guard AXIsProcessTrusted() else { return }
+            guard let text = command.text, !text.isEmpty else { return }
+            for char in text {
+                let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)
+                var utf16 = Array(String(char).utf16)
+                down?.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: &utf16)
+                down?.post(tap: .cghidEventTap)
+                let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)
+                up?.post(tap: .cghidEventTap)
+            }
+        case .keyPress:
+            guard AXIsProcessTrusted() else { return }
+            let code = command.keyCode ?? 0
+            let rawMods = command.modifiers ?? 0
+            var flags: CGEventFlags = []
+            if (rawMods & 1) != 0 { flags.insert(.maskCommand) }
+            if (rawMods & 2) != 0 { flags.insert(.maskAlternate) }
+            if (rawMods & 4) != 0 { flags.insert(.maskControl) }
+            if (rawMods & 8) != 0 { flags.insert(.maskShift) }
+            let action = command.keyAction ?? "press"
+            if action == "down" || action == "press" {
+                let down = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: true)
+                if !flags.isEmpty { down?.flags = flags }
+                down?.post(tap: .cghidEventTap)
+            }
+            if action == "up" || action == "press" {
+                let up = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: false)
+                if !flags.isEmpty { up?.flags = flags }
+                up?.post(tap: .cghidEventTap)
+            }
         }
     }
 
@@ -879,7 +960,8 @@ private struct CompanionPairingView: View {
                 Toggle("Close selected Mac windows", isOn: Binding(get: { bridge.allowClose }, set: bridge.setAllowClose))
                 Toggle("Copy text to the Mac clipboard", isOn: Binding(get: { bridge.allowCopyToMac }, set: bridge.setAllowCopyToMac))
                 Toggle("Paste text into a selected Mac window", isOn: Binding(get: { bridge.allowPasteToMac }, set: bridge.setAllowPasteToMac))
-                Text("Closing windows and receiving copied or pasted text start off. Paste selects the chosen Mac window and requires Accessibility permission. Changes apply to current connections immediately.")
+                Toggle("Control mouse and keyboard (Trackpad & Remote)", isOn: Binding(get: { bridge.allowInputControl }, set: bridge.setAllowInputControl))
+                Text("Closing windows, receiving copied or pasted text, and remote trackpad start according to your preferences. Trackpad and paste require Accessibility permission. Changes apply to current connections immediately.")
                     .font(.caption).foregroundStyle(.secondary)
             }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -1075,6 +1157,7 @@ private struct PairedDeviceRowView: View {
                             customToggle("Close windows", keyPath: \.allowClose, current: caps)
                             customToggle("Copy text to Mac", keyPath: \.allowCopyToMac, current: caps)
                             customToggle("Paste text into window", keyPath: \.allowPasteToMac, current: caps)
+                            customToggle("Mouse & keyboard control", keyPath: \.allowInputControl, current: caps)
 
                             Text("Sharing").font(.caption.bold()).foregroundStyle(.secondary).padding(.top, 4)
                             customToggle("Clipboard text and links", keyPath: \.shareClipboard, current: caps)

@@ -84,6 +84,7 @@ struct BridgeCapabilities: Codable, Equatable {
     var allowClose: Bool
     var allowCopyToMac: Bool
     var allowPasteToMac: Bool
+    var allowInputControl: Bool
     var shareClipboard: Bool
     var shareClipboardImages: Bool
     var shareWindowPreviews: Bool
@@ -91,18 +92,20 @@ struct BridgeCapabilities: Codable, Equatable {
 
     init(allowFocus: Bool = false, allowSnap: Bool = false, allowClose: Bool = false,
          allowCopyToMac: Bool = false, allowPasteToMac: Bool = false,
+         allowInputControl: Bool = false,
          shareClipboard: Bool = false, shareClipboardImages: Bool = false,
          shareWindowPreviews: Bool = false, shareScreenshots: Bool = false) {
         self.allowFocus = allowFocus; self.allowSnap = allowSnap; self.allowClose = allowClose
         self.allowCopyToMac = allowCopyToMac; self.allowPasteToMac = allowPasteToMac
+        self.allowInputControl = allowInputControl
         self.shareClipboard = shareClipboard; self.shareClipboardImages = shareClipboardImages
         self.shareWindowPreviews = shareWindowPreviews; self.shareScreenshots = shareScreenshots
     }
 
     static let none = BridgeCapabilities()
     static let all = BridgeCapabilities(allowFocus: true, allowSnap: true, allowClose: true,
-        allowCopyToMac: true, allowPasteToMac: true, shareClipboard: true,
-        shareClipboardImages: true, shareWindowPreviews: true, shareScreenshots: true)
+        allowCopyToMac: true, allowPasteToMac: true, allowInputControl: true,
+        shareClipboard: true, shareClipboardImages: true, shareWindowPreviews: true, shareScreenshots: true)
 
     func permits(_ action: BridgeCommand.Action) -> Bool {
         switch action {
@@ -114,13 +117,15 @@ struct BridgeCapabilities: Codable, Equatable {
         case .pasteToMac: return allowPasteToMac
         case .requestShot: return shareScreenshots
         case .requestClipImage: return shareClipboard && shareClipboardImages
+        case .mouseMove, .mouseClick, .mouseScroll, .keyPress, .keyType: return allowInputControl
         }
     }
 }
 
 struct BridgeCommand: Codable, Equatable {
     enum Action: String, Codable {
-        case refresh, focus, close, snap, copyToMac, pasteToMac, requestShot, requestClipImage
+        case refresh, focus, close, snap, copyToMac, pasteToMac, requestShot, requestClipImage,
+             mouseMove, mouseClick, mouseScroll, keyPress, keyType
     }
     var action: Action
     var windowID: UInt32?
@@ -128,10 +133,24 @@ struct BridgeCommand: Codable, Equatable {
     var text: String?
     var shotID: String?
     var clipID: String?
+    var dx: Float?
+    var dy: Float?
+    var button: String?
+    var clickType: String?
+    var keyCode: UInt16?
+    var modifiers: UInt32?
+    var keyAction: String?
+
     init(action: Action, windowID: UInt32? = nil, zone: String? = nil,
-         text: String? = nil, shotID: String? = nil, clipID: String? = nil) {
+         text: String? = nil, shotID: String? = nil, clipID: String? = nil,
+         dx: Float? = nil, dy: Float? = nil, button: String? = nil,
+         clickType: String? = nil, keyCode: UInt16? = nil,
+         modifiers: UInt32? = nil, keyAction: String? = nil) {
         self.action = action; self.windowID = windowID; self.zone = zone
         self.text = text; self.shotID = shotID; self.clipID = clipID
+        self.dx = dx; self.dy = dy; self.button = button
+        self.clickType = clickType; self.keyCode = keyCode
+        self.modifiers = modifiers; self.keyAction = keyAction
     }
 }
 

@@ -246,6 +246,36 @@ final class CompanionClient: ObservableObject {
         sendCommand(BridgeCommand(action: .requestClipImage, clipID: id), completion: completion)
     }
 
+    func sendInput(_ command: BridgeCommand) {
+        guard isConnected, !isDemo else { return }
+        guard capabilities.permits(command.action) else {
+            errorMessage = capabilityError(for: command.action)
+            return
+        }
+        let generation = connectionGeneration
+        send(BridgeMessage(kind: .command, requestID: nil, command: command), generation: generation)
+    }
+
+    func sendMouseMove(dx: Float, dy: Float) {
+        sendInput(BridgeCommand(action: .mouseMove, dx: dx, dy: dy))
+    }
+
+    func sendMouseClick(button: String = "left", type: String = "click") {
+        sendInput(BridgeCommand(action: .mouseClick, button: button, clickType: type))
+    }
+
+    func sendMouseScroll(dx: Float, dy: Float) {
+        sendInput(BridgeCommand(action: .mouseScroll, dx: dx, dy: dy))
+    }
+
+    func sendKeyType(_ text: String) {
+        sendInput(BridgeCommand(action: .keyType, text: text))
+    }
+
+    func sendKeyPress(keyCode: UInt16, modifiers: UInt32 = 0, keyAction: String = "press") {
+        sendInput(BridgeCommand(action: .keyPress, keyCode: keyCode, modifiers: modifiers, keyAction: keyAction))
+    }
+
     /// Leaving an image shelf releases awaiting image consumers quietly.
     /// Window and clipboard actions retain their own acknowledgement timeouts.
     func cancelAssetRequests() {
@@ -484,6 +514,8 @@ final class CompanionClient: ObservableObject {
         case .requestShot: return "Enable screenshot sharing in Show Bar → Companion devices on your Mac."
         case .requestClipImage:
             return "Enable clipboard sharing and clipboard images in Show Bar → Companion devices on your Mac."
+        case .mouseMove, .mouseClick, .mouseScroll, .keyPress, .keyType:
+            return "Enable mouse and keyboard control in Show Bar → Companion devices on your Mac."
         case .refresh: return "Refresh is unavailable. Reconnect to your Mac and try again."
         }
     }

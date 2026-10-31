@@ -16,6 +16,7 @@ Use **Try demo** to view labeled sample windows without a Mac. Run with `--demo`
 ## Features
 
 - Live window list, optional previews, focus/confirmed close, halves/quarters/maximize.
+- Remote Trackpad & Keyboard: full Mac mouse cursor control (customizable 1.0x-2.3x sensitivity), left/right click, double-click, 2-finger scroll, tactile click buttons, full iOS keyboard input (with speech dictation), and Mac modifier/function bar (Esc, Tab, ⌘, ⌥, ⌃, ⇧, Space, Delete, Return, Arrow keys).
 - Explicit local text shelf with search and filters, copy to device/Mac, paste to selected window.
 - Mac screenshot shelf, on-demand full image transfer, system sharing/AirDrop, drag and PencilKit annotation.
 - Compact tabs and large-screen sidebar, section keyboard shortcuts, explicit keep-awake desk mode.

@@ -4,7 +4,7 @@ import XCTest
 final class BridgeCapabilityTests: XCTestCase {
     func testNoGrantAllowsOnlyRefresh() {
         XCTAssertTrue(BridgeCapabilities.none.permits(.refresh))
-        for action in [BridgeCommand.Action.focus, .close, .snap, .copyToMac, .pasteToMac, .requestShot, .requestClipImage] {
+        for action in [BridgeCommand.Action.focus, .close, .snap, .copyToMac, .pasteToMac, .requestShot, .requestClipImage, .mouseMove, .mouseClick, .mouseScroll, .keyPress, .keyType] {
             XCTAssertFalse(BridgeCapabilities.none.permits(action))
             XCTAssertTrue(BridgeCapabilities.all.permits(action))
         }
@@ -51,6 +51,21 @@ final class BridgeCapabilityTests: XCTestCase {
         let request = BridgeMessage(kind: .command, requestID: "image", command: BridgeCommand(action: .requestClipImage, clipID: clip.id))
         var decoder = BridgeFrameDecoder()
         XCTAssertEqual(try decoder.append(request.encodedFrame()), [request])
+    }
+
+    func testMouseAndKeyboardCommandRoundTrip() throws {
+        let move = BridgeMessage(kind: .command, command: BridgeCommand(action: .mouseMove, dx: 12.5, dy: -8.0))
+        let click = BridgeMessage(kind: .command, command: BridgeCommand(action: .mouseClick, button: "right", clickType: "double"))
+        let scroll = BridgeMessage(kind: .command, command: BridgeCommand(action: .mouseScroll, dx: 0, dy: 15.0))
+        let key = BridgeMessage(kind: .command, command: BridgeCommand(action: .keyPress, keyCode: 53, modifiers: 1, keyAction: "press"))
+        let text = BridgeMessage(kind: .command, command: BridgeCommand(action: .keyType, text: "Hello Mac שלום"))
+
+        var decoder = BridgeFrameDecoder()
+        for msg in [move, click, scroll, key, text] {
+            let encoded = try msg.encodedFrame()
+            let decoded = try decoder.append(encoded)
+            XCTAssertEqual(decoded, [msg])
+        }
     }
 
     func testPerDeviceCustomCapabilityMaskingAndPresets() {

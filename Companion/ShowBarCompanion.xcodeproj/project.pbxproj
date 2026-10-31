@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1AE9F9D08076131E5184D464 /* CompanionClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A601CFDEF92079A30F1FD2C /* CompanionClientTests.swift */; };
 		1E9DB322A7721155C9C526A9 /* BridgeKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DBC7C59E90440E1C765AA12 /* BridgeKeychain.swift */; };
+		3078A5A936B42DA5963E00A3 /* CompanionRemoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A7947A9B3C00CEBE78CA48A /* CompanionRemoteView.swift */; };
 		314F12802547D183A00EEA1D /* CompanionShelfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E711583F71018EC557A6F91A /* CompanionShelfTests.swift */; };
 		3ADEA9C09EB12145F19D36D4 /* BridgeImageFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A6A14E89253089542B922F /* BridgeImageFile.swift */; };
 		67BC902799DBF32F4576FD8D /* ShowBarCompanionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D99C08C45E58980429841B8 /* ShowBarCompanionApp.swift */; };
@@ -58,6 +59,7 @@
 		5D99C08C45E58980429841B8 /* ShowBarCompanionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowBarCompanionApp.swift; sourceTree = "<group>"; };
 		5DBC7C59E90440E1C765AA12 /* BridgeKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeKeychain.swift; sourceTree = "<group>"; };
 		6A601CFDEF92079A30F1FD2C /* CompanionClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionClientTests.swift; sourceTree = "<group>"; };
+		6A7947A9B3C00CEBE78CA48A /* CompanionRemoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionRemoteView.swift; sourceTree = "<group>"; };
 		8331F73B4ACD95177C4D61FD /* BridgeProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeProtocol.swift; sourceTree = "<group>"; };
 		8CB1C60410FD036698242F06 /* CompanionShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionShelf.swift; sourceTree = "<group>"; };
 		8D8485E951B2258DAB808004 /* ShotMarkupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShotMarkupView.swift; sourceTree = "<group>"; };
@@ -78,6 +80,7 @@
 			children = (
 				F42C98F6C72DED74A3869BB8 /* CompanionClipboardView.swift */,
 				C2E23BB4741103E813CE3714 /* CompanionConnectionView.swift */,
+				6A7947A9B3C00CEBE78CA48A /* CompanionRemoteView.swift */,
 				52E7715647673A4075FCE419 /* CompanionSettingsView.swift */,
 				1C7453034524C7AA1FD192C7 /* CompanionShotsView.swift */,
 				DEAC0A823218A240C5A68924 /* CompanionStyle.swift */,
@@ -276,6 +279,7 @@
 				FCC2302E69D0BF23EBB0118A /* CompanionClient.swift in Sources */,
 				78E739FC2467DD868A1164D8 /* CompanionClipboardView.swift in Sources */,
 				F618DBEDC922DC04A995E2BA /* CompanionConnectionView.swift in Sources */,
+				3078A5A936B42DA5963E00A3 /* CompanionRemoteView.swift in Sources */,
 				B89D711C6B0B0B9D63ECA448 /* CompanionRootView.swift in Sources */,
 				6DA2B6069805081F2B739640 /* CompanionSettingsView.swift in Sources */,
 				961D680747F67379EBFBEAD0 /* CompanionShelf.swift in Sources */,
