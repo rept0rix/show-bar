@@ -4,7 +4,7 @@ import XCTest
 final class BridgeCapabilityTests: XCTestCase {
     func testNoGrantAllowsOnlyRefresh() {
         XCTAssertTrue(BridgeCapabilities.none.permits(.refresh))
-        for action in [BridgeCommand.Action.focus, .close, .snap, .copyToMac, .pasteToMac, .requestShot, .requestClipImage, .mouseMove, .mouseClick, .mouseScroll, .keyPress, .keyType] {
+        for action in [BridgeCommand.Action.focus, .close, .snap, .copyToMac, .pasteToMac, .requestShot, .requestClipImage, .mouseMove, .mouseClick, .mouseScroll, .keyPress, .keyType, .requestScreen] {
             XCTAssertFalse(BridgeCapabilities.none.permits(action))
             XCTAssertTrue(BridgeCapabilities.all.permits(action))
         }

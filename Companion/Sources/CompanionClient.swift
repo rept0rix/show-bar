@@ -242,6 +242,10 @@ final class CompanionClient: ObservableObject {
         sendCommand(BridgeCommand(action: .requestShot, shotID: id), completion: completion)
     }
 
+    func requestScreenFrame(completion: @escaping (Data?) -> Void) {
+        sendCommand(BridgeCommand(action: .requestScreen), completion: completion)
+    }
+
     func requestClipImage(_ id: String, completion: @escaping (Data?) -> Void) {
         sendCommand(BridgeCommand(action: .requestClipImage, clipID: id), completion: completion)
     }
@@ -516,6 +520,8 @@ final class CompanionClient: ObservableObject {
             return "Enable clipboard sharing and clipboard images in Show Bar → Companion devices on your Mac."
         case .mouseMove, .mouseClick, .mouseScroll, .keyPress, .keyType:
             return "Enable mouse and keyboard control in Show Bar → Companion devices on your Mac."
+        case .requestScreen:
+            return "Enable screen sharing or remote control in Show Bar → Companion devices on your Mac."
         case .refresh: return "Refresh is unavailable. Reconnect to your Mac and try again."
         }
     }

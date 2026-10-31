@@ -118,6 +118,7 @@ struct BridgeCapabilities: Codable, Equatable {
         case .requestShot: return shareScreenshots
         case .requestClipImage: return shareClipboard && shareClipboardImages
         case .mouseMove, .mouseClick, .mouseScroll, .keyPress, .keyType: return allowInputControl
+        case .requestScreen: return shareScreenshots || allowInputControl
         }
     }
 }
@@ -125,7 +126,7 @@ struct BridgeCapabilities: Codable, Equatable {
 struct BridgeCommand: Codable, Equatable {
     enum Action: String, Codable {
         case refresh, focus, close, snap, copyToMac, pasteToMac, requestShot, requestClipImage,
-             mouseMove, mouseClick, mouseScroll, keyPress, keyType
+             mouseMove, mouseClick, mouseScroll, keyPress, keyType, requestScreen
     }
     var action: Action
     var windowID: UInt32?

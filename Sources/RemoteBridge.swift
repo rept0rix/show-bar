@@ -4,6 +4,7 @@ import Foundation
 import Network
 import SwiftUI
 import Darwin
+import ScreenCaptureKit
 
 /// Opt-in, paired LAN control. Transport state lives on `queue`; AppKit,
 /// preferences and published UI state are only touched on the main thread.
@@ -763,6 +764,36 @@ final class RemoteBridge: ObservableObject, @unchecked Sendable {
                 result(false, "That clipboard image is no longer available, or is too large to transfer."); return
             }
             result(true, "Clipboard image ready", data: data, mimeType: "image/png")
+        case .requestScreen:
+            guard devCaps.shareScreenshots || devCaps.allowInputControl else {
+                result(false, "Enable screen sharing or remote control in Companion devices on your Mac."); return
+            }
+            Task {
+                do {
+                    let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                    guard let display = content.displays.first else {
+                        result(false, "No display found")
+                        return
+                    }
+                    let filter = SCContentFilter(display: display, excludingWindows: [])
+                    let config = SCStreamConfiguration()
+                    let targetWidth = 960
+                    let targetHeight = max(Int(CGFloat(targetWidth) * (CGFloat(display.height) / CGFloat(display.width))), 2)
+                    config.width = targetWidth
+                    config.height = targetHeight
+                    config.showsCursor = true
+                    config.capturesAudio = false
+                    let cgImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+                    let rep = NSBitmapImageRep(cgImage: cgImage)
+                    guard let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.5]) else {
+                        result(false, "Image compression failed")
+                        return
+                    }
+                    result(true, "Screen frame ready", data: jpeg, mimeType: "image/jpeg")
+                } catch {
+                    result(false, "Screen capture failed: \(error.localizedDescription)")
+                }
+            }
         case .mouseMove:
             guard AXIsProcessTrusted() else { return }
             let loc = CGEvent(source: nil)?.location ?? .zero
