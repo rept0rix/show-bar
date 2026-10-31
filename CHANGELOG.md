@@ -2,6 +2,21 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.9.7
+
+- Dedicated First-Launch Onboarding Wizard: Automatically welcomes new users with an interactive, 4-step guided journey (Welcome, Feature Showcase, 1-Click Permissions Setup, and Interactive Preview Testing).
+- Frictionless Permissions Flow: Guides users through Accessibility and Screen Recording with live real-time status checkmarks and direct 1-click links to macOS System Settings.
+- Always Accessible: Reopen the onboarding wizard anytime via "Welcome & Onboarding Guide…" in the top menu bar or from Settings.
+- Improved User Education: Crystal-clear explanations of what Show Bar does (Dock previews, ⌘+Tab across spaces, window snapping, clipboard history, and screenshot shelf) eliminating any first-launch confusion.
+
+## 1.9.6
+
+- Fixed UI jitter and moving elements by eliminating redundant view rebuilds in the settings loop and removing unprompted launch sample popups.
+- Redesigned permissions onboarding: if permissions are missing, Show Bar opens directly on the Permissions tab with clear 1-click buttons to open macOS System Settings.
+- Added a full visual "Features Guide" directly inside the app comparing each feature to native macOS (Dock window previews, Multi-Shot shelf, Clipboard history, Window snapping, Command-Tab).
+- Enhanced menu bar icons with informative tooltips showing keyboard shortcuts and feature descriptions.
+- Added real-time permission status indicators with automatic live updates.
+
 ## 1.9.5
 
 - Added settings options to independently toggle window previews on hover (dock/side screens) and the Command-Tab window switcher.

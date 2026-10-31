@@ -3,7 +3,7 @@ import UIKit
 
 struct CompanionRemoteView: View {
     @EnvironmentObject private var client: CompanionClient
-    @State private var sensitivity: Double = 1.3
+    @AppStorage("Companion.remote.sensitivity") private var sensitivity: Double = 2.4
     @State private var isKeyboardActive = false
     @State private var activeModifiers: UInt32 = 0
     @FocusState private var isFieldFocused: Bool
@@ -60,11 +60,12 @@ struct CompanionRemoteView: View {
             Spacer()
 
             Menu {
-                Text("Cursor Sensitivity").font(.caption)
-                Button("Slow (1.0x)") { sensitivity = 1.0 }
-                Button("Normal (1.3x)") { sensitivity = 1.3 }
-                Button("Fast (1.8x)") { sensitivity = 1.8 }
-                Button("Extra Fast (2.3x)") { sensitivity = 2.3 }
+                Text("Cursor Sensitivity & Speed").font(.caption)
+                Button("Slow (1.5x)") { sensitivity = 1.5 }
+                Button("Normal (2.4x) · Recommended") { sensitivity = 2.4 }
+                Button("Fast (3.2x)") { sensitivity = 3.2 }
+                Button("Ultra Fast (4.2x)") { sensitivity = 4.2 }
+                Button("Max Speed (5.2x)") { sensitivity = 5.2 }
             } label: {
                 Image(systemName: "slider.horizontal.3")
                     .font(.callout)
@@ -274,11 +275,14 @@ private struct TrackpadGestureRepresentable: UIViewRepresentable {
         let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
         pan.maximumNumberOfTouches = 2
         pan.minimumNumberOfTouches = 1
+        pan.cancelsTouchesInView = false
+        pan.delegate = context.coordinator
         view.addGestureRecognizer(pan)
 
         let singleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleSingleTap(_:)))
         singleTap.numberOfTapsRequired = 1
         singleTap.numberOfTouchesRequired = 1
+        singleTap.delegate = context.coordinator
         view.addGestureRecognizer(singleTap)
 
         let twoFingerTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTwoFingerTap(_:)))
@@ -287,7 +291,6 @@ private struct TrackpadGestureRepresentable: UIViewRepresentable {
         view.addGestureRecognizer(twoFingerTap)
 
         singleTap.require(toFail: twoFingerTap)
-        pan.require(toFail: singleTap)
 
         return view
     }
@@ -303,7 +306,7 @@ private struct TrackpadGestureRepresentable: UIViewRepresentable {
         Coordinator(sensitivity: sensitivity, onMove: onMove, onClick: onClick, onScroll: onScroll)
     }
 
-    final class Coordinator: NSObject {
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var sensitivity: Double
         var onMove: (Float, Float) -> Void
         var onClick: (String) -> Void
@@ -319,20 +322,35 @@ private struct TrackpadGestureRepresentable: UIViewRepresentable {
             self.onScroll = onScroll
         }
 
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            return true
+        }
+
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
             let translation = gesture.translation(in: gesture.view)
+            let velocity = gesture.velocity(in: gesture.view)
             gesture.setTranslation(.zero, in: gesture.view)
 
             if gesture.numberOfTouches == 2 {
-                // Two-finger scroll
-                let factor: Float = 2.0
+                // Two-finger smooth scroll
+                let factor: Float = 3.5
                 let dx = Float(translation.x) * factor
                 let dy = Float(translation.y) * factor
                 onScroll(dx, dy)
             } else if gesture.numberOfTouches == 1 {
-                // Single-finger cursor move
-                let dx = Float(Double(translation.x) * sensitivity)
-                let dy = Float(Double(translation.y) * sensitivity)
+                // Single-finger cursor move with dynamic pointer acceleration
+                let speed = sqrt(Double(velocity.x * velocity.x + velocity.y * velocity.y))
+                let accel: Double
+                if speed < 250 {
+                    accel = 1.0
+                } else if speed < 1400 {
+                    accel = 1.0 + ((speed - 250) / 1150) * 1.8
+                } else {
+                    accel = min(2.8 + ((speed - 1400) / 1200) * 1.4, 4.2)
+                }
+
+                let dx = Float(Double(translation.x) * sensitivity * accel)
+                let dy = Float(Double(translation.y) * sensitivity * accel)
                 onMove(dx, dy)
             }
         }
