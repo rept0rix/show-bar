@@ -217,6 +217,14 @@ final class PreviewPanel {
         return panel.frame.insetBy(dx: -18, dy: -18).contains(NSEvent.mouseLocation)
     }
 
+    /// Pointer is on the panel itself, with no slack. The slack margins overlap Dock icons when the Dock is on a side.
+    func pointerOnPanel(_ quartz: CGPoint) -> Bool {
+        guard isShown else { return false }
+        if menuHold { return true }
+        guard panel.isVisible, panel.alphaValue > 0.2 else { return false }
+        return frameAX.contains(quartz)
+    }
+
     func holdOpen(_ hold: Bool) {
         menuHold = hold
     }
@@ -475,33 +483,42 @@ final class PreviewPanel {
             lockedCenter = CGPoint(x: next.midX, y: next.midY)
         }
         if panel.frame.integral != next.integral {
-            panel.setFrame(next, display: true)
+            if panel.isVisible && panel.alphaValue > 0.8 {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.12
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    panel.animator().setFrame(next, display: true)
+                }
+            } else {
+                panel.setFrame(next, display: true)
+            }
             panel.invalidateShadow()
         }
     }
 
     /// The strip from the Dock icon across to the preview. Moving through it should not retarget another icon.
     func approachContains(_ quartz: CGPoint) -> Bool {
-        guard isShown, let screen = panel.screen ?? NSScreen.main else { return false }
+        guard isShown, panel.screen != nil else { return false }
         let point = NSPoint(x: quartz.x, y: Coordinates.primaryHeight - quartz.y)
-        var band = panel.frame
+        let icon = Coordinates.flip(anchor)
+        var band = panel.frame.union(icon.insetBy(dx: -4, dy: -4))
         if let lockedCenter {
             band = band.union(CGRect(x: panel.frame.minX, y: lockedCenter.y - 24, width: panel.frame.width, height: 48))
         }
         band = band.insetBy(dx: 0, dy: -8)
         switch edge {
         case .left:
-            band.origin.x = screen.frame.minX
-            band.size.width = panel.frame.maxX - screen.frame.minX
+            band.origin.x = icon.midX
+            band.size.width = panel.frame.maxX - icon.midX
         case .right:
             band.origin.x = panel.frame.minX
-            band.size.width = screen.frame.maxX - panel.frame.minX
+            band.size.width = icon.midX - panel.frame.minX
         case .bottom:
-            band.origin.y = screen.frame.minY
-            band.size.height = panel.frame.maxY - screen.frame.minY
+            band.origin.y = icon.midY
+            band.size.height = panel.frame.maxY - icon.midY
         case .top:
             band.origin.y = panel.frame.minY
-            band.size.height = screen.frame.maxY - panel.frame.minY
+            band.size.height = icon.midY - panel.frame.minY
         }
         return band.contains(point)
     }

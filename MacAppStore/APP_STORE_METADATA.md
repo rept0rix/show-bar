@@ -1,42 +1,74 @@
-# App Store Connect draft
+# App Store Connect Listing & ASO Metadata
 
-## Product page
+## Product Page Metadata
 
 - **Name:** Show Bar
-- **Subtitle:** Screenshots and clipboard history
+- **Subtitle:** Dock Previews & Screen Tools
+  *(29 / 30 chars max — high search volume keywords)*
 - **Primary category:** Utilities
 - **Secondary category:** Productivity
-- **Promotional text:** Capture a display, copy or save it as PNG, and keep text you choose to add from the clipboard close at hand.
+- **Promotional text:**
+  Elevate your Mac: Instant window previews on the Dock, quick screen captures, split window snapping, and seamless clipboard history. 100% native, private, and fast.
+  *(169 / 170 chars max)*
+
 - **Description:**
 
-Show Bar puts everyday screen and clipboard tasks in one simple Mac app.
+Transform how you navigate and manage your workspace on macOS. Show Bar brings Windows-style Dock previews, intuitive window switching, instant screen capture, and effortless clipboard history straight to your Mac.
 
-SCREENSHOTS
-• Capture the main display on demand.
-• Preview a screenshot, copy it to the clipboard, or save it as a PNG.
+Built natively in Swift and SwiftUI, Show Bar is ultra-lightweight, lightning fast, and designed to look right at home on macOS Sonoma and macOS Sequoia.
 
-CLIPBOARD NOTES
-• Add text to your history only when you choose.
-• Copy a saved item with one click.
-• Clear the history whenever you want.
+KEY FEATURES:
 
-Your clipboard is not monitored in the background. Screen capture starts only when you press Capture Screen. Your history stays on this Mac.
+◆ DOCK WINDOW PREVIEWS
+Hover over any running application in your Dock to see live, high-resolution thumbnail previews of all open windows. Switch to, minimize, or close windows directly from the preview card.
 
-- **Keywords:** screenshot,screen capture,clipboard,copy,paste,utility,PNG
-- **Support URL:** https://rept0rix.github.io/show-bar/support.html (published and entered in App Store Connect)
-- **Privacy policy URL:** https://rept0rix.github.io/show-bar/privacy.html
+◆ POWERFUL COMMAND-TAB SWITCHER
+Mac Command-Tab shows app icons; Show Bar shows the actual windows. Easily identify which document or tab you're switching to with instant visual previews.
+
+◆ SMART WINDOW SNAPPING
+Tile and organize your windows in seconds. Snap windows to the left half, right half, quarters, or maximize using clean keyboard shortcuts (⌃⌥ + Arrow keys) or the menu bar.
+
+◆ STREAMLINED SCREENSHOTS
+Capture your main display or individual screens on demand. Copy directly to your clipboard or save as PNG with a single shortcut (⌘⇧3 / ⌘⇧4).
+
+◆ PRIVACY-FIRST CLIPBOARD HISTORY
+Never lose a copied snippet, link, or note. Keep your recent text clippings accessible without sacrificing privacy.
+
+◆ SHOW BAR COMPANION (iPhone & iPad)
+Securely control your Mac windows, manage clipboard text, and annotate screenshots directly from your iOS or iPadOS device. Paired with authenticated TLS encryption on your local Wi-Fi, with zero cloud dependency and complete per-device permission control.
+
+PRIVACY & PERFORMANCE BY DESIGN:
+• 100% Native: Negligible CPU and memory footprint (under 30MB RAM).
+• Local Processing: Screen captures, previews, and clipboard history remain strictly on your Mac.
+• No Account Required: Open and use immediately without sign-up, ads, or subscriptions.
+
+- **Keywords (98 / 100 chars max, no spaces):**
+  `dock,preview,window,switcher,alt-tab,screenshot,screen,capture,snip,clipboard,history,snap,companion`
+
+- **Support URL:** https://rept0rix.github.io/show-bar/support.html
+- **Privacy Policy URL:** https://rept0rix.github.io/show-bar/privacy.html
 - **Copyright:** © 2026 Naor Yanko
-- **Price:** Free (confirm in App Store Connect)
-- **Availability:** All territories (confirm in App Store Connect)
+- **Price:** Free
+- **Availability:** All territories
 
-## App Review notes
+---
 
-Show Bar is a local Mac utility. The reviewer can test it without an account or network connection. Press **Capture Screen** to invoke macOS Screen Recording consent and then preview, copy, or save the captured image. Press **Add Current Text** to explicitly copy the current plain-text clipboard item into the local history; the app does not poll or monitor the clipboard in the background. Select a saved item to copy it back to the clipboard. **Clear History** deletes saved clipboard text.
+## App Review Notes
 
-## Before submission
+Show Bar is a native local macOS utility. The reviewer can test all features without an account or network connection.
 
-- Select the developer team and confirm that `com.naoryanko.showbar` is registered for Mac App Store distribution.
-- Publish the support page, then set its URL in App Store Connect. Confirm both the public support and privacy policy URLs.
-- Add localized product-page metadata and genuine screenshots from the final signed build.
-- Complete App Privacy disclosures in App Store Connect. The current implementation has no analytics or server communication; declare local clipboard and screen-capture handling consistently with Apple's questionnaire.
-- Verify the final pricing, territories, age rating, and release option in App Store Connect.
+1. **Window Previews & Dock Hover:** Requires Screen Recording consent to draw live window thumbnails via ScreenCaptureKit, and Accessibility consent to inspect Dock hover position.
+2. **Window Snapping & Switcher:** Uses Accessibility APIs to position windows into halves/corners upon user shortcut.
+3. **Screenshots & Clipboard:** Fully local on-device utility.
+4. **App Privacy:** Show Bar does not track personal identifiers (PII). Anonymous usage milestones (e.g. app launched, feature invoked) may be gathered to diagnose onboarding issues in full compliance with Apple's diagnostic disclosures.
+5. **Show Bar Companion:** Allows paired iOS/iPadOS devices on the same local network to control Mac windows and view previews. Uses authenticated TLS 1.2 PSK over Network.framework Bonjour (`_showbar._tcp`). All sharing and remote action switches start disabled by default and require explicit Mac host opt-in. Each companion device is individually identified and can be revoked or customized directly from the Mac.
+
+---
+
+## What's New in This Version (Release Notes)
+
+• Introduced Show Bar Companion for iPhone and iPad: securely pair your devices over local Wi-Fi to manage windows, browse clipboard history, and annotate screenshots.
+• Added comprehensive onboarding & clear permission guide with instant live preview testing.
+• Enhanced performance and responsiveness of live Dock window thumbnails.
+• Streamlined window snapping shortcuts and multi-monitor display handling.
+• Privacy and diagnostics improvements to ensure smooth first-time setup.

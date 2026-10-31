@@ -25,6 +25,8 @@ struct RemotePolicy: Decodable {
     let killSwitch: Bool?
     let paywallEnabled: Bool?
     let message: String?
+    let telemetryEndpoint: String?
+    let telemetryDeckAppID: String?
 
     enum CodingKeys: String, CodingKey {
         case minVersion = "min_version"
@@ -32,6 +34,8 @@ struct RemotePolicy: Decodable {
         case killSwitch = "kill_switch"
         case paywallEnabled = "paywall_enabled"
         case message
+        case telemetryEndpoint = "telemetry_endpoint"
+        case telemetryDeckAppID = "telemetry_deck_app_id"
     }
 }
 
@@ -67,6 +71,11 @@ enum AppGate {
               let policy = try? JSONDecoder().decode(RemotePolicy.self, from: data) else {
             return
         }
+
+        Telemetry.shared.configure(
+            telemetryDeckAppID: policy.telemetryDeckAppID,
+            customEndpoint: policy.telemetryEndpoint
+        )
 
         let myDevice = DeviceIdentity.uuid
         let isBlocked = policy.blockedDevices?.contains(myDevice) ?? false

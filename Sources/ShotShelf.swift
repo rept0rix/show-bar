@@ -65,6 +65,7 @@ final class ShotShelf {
     private var preview: NSPanel?
     private var caption: NSTextField?
     private var shots: [CGImage] = []
+    private var companionIDs: [ObjectIdentifier: (id: String, date: Date)] = [:]
     /// resource: memory 8 — full-screen images stay in RAM only until the shelf closes.
     private let shotLimit = 8
     private var saved: Set<ObjectIdentifier> = []
@@ -75,6 +76,43 @@ final class ShotShelf {
     private var markup: ShotMarkup?
 
     private init() {}
+
+    /// Export only the live shelf, with bounded thumbnails and opaque IDs.
+    /// Removing a picture also revokes future companion access to it.
+    func companionShots() -> [BridgeShot] {
+        let live = Set(shots.map(ObjectIdentifier.init))
+        companionIDs = companionIDs.filter { live.contains($0.key) }
+        return shots.reversed().map { image in
+            let key = ObjectIdentifier(image)
+            if companionIDs[key] == nil { companionIDs[key] = (UUID().uuidString, Date()) }
+            let entry = companionIDs[key]!
+            return BridgeShot(id: entry.id, date: entry.date,
+                              thumbnail: Self.companionJPEG(image, longestEdge: 360, quality: 0.65))
+        }
+    }
+
+    func companionImage(id: String) -> Data? {
+        guard let pair = companionIDs.first(where: { $0.value.id == id }),
+              let image = shots.first(where: { ObjectIdentifier($0) == pair.key }),
+              let data = Self.companionJPEG(image, longestEdge: 2400, quality: 0.85),
+              data.count <= 3 * 1024 * 1024 else { return nil }
+        return data
+    }
+
+    static func companionJPEG(_ image: CGImage, longestEdge: Int, quality: Double) -> Data? {
+        let scale = min(1, Double(longestEdge) / Double(max(image.width, image.height)))
+        let width = max(1, Int(Double(image.width) * scale))
+        let height = max(1, Int(Double(image.height) * scale))
+        guard let context = CGContext(data: nil, width: width, height: height,
+                                      bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
+        context.interpolationQuality = .medium
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        guard let scaled = context.makeImage() else { return nil }
+        let bitmap = NSBitmapImageRep(cgImage: scaled)
+        return bitmap.representation(using: .jpeg, properties: [.compressionFactor: quality])
+    }
 
     /// Returns true when Show Bar handled the key and the system must not also take a screenshot.
     func consume(key: Int64, command: Bool, shift: Bool, option: Bool, isRepeat: Bool, keyDown: Bool) -> Bool {
@@ -175,6 +213,7 @@ final class ShotShelf {
     }
 
     private func grab(screens: [NSScreen], crop: CGRect?) {
+        Telemetry.shared.track("screenshot_captured", params: ["screens": "\(screens.count)", "has_crop": "\(crop != nil)"])
         let presentOn = screens.count == 1 ? screens[0] : (screenUnderPointer() ?? screens[0])
         let targets: [ShotTarget] = screens.compactMap { screen in
             guard let displayID = screen.displayID else { return nil }
@@ -257,12 +296,14 @@ final class ShotShelf {
         guard !images.isEmpty else { return }
         for image in images {
             shots.append(image)
+            companionIDs[ObjectIdentifier(image)] = (UUID().uuidString, Date())
         }
         if shots.count > shotLimit {
             let removed = shots.prefix(shots.count - shotLimit)
             shots.removeFirst(shots.count - shotLimit)
             for old in removed {
                 let key = ObjectIdentifier(old)
+                companionIDs.removeValue(forKey: key)
                 fileForShot.removeValue(forKey: key)
                 saved.remove(key)
             }
@@ -475,6 +516,7 @@ final class ShotShelf {
         preview = nil
         caption = nil
         shots = []
+        companionIDs.removeAll()
         saved = []
         fileForShot = [:]
         shelfScreen = nil
@@ -501,6 +543,7 @@ final class ShotShelf {
         guard shots.indices.contains(index) else { return }
         let removed = shots.remove(at: index)
         let key = ObjectIdentifier(removed)
+        companionIDs.removeValue(forKey: key)
         fileForShot.removeValue(forKey: key)
         saved.remove(key)
         guard !shots.isEmpty, let screen = shelfScreen ?? preview?.screen ?? NSScreen.main else {
@@ -538,6 +581,9 @@ final class ShotShelf {
         guard let index = shots.firstIndex(where: { $0 === original }) else { return }
         shots[index] = edited
         let oldKey = ObjectIdentifier(original)
+        if let identity = companionIDs.removeValue(forKey: oldKey) {
+            companionIDs[ObjectIdentifier(edited)] = identity
+        }
         saved.remove(oldKey)
         fileForShot.removeValue(forKey: oldKey)
         guard let screen = shelfScreen ?? preview?.screen ?? NSScreen.main else { return }

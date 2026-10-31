@@ -54,6 +54,22 @@ final class ClipboardShelf: ObservableObject {
         returnTo = pid
     }
 
+    /// A companion's Copy and Paste are separate, explicit actions. Never paste
+    /// into an app that replaced the intended target while the command waited.
+    @discardableResult
+    func receiveRemoteText(_ text: String, paste: Bool, targetPID: pid_t?) -> Bool {
+        if paste {
+            guard AXIsProcessTrusted(), let targetPID,
+                  NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID,
+                  targetPID != getpid() else { return false }
+        }
+        let board = NSPasteboard.general
+        board.clearContents()
+        guard board.setString(text, forType: .string) else { return false }
+        if paste { Self.sendPaste() }
+        return true
+    }
+
     func show() {
         rememberTarget()
         let panel = window ?? makeWindow()
@@ -64,6 +80,7 @@ final class ClipboardShelf: ObservableObject {
 
     func paste(id: String) {
         guard let clip = clips.first(where: { $0.id.uuidString == id }) else { return }
+        Telemetry.shared.track("clipboard_item_pasted", params: ["kind": clip.kind.rawValue])
         put(clip)
         window?.orderOut(nil)
         guard let returnTo, let app = NSRunningApplication(processIdentifier: returnTo), !app.isTerminated else { return }
@@ -117,6 +134,19 @@ final class ClipboardShelf: ObservableObject {
         thumb.unlockFocus()
         thumbs[clip.id] = thumb
         return thumb
+    }
+
+    /// Exports a stored clipboard image only by its opaque history ID. The
+    /// companion never supplies a filename and cannot browse other Mac files.
+    func companionImage(id: String) -> Data? {
+        guard let clip = clips.first(where: { $0.id.uuidString == id }),
+              clip.kind == .image, let name = clip.imageName else { return nil }
+        return BridgeImageFile.image(root: folder, name: name)
+    }
+
+    func companionThumbnail(for clip: Clip) -> Data? {
+        guard clip.kind == .image, let name = clip.imageName else { return nil }
+        return BridgeImageFile.thumbnail(root: folder, name: name)
     }
 
     func menuTitle(for clip: Clip) -> String {

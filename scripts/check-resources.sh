@@ -103,7 +103,7 @@ if [[ "$live" -eq 0 ]]; then
   exit 0
 fi
 
-pid="$(pgrep -x ShowBar || true)"
+pid="$(pgrep -x "Show Bar" 2>/dev/null || pgrep -x ShowBar 2>/dev/null || true)"
 if [[ -z "$pid" ]]; then
   echo "Live resource check failed: Show Bar is not running. Leave it idle in the menu bar, away from the Dock, and run this again."
   exit 1

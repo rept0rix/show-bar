@@ -44,6 +44,12 @@ This build is signed for development. It opens on the Mac it was built for. Othe
 
 Settings opens from the smiley in the menu bar.
 
+## iPhone and iPad companion (development)
+
+The native [Show Bar Companion](Companion/README.md) controls a paired Mac, shares enabled text history and screenshots, and includes a local text shelf and touch annotation. Open the companion Xcode project to run it on an iPhone/iPad simulator or device. Hosting and history/image sharing start disabled and are enabled under **Companion devices…** on the Mac.
+
+See the [revised implementation plan](docs/companion-plan.md) for supported features, permissions, and release checks.
+
 ## Who
 
 Naor Yanko · na0ryank0@gmail.com

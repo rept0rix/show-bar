@@ -65,6 +65,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     static func main() {
+        #if DEBUG
+        if CommandLine.arguments.contains("--companion-test-host") {
+            RemoteBridge.runIsolatedTestHost()
+        }
+        #endif
         let bundleID = Bundle.main.bundleIdentifier ?? "com.naoryanko.showbar"
         let currentPID = ProcessInfo.processInfo.processIdentifier
         if CommandLine.arguments.contains("--relaunch") {
@@ -110,9 +115,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         installQuickShots()
         DockAutohide.restore()
         ClipboardShelf.shared.start()
+        RemoteBridge.shared.start()
         ShotShelf.cleanupLaunchTempFiles()
         syncHover()
         ensureLaunchAtLogin()
+        let isFirstLaunch = UserDefaults.standard.object(forKey: "ShowBar.hasLaunchedBefore") == nil
+        if isFirstLaunch {
+            UserDefaults.standard.set(true, forKey: "ShowBar.hasLaunchedBefore")
+        }
+        Telemetry.shared.track("app_launched", params: [
+            "first_launch": isFirstLaunch ? "true" : "false",
+            "accessibility": AXIsProcessTrusted() ? "true" : "false",
+            "screen_recording": CGPreflightScreenCaptureAccess() ? "true" : "false"
+        ])
         if !PermissionsState.allGranted {
             showPermissions()
         }
@@ -238,6 +253,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         settings.target = self
         menu.addItem(settings)
 
+        let companion = NSMenuItem(title: "Companion devices…", action: #selector(openCompanion), keyEquivalent: "")
+        companion.target = self
+        menu.addItem(companion)
+
         let preview = NSMenuItem(title: "Show a preview now", action: #selector(showSample), keyEquivalent: "p")
         preview.target = self
         menu.addItem(preview)
@@ -353,6 +372,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     @objc private func showSample() {
+        Telemetry.shared.track("sample_preview_requested")
         if let message = hover.showSamplePreview() {
             let alert = NSAlert()
             alert.messageText = "Show Bar"
@@ -458,6 +478,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     @objc private func openDonate() {
+        Telemetry.shared.track("donate_clicked")
         NSWorkspace.shared.open(ShowBarSupport.donateURL)
     }
 
@@ -570,7 +591,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         AppUpdate.askAgain()
     }
 
+    @objc private func openCompanion() {
+        RemoteBridge.shared.showPairing()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        RemoteBridge.shared.stop()
+    }
+
     @objc private func quit() {
+        RemoteBridge.shared.stop()
         hover.stop()
         WindowSwitcher.shared.stop()
         NSApp.terminate(nil)
@@ -594,6 +624,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func showPermissions() {
+        Telemetry.shared.track("permissions_view_opened")
         if let permissionsWindow {
             permissionsWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -693,6 +724,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func pollPermissions() {
+        let hadAccessibility = sawAccessibility
+        let hadScreen = sawScreenRecording
         permissionsModel?.refresh()
         let hasAccessibility = AXIsProcessTrusted()
         let hasScreen = CGPreflightScreenCaptureAccess()
@@ -700,6 +733,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         sawScreenRecording = hasScreen
         syncHover()
         permissionsModel?.dockCount = hover.iconCount
+        if (!hadAccessibility && hasAccessibility) || (!hadScreen && hasScreen) {
+            relaunch()
+        }
     }
 
     private func relaunch() {
@@ -755,6 +791,16 @@ enum PermissionsState {
         if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    static func resetScreenRecordingPermission() {
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.naoryanko.showbar"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        process.arguments = ["reset", "ScreenCapture", bundleID]
+        try? process.run()
+        process.waitUntilExit()
+        promptScreenRecording()
     }
 }
 
@@ -816,6 +862,85 @@ private enum SettingsPage: CaseIterable {
     }
 }
 
+private struct BuyCoffeeButton: View {
+    var action: () -> Void
+    @State private var isHovered = false
+    @State private var steamRising = false
+    @State private var cupWiggle = false
+
+    private let bgTop = Color(red: 1.0, green: 0.88, blue: 0.16)
+    private let bgBottom = Color(red: 1.0, green: 0.77, blue: 0.0)
+    private let textDark = Color(red: 0.14, green: 0.11, blue: 0.06)
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                ZStack(alignment: .top) {
+                    // Gentle rising steam animation
+                    HStack(spacing: 3) {
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(textDark.opacity(steamRising ? 0.08 : 0.45))
+                            .frame(width: 1.6, height: 4)
+                            .offset(y: steamRising ? -6 : -1)
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(textDark.opacity(steamRising ? 0.45 : 0.08))
+                            .frame(width: 1.6, height: 4)
+                            .offset(y: steamRising ? -1 : -6)
+                    }
+                    .offset(x: -1, y: -3)
+                    .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: steamRising)
+
+                    Image(systemName: "cup.and.saucer.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .rotationEffect(.degrees(isHovered ? (cupWiggle ? 10 : -10) : 0))
+                        .animation(
+                            isHovered
+                                ? .easeInOut(duration: 0.2).repeatForever(autoreverses: true)
+                                : .easeOut(duration: 0.15),
+                            value: cupWiggle
+                        )
+                }
+
+                Text("Buy me a coffee")
+                    .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+            }
+            .foregroundStyle(textDark)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4.5)
+            .background(
+                LinearGradient(
+                    colors: isHovered
+                        ? [Color(red: 1.0, green: 0.93, blue: 0.28), Color(red: 1.0, green: 0.82, blue: 0.05)]
+                        : [bgTop, bgBottom],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.14), lineWidth: 0.8)
+            )
+            .shadow(
+                color: Color(red: 1.0, green: 0.78, blue: 0.0).opacity(isHovered ? 0.5 : 0.18),
+                radius: isHovered ? 5 : 2,
+                y: isHovered ? 1.5 : 0.8
+            )
+            .scaleEffect(isHovered ? 1.04 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.26, dampingFraction: 0.65)) {
+                isHovered = hovering
+                cupWiggle = hovering
+            }
+        }
+        .onAppear {
+            steamRising = true
+        }
+    }
+}
+
 struct PermissionsView: View {
     @ObservedObject var model: PermissionsModel
     var onAccessibility: () -> Void
@@ -825,8 +950,25 @@ struct PermissionsView: View {
     var onDonate: () -> Void
     @State private var previewNote = ""
     @State private var showRatePrompt = false
-    @State private var tab = SettingsPage.dock
+    @State private var tab: SettingsPage
     @State private var shotAfter = ShotPreferences.after
+
+    init(
+        model: PermissionsModel,
+        onAccessibility: @escaping () -> Void,
+        onScreen: @escaping () -> Void,
+        onRelaunch: @escaping () -> Void,
+        onPreview: @escaping () -> String?,
+        onDonate: @escaping () -> Void
+    ) {
+        self.model = model
+        self.onAccessibility = onAccessibility
+        self.onScreen = onScreen
+        self.onRelaunch = onRelaunch
+        self.onPreview = onPreview
+        self.onDonate = onDonate
+        _tab = State(initialValue: model.allGranted ? .dock : .permissions)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -851,7 +993,7 @@ struct PermissionsView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 Button("Rate…") { showRatePrompt = true }
-                Button("Buy me a coffee", action: onDonate)
+                BuyCoffeeButton(action: onDonate)
             }
             if !previewNote.isEmpty {
                 Text(previewNote)
@@ -1036,17 +1178,46 @@ struct PermissionsView: View {
         VStack(alignment: .leading, spacing: 10) {
             permissionRow(
                 title: "Accessibility",
-                detail: model.accessibility ? "On. Dock icons found: \(model.dockCount)." : "Off. If the switch is already on, turn it off and on again.",
+                detail: model.accessibility ? "On. Dock icons found: \(model.dockCount)." : "Enables hover detection on Dock icons and window focus.",
                 granted: model.accessibility,
                 action: onAccessibility
             )
             permissionRow(
                 title: "Screen Recording",
-                detail: model.screen ? "On. Window pictures can be drawn." : "Off. Previews will show titles only until this is on.",
+                detail: model.screen
+                    ? "On. Live window preview thumbnails are active."
+                    : "Enables live window previews. All rendering is 100% on-device.",
                 granted: model.screen,
                 action: onScreen
             )
-            Button("Relaunch", action: onRelaunch)
+            if !model.screen {
+                Text("Note: macOS requires Show Bar to restart for Screen Recording changes to take effect.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 8) {
+                if model.allGranted {
+                    Button("Relaunch Show Bar", action: onRelaunch)
+                        .buttonStyle(.bordered)
+                } else {
+                    Button("Relaunch Show Bar", action: onRelaunch)
+                        .buttonStyle(.borderedProminent)
+                }
+                if !model.screen {
+                    Button("Reset Permission") {
+                        PermissionsState.resetScreenRecordingPermission()
+                    }
+                }
+            }
+            HStack(spacing: 6) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("100% Private & Local. No screen data or keystrokes ever leave your Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
         }
     }
 

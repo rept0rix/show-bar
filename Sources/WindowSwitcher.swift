@@ -316,6 +316,7 @@ final class WindowSwitcher {
             return
         }
         onWillShow?()
+        Telemetry.shared.track("switcher_invoked", params: ["window_count": "\(next.count)"])
         cards = next
         if cards.count > 1 {
             index = backward ? (cards.count - 1) : 1

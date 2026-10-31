@@ -3,5 +3,7 @@
   "blocked_devices": [],
   "kill_switch": false,
   "paywall_enabled": false,
-  "message": "Access to Show Bar has been restricted on this Mac. Contact support at na0ryank0@gmail.com."
+  "message": "Access to Show Bar has been restricted on this Mac. Contact support at na0ryank0@gmail.com.",
+  "telemetry_deck_app_id": "",
+  "telemetry_endpoint": ""
 }

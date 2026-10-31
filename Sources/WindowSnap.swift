@@ -80,12 +80,33 @@ enum WindowSnap {
 
     static func apply(_ zone: SnapZone) {
         guard AXIsProcessTrusted() else { return }
+        Telemetry.shared.track("snap_performed", params: ["zone": zone.rawValue])
         let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
         let pid = (front != nil && front != getpid()) ? front! : lastOtherPID
         guard let pid, pid != getpid() else { return }
         guard let window = focusedWindow(pid: pid) else { return }
         guard let current = AXValueReader.rect(window) else { return }
         apply(zone, window: window, current: current, screen: screen(forAXRect: current))
+    }
+
+    /// Companion commands address an exact window; a foreground-app change must
+    /// never redirect a queued snap to another document.
+    @discardableResult
+    static func apply(_ zone: SnapZone, to card: WindowCard) -> Bool {
+        guard AXIsProcessTrusted(), card.pid > 0, card.pid != getpid(),
+              let target = window(pid: card.pid, id: card.id),
+              let current = AXValueReader.rect(target) else { return false }
+        apply(zone, window: target, current: current, screen: screen(forAXRect: current))
+        return true
+    }
+
+    /// Check the exact document immediately before a delayed remote paste.
+    static func isFocused(_ card: WindowCard) -> Bool {
+        let app = AXUIElementCreateApplication(card.pid)
+        AXUIElementSetMessagingTimeout(app, 0.2)
+        guard let focused = AXValueReader.attribute(app, kAXFocusedWindowAttribute as String),
+              CFGetTypeID(focused) == AXUIElementGetTypeID() else { return false }
+        return windowID(focused as! AXUIElement) == card.id
     }
 
     private static func apply(_ zone: SnapZone, window: AXUIElement, current: CGRect, screen: NSScreen) {

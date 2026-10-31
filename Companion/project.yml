@@ -1,0 +1,69 @@
+name: ShowBarCompanion
+options:
+  bundleIdPrefix: com.naoryanko
+  deploymentTarget:
+    iOS: "17.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: CM9QNMLQMQ
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  ShowBarCompanion:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: ../Shared
+      - path: Assets.xcassets
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: Show Bar Companion
+        PRODUCT_BUNDLE_IDENTIFIER: com.naoryanko.showbar.companion
+        PRODUCT_MODULE_NAME: ShowBarCompanion
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        INFOPLIST_FILE: Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_EMIT_LOC_STRINGS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  CompanionTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: ShowBarCompanion
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Show Bar Companion.app/Show Bar Companion"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+  CompanionUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: ShowBarCompanion
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  ShowBarCompanion:
+    build:
+      targets:
+        ShowBarCompanion: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - CompanionTests
+        - CompanionUITests
+    archive:
+      config: Release

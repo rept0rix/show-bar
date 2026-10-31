@@ -1,6 +1,23 @@
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
+
+    // Public anonymous telemetry endpoint
+    if (request.method === "POST" && (url.pathname === "/api/telemetry" || url.pathname === "/telemetry")) {
+      try {
+        const eventData = await request.json()
+        if (env.TELEMETRY_KV) {
+          const key = `evt:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`
+          await env.TELEMETRY_KV.put(key, JSON.stringify(eventData), { expirationTtl: 60 * 60 * 24 * 30 })
+        }
+        return new Response(JSON.stringify({ status: "ok" }), {
+          headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+        })
+      } catch (e) {
+        return new Response(JSON.stringify({ status: "error" }), { status: 400 })
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/login") {
       const form = await request.formData()
       const password = String(form.get("password") || "")

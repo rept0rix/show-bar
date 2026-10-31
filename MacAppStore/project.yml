@@ -23,6 +23,7 @@ targets:
     platform: macOS
     sources:
       - path: ../Sources
+      - path: ../Shared
       - path: Assets.xcassets
         buildPhase: resources
     settings:
@@ -34,6 +35,7 @@ targets:
     platform: macOS
     sources:
       - path: ../Sources
+      - path: ../Shared
       - path: Assets.xcassets
         buildPhase: resources
     settings:

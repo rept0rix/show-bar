@@ -15,6 +15,7 @@
 		0955486D3F6D9C4A037F95A9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */; };
 		0C09437B96A5F5B1D27487B2 /* AppUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C022EA9B7117327DA90BAF2F /* AppUpdate.swift */; };
 		0D74EC95943C81B4C58A7119 /* VideoRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8DD5BD42A606BDC38EE13F9 /* VideoRecorder.swift */; };
+		282B0A6A619E6F3354FC433F /* BridgeTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35C84B35CD7811A0E9A4ABD8 /* BridgeTransport.swift */; };
 		2A48BEA786E40A716883319D /* WindowSnap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB291E911905222A0872EF1 /* WindowSnap.swift */; };
 		3B80A5E46C1F8E554F0B51AB /* DockReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE878EE69C4B80E64A5329FC /* DockReader.swift */; };
 		3FBEE4B36347A0B555FA8109 /* WindowCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */; };
@@ -23,43 +24,72 @@
 		52CE2EB8F1DB9DEB4B27D05B /* HoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE676386D6BC306A115E6E1 /* HoverController.swift */; };
 		5CD9BA627889D98B3C938A50 /* WindowCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */; };
 		6A84CA6A2C23FA50FFAD9CA4 /* AppMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D948AD9BCA8874568CDC5B /* AppMain.swift */; };
+		6E8A9501F6FFBE54F95B9B84 /* Telemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EEA17541BABB147103D3B1B /* Telemetry.swift */; };
 		709F29A9B7E54CB43CCDE2A3 /* ClipboardShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */; };
+		7CDE65414721397CD405F2C8 /* BridgeImageFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97032BF030F3072456CB6C09 /* BridgeImageFile.swift */; };
+		7E5E2B97D7E239F8BDED3DA3 /* BridgeKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58062CD3EAE28BEFEBFF18D0 /* BridgeKeychain.swift */; };
+		839C9586B63BB1EF366F2D82 /* BridgeImageFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97032BF030F3072456CB6C09 /* BridgeImageFile.swift */; };
+		89B4A78D77F3417FA44A510B /* BridgeTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35C84B35CD7811A0E9A4ABD8 /* BridgeTransport.swift */; };
+		97CC70FBDAD8D9428BFDA7B3 /* BridgeProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB3E38D65E883F7DA6791BB5 /* BridgeProtocol.swift */; };
 		9EC7D3E8C8ED3987919AC599 /* VideoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DD43A56DB468707358A8B44 /* VideoEditor.swift */; };
 		A1670D862EFFAF8F07DDEE7D /* AppGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE814C404EDBD16F95DE06AB /* AppGate.swift */; };
 		A19427C00348225398334FC1 /* ShotShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 193E5E84FE91580EEBFC7D13 /* ShotShelf.swift */; };
 		A44AE13D6129C660D35EADEF /* HoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE676386D6BC306A115E6E1 /* HoverController.swift */; };
 		A62135C4B7C68C3A73AE5E06 /* DesktopSpaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */; };
+		A89792E1E604661DED17E84C /* RemoteBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 924D80C6B46D76A6165C2C83 /* RemoteBridge.swift */; };
 		B66EB38951077F9FB06A23E4 /* ClipboardShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */; };
 		BA7158F451A85D139C2386F0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */; };
+		C0FF9B549E782710345653AF /* BridgeProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB3E38D65E883F7DA6791BB5 /* BridgeProtocol.swift */; };
 		C488949BF5D12BACCC751C36 /* VideoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DD43A56DB468707358A8B44 /* VideoEditor.swift */; };
 		D0F97DFF332577086A64A5AF /* WindowSnap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB291E911905222A0872EF1 /* WindowSnap.swift */; };
+		D37DD3CAC9F5C88AA06A261E /* RemoteBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 924D80C6B46D76A6165C2C83 /* RemoteBridge.swift */; };
 		EB3DEF5013066AAC56D0FBB0 /* DesktopSpaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */; };
 		ECC603EF17E13E77BB34573C /* PreviewPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982797167FF4B05B085F95F9 /* PreviewPanel.swift */; };
+		F0F6E030457AC8FC8C363DF8 /* BridgeKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58062CD3EAE28BEFEBFF18D0 /* BridgeKeychain.swift */; };
 		F4619A2F563642434ACB3952 /* PreviewPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982797167FF4B05B085F95F9 /* PreviewPanel.swift */; };
 		F5FF8E6DC4B433E2EB30C8D4 /* DockReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE878EE69C4B80E64A5329FC /* DockReader.swift */; };
+		FD42B455A482AC21BB296794 /* Telemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EEA17541BABB147103D3B1B /* Telemetry.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		193E5E84FE91580EEBFC7D13 /* ShotShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShotShelf.swift; sourceTree = "<group>"; };
 		2EE676386D6BC306A115E6E1 /* HoverController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverController.swift; sourceTree = "<group>"; };
+		35C84B35CD7811A0E9A4ABD8 /* BridgeTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeTransport.swift; sourceTree = "<group>"; };
 		3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardShelf.swift; sourceTree = "<group>"; };
 		4A2AC4FD5EA1B5D86DEBE426 /* WindowSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSwitcher.swift; sourceTree = "<group>"; };
 		4DD43A56DB468707358A8B44 /* VideoEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoEditor.swift; sourceTree = "<group>"; };
+		58062CD3EAE28BEFEBFF18D0 /* BridgeKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeKeychain.swift; sourceTree = "<group>"; };
+		5EEA17541BABB147103D3B1B /* Telemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Telemetry.swift; sourceTree = "<group>"; };
 		6379D56694A7F6904A5DDE0F /* ShowBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7626EC1DFBFD052726B38204 /* ShowBarStore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowBarStore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopSpaces.swift; sourceTree = "<group>"; };
 		902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCatalog.swift; sourceTree = "<group>"; };
+		924D80C6B46D76A6165C2C83 /* RemoteBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteBridge.swift; sourceTree = "<group>"; };
+		97032BF030F3072456CB6C09 /* BridgeImageFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeImageFile.swift; sourceTree = "<group>"; };
 		982797167FF4B05B085F95F9 /* PreviewPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewPanel.swift; sourceTree = "<group>"; };
 		9FB291E911905222A0872EF1 /* WindowSnap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSnap.swift; sourceTree = "<group>"; };
 		C022EA9B7117327DA90BAF2F /* AppUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdate.swift; sourceTree = "<group>"; };
 		D1D948AD9BCA8874568CDC5B /* AppMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMain.swift; sourceTree = "<group>"; };
 		DE878EE69C4B80E64A5329FC /* DockReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockReader.swift; sourceTree = "<group>"; };
+		EB3E38D65E883F7DA6791BB5 /* BridgeProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeProtocol.swift; sourceTree = "<group>"; };
 		EE814C404EDBD16F95DE06AB /* AppGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGate.swift; sourceTree = "<group>"; };
 		F8DD5BD42A606BDC38EE13F9 /* VideoRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoRecorder.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		018D3EF28298A7EBB11B9888 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				97032BF030F3072456CB6C09 /* BridgeImageFile.swift */,
+				58062CD3EAE28BEFEBFF18D0 /* BridgeKeychain.swift */,
+				EB3E38D65E883F7DA6791BB5 /* BridgeProtocol.swift */,
+				35C84B35CD7811A0E9A4ABD8 /* BridgeTransport.swift */,
+			);
+			name = Shared;
+			path = ../Shared;
+			sourceTree = "<group>";
+		};
 		77815968379B4E1FEC3BC7EB /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -73,6 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */,
+				018D3EF28298A7EBB11B9888 /* Shared */,
 				BA22583F10EAB8BD367EBA57 /* Sources */,
 				77815968379B4E1FEC3BC7EB /* Products */,
 			);
@@ -89,7 +120,9 @@
 				DE878EE69C4B80E64A5329FC /* DockReader.swift */,
 				2EE676386D6BC306A115E6E1 /* HoverController.swift */,
 				982797167FF4B05B085F95F9 /* PreviewPanel.swift */,
+				924D80C6B46D76A6165C2C83 /* RemoteBridge.swift */,
 				193E5E84FE91580EEBFC7D13 /* ShotShelf.swift */,
+				5EEA17541BABB147103D3B1B /* Telemetry.swift */,
 				4DD43A56DB468707358A8B44 /* VideoEditor.swift */,
 				F8DD5BD42A606BDC38EE13F9 /* VideoRecorder.swift */,
 				902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */,
@@ -205,12 +238,18 @@
 				0646DC36D53E98241655322B /* AppGate.swift in Sources */,
 				076CCE8D8E9F5474A1CDE418 /* AppMain.swift in Sources */,
 				0C09437B96A5F5B1D27487B2 /* AppUpdate.swift in Sources */,
+				7CDE65414721397CD405F2C8 /* BridgeImageFile.swift in Sources */,
+				7E5E2B97D7E239F8BDED3DA3 /* BridgeKeychain.swift in Sources */,
+				97CC70FBDAD8D9428BFDA7B3 /* BridgeProtocol.swift in Sources */,
+				89B4A78D77F3417FA44A510B /* BridgeTransport.swift in Sources */,
 				B66EB38951077F9FB06A23E4 /* ClipboardShelf.swift in Sources */,
 				A62135C4B7C68C3A73AE5E06 /* DesktopSpaces.swift in Sources */,
 				3B80A5E46C1F8E554F0B51AB /* DockReader.swift in Sources */,
 				52CE2EB8F1DB9DEB4B27D05B /* HoverController.swift in Sources */,
 				ECC603EF17E13E77BB34573C /* PreviewPanel.swift in Sources */,
+				A89792E1E604661DED17E84C /* RemoteBridge.swift in Sources */,
 				A19427C00348225398334FC1 /* ShotShelf.swift in Sources */,
+				FD42B455A482AC21BB296794 /* Telemetry.swift in Sources */,
 				C488949BF5D12BACCC751C36 /* VideoEditor.swift in Sources */,
 				0D74EC95943C81B4C58A7119 /* VideoRecorder.swift in Sources */,
 				3FBEE4B36347A0B555FA8109 /* WindowCatalog.swift in Sources */,
@@ -226,12 +265,18 @@
 				A1670D862EFFAF8F07DDEE7D /* AppGate.swift in Sources */,
 				6A84CA6A2C23FA50FFAD9CA4 /* AppMain.swift in Sources */,
 				4EB27EC1B36C921D7EF89CA8 /* AppUpdate.swift in Sources */,
+				839C9586B63BB1EF366F2D82 /* BridgeImageFile.swift in Sources */,
+				F0F6E030457AC8FC8C363DF8 /* BridgeKeychain.swift in Sources */,
+				C0FF9B549E782710345653AF /* BridgeProtocol.swift in Sources */,
+				282B0A6A619E6F3354FC433F /* BridgeTransport.swift in Sources */,
 				709F29A9B7E54CB43CCDE2A3 /* ClipboardShelf.swift in Sources */,
 				EB3DEF5013066AAC56D0FBB0 /* DesktopSpaces.swift in Sources */,
 				F5FF8E6DC4B433E2EB30C8D4 /* DockReader.swift in Sources */,
 				A44AE13D6129C660D35EADEF /* HoverController.swift in Sources */,
 				F4619A2F563642434ACB3952 /* PreviewPanel.swift in Sources */,
+				D37DD3CAC9F5C88AA06A261E /* RemoteBridge.swift in Sources */,
 				01A514C0D45C669C5B806C24 /* ShotShelf.swift in Sources */,
+				6E8A9501F6FFBE54F95B9B84 /* Telemetry.swift in Sources */,
 				9EC7D3E8C8ED3987919AC599 /* VideoEditor.swift in Sources */,
 				0612A6E02B0CA8A468269F79 /* VideoRecorder.swift in Sources */,
 				5CD9BA627889D98B3C938A50 /* WindowCatalog.swift in Sources */,

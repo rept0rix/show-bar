@@ -172,18 +172,20 @@ enum DockReader {
     }
 
     static func hitFrame(_ frame: CGRect, edge: DockEdge) -> CGRect {
-        var rect = frame.insetBy(dx: -4, dy: -4)
+        var rect = frame.insetBy(dx: -8, dy: -8)
         switch edge {
         case .left:
-            rect.size.width += 22
+            rect.origin.x = min(rect.origin.x, 0)
+            rect.size.width = max(rect.size.width + 48, 90)
         case .right:
-            rect.origin.x -= 22
-            rect.size.width += 22
+            rect.origin.x -= 48
+            rect.size.width += 48
         case .bottom:
-            rect.origin.y -= 22
-            rect.size.height += 22
+            rect.origin.y -= 48
+            rect.size.height += 48
         case .top:
-            rect.size.height += 22
+            rect.origin.y = min(rect.origin.y, 0)
+            rect.size.height = max(rect.size.height + 48, 90)
         }
         return rect
     }

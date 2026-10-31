@@ -197,7 +197,7 @@ final class HoverController: @unchecked Sendable {
         let point = quartzMouse()
         for screen in NSScreen.screens {
             let frame = Coordinates.flip(screen.frame)
-            if point.x - frame.minX < 8 || frame.maxX - point.x < 8 || point.y - frame.minY < 8 || frame.maxY - point.y < 8 {
+            if point.x - frame.minX < 24 || frame.maxX - point.x < 24 || point.y - frame.minY < 24 || frame.maxY - point.y < 24 {
                 return true
             }
         }
@@ -299,7 +299,8 @@ final class HoverController: @unchecked Sendable {
 
     private func pointerNearDock(_ point: CGPoint) -> Bool {
         if mouseNearScreenEdge() { return true }
-        return icons.contains { DockReader.hitFrame($0.frame, edge: edge).insetBy(dx: -24, dy: -24).contains(point) }
+        let hoverable = icons.filter { DockReader.isHoverable($0.frame) }
+        return hoverable.contains { laneHit($0, among: hoverable).insetBy(dx: -24, dy: -24).contains(point) }
     }
 
     private func watchActivation() {
@@ -343,11 +344,12 @@ final class HoverController: @unchecked Sendable {
         guard isRunning, NSEvent.pressedMouseButtons == 0 else { return }
         lastPoint = point
         sawMouse = true
-        if panel.pointerInside() || panel.containsAX(point) {
+        if panel.pointerOnPanel(point) {
             cancelHide()
             panel.markCardUnderMouse()
             return
         }
+        // A Dock icon beats the panel's slack margin, or a side Dock can never switch apps.
         if let icon = icon(at: point) {
             cancelHide()
             if let shownID, let current = icons.first(where: { $0.id == shownID }) {
@@ -358,7 +360,7 @@ final class HoverController: @unchecked Sendable {
             return
         }
         emptyID = nil
-        if panel.approachContains(point) || bridgeContains(point) {
+        if panel.pointerInside() || panel.containsAX(point) || panel.approachContains(point) || bridgeContains(point) {
             cancelHide()
             panel.markCardUnderMouse()
             return
@@ -368,12 +370,13 @@ final class HoverController: @unchecked Sendable {
 
     private func consider(_ icon: DockIcon) {
         if icon.id == emptyID {
-            if shownID != nil { hideNow() }
+            if shownID != nil { scheduleHide() }
             return
         }
         if icon.id == shownID {
             pendingID = nil
             hoverTask?.cancel()
+            cancelHide()
             panel.updateAnchor(icon.frame, edge: edge)
             return
         }
@@ -381,8 +384,17 @@ final class HoverController: @unchecked Sendable {
         pendingID = icon.id
         hoverTask?.cancel()
         if shownID != nil {
-            pendingID = nil
-            show(icon)
+            let iconID = icon.id
+            hoverTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 35_000_000)
+                guard !Task.isCancelled else { return }
+                let controller = self
+                await MainActor.run {
+                    guard controller?.pendingID == iconID else { return }
+                    controller?.pendingID = nil
+                    controller?.show(icon)
+                }
+            }
             return
         }
         let iconID = icon.id
@@ -408,11 +420,16 @@ final class HoverController: @unchecked Sendable {
         let cards = WindowCatalog.windows(for: icon)
         guard !cards.isEmpty else {
             emptyID = icon.id
-            if shownID != nil { hideNow() }
+            if shownID != nil { scheduleHide() }
             return
         }
+        cancelHide()
         emptyID = nil
         DockAutohide.pin()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self, self.isRunning, self.panel.isShown else { return }
+            self.loadIcons()
+        }
         let iconImage = WindowCatalog.appIcon(for: icon)
         panel.present(cards: cards, anchor: icon.frame, edge: edge, appIcon: iconImage)
         panel.markCardUnderMouse()
@@ -423,6 +440,7 @@ final class HoverController: @unchecked Sendable {
         let same = shownID == icon.id
         shownID = icon.id
         if !same {
+            Telemetry.shared.track("dock_preview_shown", params: ["app": icon.title, "window_count": "\(cards.count)"])
             watchTask?.cancel()
             watchTask = Task { [weak self] in
                 await self?.watch(iconID: icon.id, cards: cards)
@@ -486,34 +504,71 @@ final class HoverController: @unchecked Sendable {
     private func icon(at point: CGPoint) -> DockIcon? {
         let hoverable = icons.filter { DockReader.isHoverable($0.frame) }
         let hits = hoverable.filter { laneHit($0, among: hoverable).contains(point) }
-        return hits.min { lhs, rhs in
-            hypot(lhs.frame.midX - point.x, lhs.frame.midY - point.y)
-                < hypot(rhs.frame.midX - point.x, rhs.frame.midY - point.y)
+        switch edge {
+        case .left, .right:
+            return hits.min { abs($0.frame.midY - point.y) < abs($1.frame.midY - point.y) }
+        case .bottom, .top:
+            return hits.min { abs($0.frame.midX - point.x) < abs($1.frame.midX - point.x) }
         }
     }
 
     /// Each icon owns the Dock up to the midpoint of its neighbors, and outer edges stay close to the icon.
     private func laneHit(_ icon: DockIcon, among icons: [DockIcon]) -> CGRect {
-        var rect = DockReader.hitFrame(icon.frame, edge: edge)
+        let screen = Coordinates.screen(containing: Coordinates.flip(icon.frame)) ?? NSScreen.main
+        let screenFrame = Coordinates.flip(screen?.frame ?? CGRect(x: 0, y: 0, width: 1440, height: 900))
+        var rect = icon.frame
         switch edge {
-        case .left, .right:
-            let above = icons.map(\.frame.minY).filter { $0 < icon.frame.minY }.max()
-            let below = icons.map(\.frame.maxY).filter { $0 > icon.frame.maxY }.min()
-            let capTop = icon.frame.minY - 16
-            let capBottom = icon.frame.maxY + 16
-            let top = above.map { ($0 + icon.frame.minY) / 2 } ?? capTop
-            let bottom = below.map { ($0 + icon.frame.maxY) / 2 } ?? capBottom
-            rect.origin.y = min(rect.minY, top)
-            rect.size.height = max(rect.maxY, bottom) - rect.origin.y
-        case .bottom, .top:
-            let before = icons.map(\.frame.minX).filter { $0 < icon.frame.minX }.max()
-            let after = icons.map(\.frame.maxX).filter { $0 > icon.frame.maxX }.min()
-            let capLeft = icon.frame.minX - 16
-            let capRight = icon.frame.maxX + 16
-            let left = before.map { ($0 + icon.frame.minX) / 2 } ?? capLeft
-            let right = after.map { ($0 + icon.frame.maxX) / 2 } ?? capRight
-            rect.origin.x = min(rect.minX, left)
-            rect.size.width = max(rect.maxX, right) - rect.origin.x
+        case .left:
+            rect.origin.x = screenFrame.minX
+            rect.size.width = max(icon.frame.maxX - screenFrame.minX + 36, 90)
+
+            let above = icons.filter { $0.frame.midY < icon.frame.midY }.max(by: { $0.frame.midY < $1.frame.midY })
+            let below = icons.filter { $0.frame.midY > icon.frame.midY }.min(by: { $0.frame.midY < $1.frame.midY })
+
+            let top = above.map { ($0.frame.midY + icon.frame.midY) / 2 } ?? (icon.frame.minY - 24)
+            let bottom = below.map { ($0.frame.midY + icon.frame.midY) / 2 } ?? (icon.frame.maxY + 24)
+
+            rect.origin.y = top
+            rect.size.height = max(bottom - top, 1)
+
+        case .right:
+            rect.origin.x = min(icon.frame.minX - 36, screenFrame.maxX - 90)
+            rect.size.width = screenFrame.maxX - rect.origin.x
+
+            let above = icons.filter { $0.frame.midY < icon.frame.midY }.max(by: { $0.frame.midY < $1.frame.midY })
+            let below = icons.filter { $0.frame.midY > icon.frame.midY }.min(by: { $0.frame.midY < $1.frame.midY })
+
+            let top = above.map { ($0.frame.midY + icon.frame.midY) / 2 } ?? (icon.frame.minY - 24)
+            let bottom = below.map { ($0.frame.midY + icon.frame.midY) / 2 } ?? (icon.frame.maxY + 24)
+
+            rect.origin.y = top
+            rect.size.height = max(bottom - top, 1)
+
+        case .bottom:
+            rect.origin.y = min(icon.frame.minY - 36, screenFrame.maxY - 90)
+            rect.size.height = screenFrame.maxY - rect.origin.y
+
+            let before = icons.filter { $0.frame.midX < icon.frame.midX }.max(by: { $0.frame.midX < $1.frame.midX })
+            let after = icons.filter { $0.frame.midX > icon.frame.midX }.min(by: { $0.frame.midX < $1.frame.midX })
+
+            let left = before.map { ($0.frame.midX + icon.frame.midX) / 2 } ?? (icon.frame.minX - 24)
+            let right = after.map { ($0.frame.midX + icon.frame.midX) / 2 } ?? (icon.frame.maxX + 24)
+
+            rect.origin.x = left
+            rect.size.width = max(right - left, 1)
+
+        case .top:
+            rect.origin.y = screenFrame.minY
+            rect.size.height = max(icon.frame.maxY - screenFrame.minY + 36, 90)
+
+            let before = icons.filter { $0.frame.midX < icon.frame.midX }.max(by: { $0.frame.midX < $1.frame.midX })
+            let after = icons.filter { $0.frame.midX > icon.frame.midX }.min(by: { $0.frame.midX < $1.frame.midX })
+
+            let left = before.map { ($0.frame.midX + icon.frame.midX) / 2 } ?? (icon.frame.minX - 24)
+            let right = after.map { ($0.frame.midX + icon.frame.midX) / 2 } ?? (icon.frame.maxX + 24)
+
+            rect.origin.x = left
+            rect.size.width = max(right - left, 1)
         }
         return rect
     }

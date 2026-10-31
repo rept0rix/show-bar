@@ -6,3 +6,5 @@ MacAppStore/build/
 .agents/
 .build/
 output/
+Companion/build/
+.swiftpm/
