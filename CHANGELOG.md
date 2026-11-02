@@ -2,6 +2,31 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 1.9.9
+
+- Fixed Dock Window Preview flickering and dancing ("מרצד החלון"):
+  - Raised icon switch dwell threshold from 35ms to 160ms with cursor re-validation, preventing rapid popups while moving across adjacent icons.
+  - Added sticky icon hysteresis (+8px padding zone) to lock the hovered icon against Dock magnification size oscillations.
+  - Eliminated stationary polling re-triggers when the mouse hasn't moved.
+  - Introduced generation-tracked thumbnail synchronization (`watchGeneration`) so asynchronous thumbnails from a previous app never overwrite a newly hovered app.
+- Hands-On Interactive 7-Step Onboarding Lab ("Show & Do"):
+  - Mission 1: Menu Bar spotlight highlighting top-bar icons + live test screenshot action straight into the floating shelf.
+  - Mission 2: Multi-Screenshot stacking in the corner shelf + "Copy All" action + interactive paste box.
+  - Mission 3: Multi-Save Clipboard History (⌃⌥V) interactive sequence.
+  - Mission 4: Visual ⌘+Tab Switcher showcase across multi-desktop Spaces.
+  - Mission 5: Live Dock window previews demonstration with window snapping and close 'X'.
+  - Mission 6: Complete cheat-sheet recap and final ready state.
+
+## 1.9.8
+
+- Hands-On Interactive Onboarding Lab ("Show & Do"):
+  - Mission 1: Menu Bar spotlight highlighting top-bar icons + live test screenshot action taking a screenshot straight into the floating shelf.
+  - Mission 2: Multi-Screenshot stacking in the corner shelf + "Copy All" action + interactive paste box demonstrating zero desktop clutter.
+  - Mission 3: Multi-Save Clipboard History (⌃⌥V) interactive sequence with sample data copying and live clipboard shelf opening.
+  - Mission 4: Visual ⌘+Tab Switcher showcase comparing native macOS to Show Bar across spaces.
+  - Mission 5: Live Dock window previews demonstration with window snapping and close 'X' without switching apps.
+  - Mission 6: Complete cheat-sheet recap and final ready state.
+
 ## 1.9.7
 
 - Dedicated First-Launch Onboarding Wizard: Automatically welcomes new users with an interactive, 4-step guided journey (Welcome, Feature Showcase, 1-Click Permissions Setup, and Interactive Preview Testing).

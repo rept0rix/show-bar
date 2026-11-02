@@ -77,6 +77,12 @@ final class ShotShelf {
 
     private init() {}
 
+    var shotCount: Int { shots.count }
+
+    func copyAllShots() {
+        copyAll()
+    }
+
     /// Export only the live shelf, with bounded thumbnails and opaque IDs.
     /// Removing a picture also revokes future companion access to it.
     func companionShots() -> [BridgeShot] {

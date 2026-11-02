@@ -19,6 +19,7 @@ final class HoverController: @unchecked Sendable {
     private var hoverTask: Task<Void, Never>?
     private var hideTask: Task<Void, Never>?
     private var watchTask: Task<Void, Never>?
+    private var watchGeneration = 0
     private var activeObserver: NSObjectProtocol?
     private let panel = PreviewPanel()
     private(set) var isRunning = false
@@ -119,6 +120,7 @@ final class HoverController: @unchecked Sendable {
         hoverTask?.cancel()
         hideTask?.cancel()
         watchTask?.cancel()
+        watchGeneration += 1
         pendingID = nil
         shownID = nil
         panel.hide()
@@ -293,7 +295,12 @@ final class HoverController: @unchecked Sendable {
         } else {
             schedulePoll(interval: 1.0)
         }
-        if !engaged, point == lastPoint { return }
+        if point == lastPoint {
+            if panel.pointerInside() {
+                panel.markCardUnderMouse()
+            }
+            return
+        }
         mouseMoved(to: point)
     }
 
@@ -386,20 +393,20 @@ final class HoverController: @unchecked Sendable {
         if shownID != nil {
             let iconID = icon.id
             hoverTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: 35_000_000)
+                // Dwell threshold when switching apps on the Dock to prevent rapid flickering
+                try? await Task.sleep(nanoseconds: 160_000_000)
                 guard !Task.isCancelled else { return }
                 let controller = self
                 await MainActor.run {
                     guard controller?.pendingID == iconID else { return }
-                    controller?.pendingID = nil
-                    controller?.show(icon)
+                    controller?.commitHover(id: iconID)
                 }
             }
             return
         }
         let iconID = icon.id
         hoverTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 40_000_000)
+            try? await Task.sleep(nanoseconds: 110_000_000)
             guard !Task.isCancelled else { return }
             let controller = self
             await MainActor.run { controller?.commitHover(id: iconID) }
@@ -417,6 +424,10 @@ final class HoverController: @unchecked Sendable {
     }
 
     private func show(_ icon: DockIcon) {
+        watchTask?.cancel()
+        watchGeneration += 1
+        let generation = watchGeneration
+
         let cards = WindowCatalog.windows(for: icon)
         guard !cards.isEmpty else {
             emptyID = icon.id
@@ -441,34 +452,33 @@ final class HoverController: @unchecked Sendable {
         shownID = icon.id
         if !same {
             Telemetry.shared.track("dock_preview_shown", params: ["app": icon.title, "window_count": "\(cards.count)"])
-            watchTask?.cancel()
-            watchTask = Task { [weak self] in
-                await self?.watch(iconID: icon.id, cards: cards)
-            }
+        }
+        watchTask = Task { [weak self] in
+            await self?.watch(iconID: icon.id, generation: generation, cards: cards)
         }
     }
 
-    private func watch(iconID: String, cards: [WindowCard]) async {
+    private func watch(iconID: String, generation: Int, cards: [WindowCard]) async {
         var current = cards
         while !Task.isCancelled {
             let refresh = await WindowCatalog.refresh(current) { [weak self] thumbnail in
                 let controller = self
                 Task { @MainActor in
-                    guard controller?.shownID == iconID else { return }
+                    guard controller?.shownID == iconID, controller?.watchGeneration == generation else { return }
                     controller?.panel.apply([thumbnail])
                 }
             }
             if Task.isCancelled { return }
             let titled = refresh.cards
             await MainActor.run {
-                guard self.shownID == iconID else { return }
+                guard self.shownID == iconID, self.watchGeneration == generation else { return }
                 self.panel.sync(cards: titled)
                 self.panel.apply(refresh.thumbnails)
             }
             try? await Task.sleep(nanoseconds: 700_000_000)
             if Task.isCancelled { return }
             let latest: [WindowCard]? = await MainActor.run {
-                guard self.shownID == iconID, let icon = self.icons.first(where: { $0.id == iconID }) else { return nil }
+                guard self.shownID == iconID, self.watchGeneration == generation, let icon = self.icons.first(where: { $0.id == iconID }) else { return nil }
                 let cards = WindowCatalog.windows(for: icon).map { card in
                     guard let previous = titled.first(where: { $0.id == card.id }),
                           previous.title.count > card.title.count else { return card }
@@ -496,13 +506,22 @@ final class HoverController: @unchecked Sendable {
         }
         panel.sync(cards: cards)
         watchTask?.cancel()
+        watchGeneration += 1
+        let generation = watchGeneration
         watchTask = Task { [weak self] in
-            await self?.watch(iconID: icon.id, cards: cards)
+            await self?.watch(iconID: icon.id, generation: generation, cards: cards)
         }
     }
 
     private func icon(at point: CGPoint) -> DockIcon? {
         let hoverable = icons.filter { DockReader.isHoverable($0.frame) }
+        // Sticky hysteresis for currently shown icon to eliminate magnification jitter:
+        if let shownID, let current = hoverable.first(where: { $0.id == shownID }) {
+            let stickyBounds = current.frame.insetBy(dx: -8, dy: -8)
+            if stickyBounds.contains(point) {
+                return current
+            }
+        }
         let hits = hoverable.filter { laneHit($0, among: hoverable).contains(point) }
         switch edge {
         case .left, .right:
@@ -611,6 +630,7 @@ final class HoverController: @unchecked Sendable {
         cancelHide()
         hoverTask?.cancel()
         watchTask?.cancel()
+        watchGeneration += 1
         pendingID = nil
         shownID = nil
         ClickCatcher.shared.stop()
