@@ -36,10 +36,42 @@ enum ShotAfter: String, CaseIterable {
 
 enum ShotPreferences {
     private static let key = "ShowBar.shotAfter"
+    private static let folderKey = "ShowBar.screenshotFolder"
 
     static var after: ShotAfter {
         get { ShotAfter(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .keep }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: key) }
+    }
+
+    static var saveDirectory: URL {
+        get {
+            if let path = UserDefaults.standard.string(forKey: folderKey), !path.isEmpty {
+                let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+                var isDir: ObjCBool = false
+                if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+                    return url
+                }
+            }
+            return FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
+                ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Desktop")
+        }
+        set {
+            UserDefaults.standard.set(newValue.path, forKey: folderKey)
+            NotificationCenter.default.post(name: NSNotification.Name("ShowBar.screenshotFolderChanged"), object: nil)
+        }
+    }
+
+    static var isCustomDirectory: Bool {
+        if let path = UserDefaults.standard.string(forKey: folderKey), !path.isEmpty {
+            let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first?.path
+            return path != desktop
+        }
+        return false
+    }
+
+    static func resetSaveDirectory() {
+        UserDefaults.standard.removeObject(forKey: folderKey)
+        NotificationCenter.default.post(name: NSNotification.Name("ShowBar.screenshotFolderChanged"), object: nil)
     }
 }
 
@@ -316,6 +348,14 @@ final class ShotShelf {
         }
         // A screenshot replaces whatever was copied before it, including text.
         copy(images)
+        let totalCount = shots.count
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ShowBar.screenshotCaptured"),
+                object: nil,
+                userInfo: ["count": totalCount]
+            )
+        }
         switch ShotPreferences.after {
         case .copyClose:
             closePreview()
@@ -654,15 +694,15 @@ final class ShotShelf {
     }
 
     private static func desktopScreenshotURL() -> URL? {
-        guard let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first else { return nil }
+        let dir = ShotPreferences.saveDirectory
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
         let stamp = formatter.string(from: Date())
-        var url = desktop.appendingPathComponent("Screenshot \(stamp).png")
+        var url = dir.appendingPathComponent("Screenshot \(stamp).png")
         var extra = 2
         while FileManager.default.fileExists(atPath: url.path), extra < 50 {
-            url = desktop.appendingPathComponent("Screenshot \(stamp) \(extra).png")
+            url = dir.appendingPathComponent("Screenshot \(stamp) \(extra).png")
             extra += 1
         }
         return url

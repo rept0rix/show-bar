@@ -4,18 +4,25 @@ Show Bar is a macOS app. It brings Windows features to the Mac.
 
 ## 1.9.9
 
+- Full-Screen Immersive Desktop Tour ("Show & Do" Live on Mac):
+  - Completely redesigned from a heavy modal window into an atmospheric, non-blocking full-screen desktop tour.
+  - Transparent passthrough hit-testing allows the user to interact live with their real Mac desktop, menu bar, and Dock while the guide is active!
+  - Central floating glassmorphic HUD card with real-time reactive mission detection:
+    - Mission 1 (First Screenshot): Explains macOS 4-second disappearing frustration vs Show Bar floating shelf with zero desktop clutter; auto-detects when the user presses ⌘⇧3/⌘⇧4 or clicks the camera.
+    - Mission 2 (Multi-Shot Deck & Copy All): Demonstrates screenshot stacking in the corner shelf, 1-click 'Copy All' (paste straight into WhatsApp/Slack), markup, and custom folder save.
+    - Mission 3 (Clipboard History ⌃⌥V): Explains losing past copies vs full multi-copy history; auto-detects when ⌃⌥V is pressed.
+    - Mission 4 (Dock Window Previews & Snap): Peek inside open windows without switching apps, with instant half-screen snap (⌃⌥← / ⌃⌥→) and background close (X).
+    - Mission 5 (Visual ⌘+Tab Switcher & Settings Recap).
+  - Ambient glowing bottom aura and top menu bar spotlight pointers.
+  - Can be exited or skipped at any time via 'Exit Tour' or Esc key.
+- Custom Screenshot Save Location in Settings:
+  - Added full folder selection setting in Settings → Screenshots ("Choose Folder…", "Reveal in Finder", "Reset to Desktop").
+  - Seamlessly applies to all saved screenshots from the shelf.
 - Fixed Dock Window Preview flickering and dancing ("מרצד החלון"):
   - Raised icon switch dwell threshold from 35ms to 160ms with cursor re-validation, preventing rapid popups while moving across adjacent icons.
   - Added sticky icon hysteresis (+8px padding zone) to lock the hovered icon against Dock magnification size oscillations.
   - Eliminated stationary polling re-triggers when the mouse hasn't moved.
   - Introduced generation-tracked thumbnail synchronization (`watchGeneration`) so asynchronous thumbnails from a previous app never overwrite a newly hovered app.
-- Hands-On Interactive 7-Step Onboarding Lab ("Show & Do"):
-  - Mission 1: Menu Bar spotlight highlighting top-bar icons + live test screenshot action straight into the floating shelf.
-  - Mission 2: Multi-Screenshot stacking in the corner shelf + "Copy All" action + interactive paste box.
-  - Mission 3: Multi-Save Clipboard History (⌃⌥V) interactive sequence.
-  - Mission 4: Visual ⌘+Tab Switcher showcase across multi-desktop Spaces.
-  - Mission 5: Live Dock window previews demonstration with window snapping and close 'X'.
-  - Mission 6: Complete cheat-sheet recap and final ready state.
 
 ## 1.9.8
 

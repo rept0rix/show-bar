@@ -452,6 +452,7 @@ final class HoverController: @unchecked Sendable {
         shownID = icon.id
         if !same {
             Telemetry.shared.track("dock_preview_shown", params: ["app": icon.title, "window_count": "\(cards.count)"])
+            NotificationCenter.default.post(name: NSNotification.Name("ShowBar.dockPreviewShown"), object: nil, userInfo: ["app": icon.title])
         }
         watchTask = Task { [weak self] in
             await self?.watch(iconID: icon.id, generation: generation, cards: cards)

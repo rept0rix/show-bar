@@ -76,6 +76,7 @@ final class ClipboardShelf: ObservableObject {
         window = panel
         panel.center()
         panel.orderFrontRegardless()
+        NotificationCenter.default.post(name: NSNotification.Name("ShowBar.clipboardOpened"), object: nil)
     }
 
     func paste(id: String) {
