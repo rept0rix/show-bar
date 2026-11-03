@@ -1,3 +1,4 @@
+#if COMPANION_ENABLED
 import AppKit
 import ApplicationServices
 import Foundation
@@ -1225,3 +1226,5 @@ private struct PairedDeviceRowView: View {
         .font(.caption)
     }
 }
+#endif
+

@@ -66,11 +66,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     static func main() {
-        #if DEBUG
-        if CommandLine.arguments.contains("--companion-test-host") {
-            RemoteBridge.runIsolatedTestHost()
-        }
-        #endif
         let bundleID = Bundle.main.bundleIdentifier ?? "com.naoryanko.showbar"
         let currentPID = ProcessInfo.processInfo.processIdentifier
         if CommandLine.arguments.contains("--relaunch") {
@@ -116,7 +111,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         installQuickShots()
         DockAutohide.restore()
         ClipboardShelf.shared.start()
-        RemoteBridge.shared.start()
         ShotShelf.cleanupLaunchTempFiles()
         syncHover()
         ensureLaunchAtLogin()
@@ -266,10 +260,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let settings = NSMenuItem(title: "Settings…", action: #selector(openPermissions), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-
-        let companion = NSMenuItem(title: "Companion devices…", action: #selector(openCompanion), keyEquivalent: "")
-        companion.target = self
-        menu.addItem(companion)
 
         let preview = NSMenuItem(title: "Show a preview now", action: #selector(showSample), keyEquivalent: "p")
         preview.target = self
@@ -609,16 +599,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         AppUpdate.askAgain()
     }
 
-    @objc private func openCompanion() {
-        RemoteBridge.shared.showPairing()
-    }
-
     func applicationWillTerminate(_ notification: Notification) {
-        RemoteBridge.shared.stop()
     }
 
     @objc private func quit() {
-        RemoteBridge.shared.stop()
         hover.stop()
         WindowSwitcher.shared.stop()
         NSApp.terminate(nil)

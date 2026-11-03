@@ -2,7 +2,19 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
-## 1.9.9
+## 2.0.2
+
+- Interactive Desktop Tour & Permission Setup:
+  - Top-centered Apple Frosted Glass HUD (`880x410`) pinned reliably on screen without auto-hiding during system interactions (`hidesOnDeactivate = false`).
+  - 100% reliable clickability with zero hit-test clipping.
+  - Redesigned permissions setup with spacious stacked layout, 42px colored squircles, clear status indicators (`Active & Ready ✅`), and 1-click system settings links.
+  - Enlarged typography (15pt-22pt) and high-contrast Apple-grade gradient buttons with specular gloss highlight sheen.
+  - Tactile 3D keyboard shortcut badges (`⌘ + ⇧ + 3`, `⌃ + ⌥ + V`).
+- Dock Window Preview Stability:
+  - Eliminated preview flickering and position jitter with 160ms dwell threshold, cursor re-validation, and sticky icon hysteresis.
+- Custom Screenshot Save Folder:
+  - Choose any custom directory in Settings → Screenshots for saved captures.
+
 
 - Full-Screen Immersive Desktop Tour ("Show & Do" Live on Mac):
   - Completely redesigned from a heavy modal window into an atmospheric, non-blocking full-screen desktop tour.

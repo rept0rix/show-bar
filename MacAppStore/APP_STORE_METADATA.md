@@ -34,16 +34,13 @@ Capture your main display or individual screens on demand. Copy directly to your
 ◆ PRIVACY-FIRST CLIPBOARD HISTORY
 Never lose a copied snippet, link, or note. Keep your recent text clippings accessible without sacrificing privacy.
 
-◆ SHOW BAR COMPANION (iPhone & iPad)
-Securely control your Mac windows, manage clipboard text, and annotate screenshots directly from your iOS or iPadOS device. Paired with authenticated TLS encryption on your local Wi-Fi, with zero cloud dependency and complete per-device permission control.
-
 PRIVACY & PERFORMANCE BY DESIGN:
 • 100% Native: Negligible CPU and memory footprint (under 30MB RAM).
 • Local Processing: Screen captures, previews, and clipboard history remain strictly on your Mac.
 • No Account Required: Open and use immediately without sign-up, ads, or subscriptions.
 
-- **Keywords (98 / 100 chars max, no spaces):**
-  `dock,preview,window,switcher,alt-tab,screenshot,screen,capture,snip,clipboard,history,snap,companion`
+- **Keywords (88 / 100 chars max, no spaces):**
+  `dock,preview,window,switcher,alt-tab,screenshot,screen,capture,snip,clipboard,history,snap`
 
 - **Support URL:** https://rept0rix.github.io/show-bar/support.html
 - **Privacy Policy URL:** https://rept0rix.github.io/show-bar/privacy.html
@@ -61,14 +58,14 @@ Show Bar is a native local macOS utility. The reviewer can test all features wit
 2. **Window Snapping & Switcher:** Uses Accessibility APIs to position windows into halves/corners upon user shortcut.
 3. **Screenshots & Clipboard:** Fully local on-device utility.
 4. **App Privacy:** Show Bar does not track personal identifiers (PII). Anonymous usage milestones (e.g. app launched, feature invoked) may be gathered to diagnose onboarding issues in full compliance with Apple's diagnostic disclosures.
-5. **Show Bar Companion:** Allows paired iOS/iPadOS devices on the same local network to control Mac windows and view previews. Uses authenticated TLS 1.2 PSK over Network.framework Bonjour (`_showbar._tcp`). All sharing and remote action switches start disabled by default and require explicit Mac host opt-in. Each companion device is individually identified and can be revoked or customized directly from the Mac.
 
 ---
 
 ## What's New in This Version (Release Notes)
 
-• Introduced Show Bar Companion for iPhone and iPad: securely pair your devices over local Wi-Fi to manage windows, browse clipboard history, and annotate screenshots.
-• Added comprehensive onboarding & clear permission guide with instant live preview testing.
-• Enhanced performance and responsiveness of live Dock window thumbnails.
+• Brand new interactive HUD desktop tour & permission setup guide with live action detection.
+• High-contrast frosted glass aesthetics and enlarged, tactile Apple controls.
+• Enhanced stability and responsiveness for live Dock window thumbnails with hover hysteresis.
+• Custom save folder options for screenshots.
 • Streamlined window snapping shortcuts and multi-monitor display handling.
 • Privacy and diagnostics improvements to ensure smooth first-time setup.
