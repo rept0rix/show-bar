@@ -102,6 +102,18 @@
     </div>
 
     <div class="card">
+      <h2>Telemetry & Product Analytics</h2>
+      <div class="field">
+        <label>TelemetryDeck App ID (Optional, free at telemetrydeck.com):</label>
+        <input type="text" id="telemetryDeckAppID" placeholder="e.g. 12345678-ABCD-EF01-2345-6789ABCDEF01" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label>Custom Webhook / Worker Endpoint URL (Optional):</label>
+        <input type="text" id="telemetryEndpoint" placeholder="https://your-worker.your-subdomain.workers.dev/api/telemetry" oninput="updatePreview()">
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Generated Policy File Preview</h2>
       <button class="btn" onclick="updatePreview()">Refresh JSON Preview</button>
       <div class="output-box">
@@ -141,7 +153,9 @@
         blocked_devices: getBlockedArray(),
         kill_switch: document.getElementById('killSwitch').checked,
         paywall_enabled: document.getElementById('paywallEnabled').checked,
-        message: document.getElementById('lockMessage').value.trim()
+        message: document.getElementById('lockMessage').value.trim(),
+        telemetry_deck_app_id: (document.getElementById('telemetryDeckAppID') ? document.getElementById('telemetryDeckAppID').value.trim() : ''),
+        telemetry_endpoint: (document.getElementById('telemetryEndpoint') ? document.getElementById('telemetryEndpoint').value.trim() : '')
       };
     }
 
