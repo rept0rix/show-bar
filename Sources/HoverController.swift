@@ -21,6 +21,7 @@ final class HoverController: @unchecked Sendable {
     private var watchTask: Task<Void, Never>?
     private var watchGeneration = 0
     private var activeObserver: NSObjectProtocol?
+    private var samplePreviewPinnedUntil: Date?
     private let panel = PreviewPanel()
     private(set) var isRunning = false
     var iconCount: Int { icons.count }
@@ -78,6 +79,7 @@ final class HoverController: @unchecked Sendable {
         guard let icon else {
             return "No open windows were found. Open an app from the Dock and try again."
         }
+        samplePreviewPinnedUntil = Date().addingTimeInterval(14.0)
         show(icon)
         if !CGPreflightScreenCaptureAccess() {
             return "Showing \(icon.title) without pictures. Turn on Screen Recording to see the windows."
@@ -352,6 +354,7 @@ final class HoverController: @unchecked Sendable {
         lastPoint = point
         sawMouse = true
         if panel.pointerOnPanel(point) {
+            samplePreviewPinnedUntil = nil
             cancelHide()
             panel.markCardUnderMouse()
             return
@@ -518,7 +521,13 @@ final class HoverController: @unchecked Sendable {
         let hoverable = icons.filter { DockReader.isHoverable($0.frame) }
         // Sticky hysteresis for currently shown icon to eliminate magnification jitter:
         if let shownID, let current = hoverable.first(where: { $0.id == shownID }) {
-            let stickyBounds = current.frame.insetBy(dx: -8, dy: -8)
+            let stickyBounds: CGRect
+            switch edge {
+            case .left, .right:
+                stickyBounds = current.frame.insetBy(dx: -24, dy: -14)
+            case .bottom, .top:
+                stickyBounds = current.frame.insetBy(dx: -14, dy: -24)
+            }
             if stickyBounds.contains(point) {
                 return current
             }
@@ -600,6 +609,9 @@ final class HoverController: @unchecked Sendable {
 
     private func scheduleHide() {
         guard panel.isShown, hideTask == nil else { return }
+        if let until = samplePreviewPinnedUntil, Date() < until {
+            return
+        }
         hideTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 420_000_000)
             guard !Task.isCancelled else { return }
@@ -610,6 +622,9 @@ final class HoverController: @unchecked Sendable {
 
     private func hideIfStillOutside() {
         hideTask = nil
+        if let until = samplePreviewPinnedUntil, Date() < until {
+            return
+        }
         if panel.pointerInside() || icon(at: quartzMouse()) != nil || panel.containsAX(quartzMouse()) || bridgeContains(quartzMouse()) {
             panel.markCardUnderMouse()
             return
@@ -623,10 +638,12 @@ final class HoverController: @unchecked Sendable {
     }
 
     func dismissPreview() {
+        samplePreviewPinnedUntil = nil
         hideNow()
     }
 
     private func hideNow() {
+        samplePreviewPinnedUntil = nil
         WindowCatalog.endReveal(committing: nil)
         cancelHide()
         hoverTask?.cancel()
@@ -690,10 +707,8 @@ enum DockAutohide {
     private static var pinned = false
 
     static func pin() {
-        guard !pinned, let set = setter(), let get = getter(), get() != 0 else { return }
-        pinned = true
-        UserDefaults.standard.set(true, forKey: restoreKey)
-        set(0)
+        // In modern macOS (Sonoma/Sequoia), repeatedly toggling CoreDockSetAutoHideEnabled
+        // causes the Dock process to redraw and jitter. We preserve user preference.
     }
 
     static func restore() {

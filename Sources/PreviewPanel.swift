@@ -458,32 +458,34 @@ final class PreviewPanel {
             showsFooter: showsFooter
         ).panel
         let icon = Coordinates.flip(anchor)
-        if lockedCenter != nil, panel.frame.size.equalTo(size) {
-            return
-        }
-        let pointer = lockedCenter ?? NSEvent.mouseLocation
+
         var origin: CGPoint
         switch edge {
         case .left:
-            origin = CGPoint(x: icon.maxX + 8, y: pointer.y - size.height / 2)
+            origin = CGPoint(x: icon.maxX + 8, y: icon.midY - size.height / 2)
         case .right:
-            origin = CGPoint(x: icon.minX - size.width - 8, y: pointer.y - size.height / 2)
+            origin = CGPoint(x: icon.minX - size.width - 8, y: icon.midY - size.height / 2)
         case .bottom:
-            origin = CGPoint(x: pointer.x - size.width / 2, y: icon.maxY + 8)
+            origin = CGPoint(x: icon.midX - size.width / 2, y: icon.maxY + 8)
         case .top:
-            origin = CGPoint(x: pointer.x - size.width / 2, y: icon.minY - size.height - 8)
+            origin = CGPoint(x: icon.midX - size.width / 2, y: icon.minY - size.height - 8)
         }
         if let screen {
             let visible = screen.visibleFrame
-            origin.x = min(max(origin.x, visible.minX + 6), max(visible.minX + 6, visible.maxX - size.width - 6))
-            origin.y = min(max(origin.y, visible.minY + 6), max(visible.minY + 6, visible.maxY - size.height - 6))
+            origin.x = min(max(origin.x, visible.minX + 8), max(visible.minX + 8, visible.maxX - size.width - 8))
+            origin.y = min(max(origin.y, visible.minY + 8), max(visible.minY + 8, visible.maxY - size.height - 8))
         }
         let next = CGRect(origin: origin, size: size)
-        if lockedCenter == nil {
-            lockedCenter = CGPoint(x: next.midX, y: next.midY)
+
+        // Hysteresis deadband: if already sized and within 4 pixels, avoid animator subpixel jitter
+        if panel.frame.size.equalTo(size) &&
+           abs(panel.frame.origin.x - next.origin.x) < 4 &&
+           abs(panel.frame.origin.y - next.origin.y) < 4 {
+            return
         }
+
         if panel.frame.integral != next.integral {
-            if panel.isVisible && panel.alphaValue > 0.8 {
+            if panel.isVisible && panel.alphaValue > 0.8 && !panel.frame.size.equalTo(size) {
                 NSAnimationContext.runAnimationGroup { context in
                     context.duration = 0.12
                     context.timingFunction = CAMediaTimingFunction(name: .easeOut)
