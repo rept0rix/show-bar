@@ -50,6 +50,14 @@
     </header>
 
     <div class="card">
+      <h2>📊 Live Direct Download (.DMG) Analytics (GitHub Releases)</h2>
+      <p style="font-size: 13px; color: #8b949e; margin-bottom: 12px;">
+        App Store Connect only counts Mac App Store installs. Below is your live count of direct <code>.dmg</code> downloads from your website &amp; GitHub Releases:
+      </p>
+      <div id="downloadStats" style="font-size: 14px; color: var(--text-bright);">Loading live download stats from GitHub API...</div>
+    </div>
+
+    <div class="card">
       <h2>Global Version & Forced Update Enforcement</h2>
       <div class="field">
         <label>Minimum Required Version (Blocks older versions):</label>
@@ -173,7 +181,26 @@
       a.click();
     }
 
+    async function loadDownloadStats() {
+      const box = document.getElementById('downloadStats');
+      try {
+        const res = await fetch('https://api.github.com/repos/rept0rix/show-bar/releases');
+        if (!res.ok) throw new Error('GitHub API status ' + res.status);
+        const releases = await res.json();
+        let total = 0;
+        const rows = releases.map(r => {
+          const count = (r.assets || []).reduce((acc, a) => acc + (a.download_count || 0), 0);
+          total += count;
+          return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span><code>${r.tag_name}</code> (${r.name || r.tag_name})</span><strong>${count} downloads</strong></div>`;
+        }).join('');
+        box.innerHTML = `<div style="font-size:20px;font-weight:700;color:var(--success);margin-bottom:10px;">Total Direct DMG Downloads: ${total}</div>` + rows;
+      } catch (err) {
+        box.textContent = 'Could not load GitHub release stats: ' + err.message;
+      }
+    }
+
     updatePreview();
+    loadDownloadStats();
   </script>
 </body>
 </html>
