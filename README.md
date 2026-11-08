@@ -32,6 +32,12 @@ Show Bar is a macOS app by Naor Yanko. Mac Command-Tab shows apps. Show Bar show
 Show Bar is for macOS 14 or later. The install disk is [Show Bar 2.0.2](https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg). Open it and drag Show Bar into Applications.
 <!-- /showbar:download -->
 
+Or install via **Homebrew**:
+
+```sh
+brew install --cask rept0rix/tap/show-bar
+```
+
 Show Bar is not on the Mac App Store. Accessibility, Screen Recording, and Dock hover do not fit App Store rules.
 
 This build is signed for development. It opens on the Mac it was built for. Other Macs need a notarized Developer ID build.
