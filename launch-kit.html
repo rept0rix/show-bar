@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Show Bar — מרכז שיווק והפצה בלחיצה אחת</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --card: #151a23;
+      --border: #262f3f;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 36px 20px; line-height: 1.55; }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { font-size: 28px; margin-bottom: 8px; color: #fff; }
+    .sub { color: var(--muted); font-size: 15px; margin-bottom: 28px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 22px; }
+    .card h2 { font-size: 19px; color: #fff; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .badge { font-size: 12px; padding: 3px 10px; border-radius: 99px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+    .field { margin-bottom: 14px; }
+    .field-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
+    pre, .copy-box {
+      direction: ltr;
+      text-align: left;
+      background: #090b10;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--accent);
+      padding: 5px 12px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: 0.15s;
+    }
+    .btn:hover { background: rgba(56, 189, 248, 0.25); }
+    .btn-green { background: rgba(34, 197, 94, 0.18); border-color: rgba(34, 197, 94, 0.4); color: #4ade80; }
+    .pr-list { list-style: none; direction: ltr; text-align: left; }
+    .pr-list li { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13.5px; }
+    .pr-list a { color: var(--accent); text-decoration: none; }
+    .pr-list a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🚀 Show Bar — מרכז שיווק והפצה בלחיצה אחת</h1>
+    <p class="sub">כל הטקסטים, מילות המפתח, הסרטון והקישורים מוכנים כאן עם כפתור "העתק" בלחיצה אחת.</p>
+
+    <!-- Section 1: Live PRs already submitted -->
+    <div class="card">
+      <h2>
+        <span>✅ 7 בקשות מיזוג (Pull Requests) שכבר נפתחו עבורך ב-GitHub</span>
+        <span class="badge">בוצע אוטומטית</span>
+      </h2>
+      <ul class="pr-list">
+        <li><span>1. <strong>jaywcjlove/awesome-mac</strong> (118,000 ⭐)</span> <a href="https://github.com/jaywcjlove/awesome-mac/pull/4378" target="_blank">View PR #4378 &rarr;</a></li>
+        <li><span>2. <strong>serhii-londar/open-source-mac-os-apps</strong> (51,000 ⭐)</span> <a href="https://github.com/serhii-londar/open-source-mac-os-apps/pull/2041" target="_blank">View PR #2041 &rarr;</a></li>
+        <li><span>3. <strong>Axorax/awesome-free-apps</strong> (8,000 ⭐)</span> <a href="https://github.com/Axorax/awesome-free-apps/pull/490" target="_blank">View PR #490 &rarr;</a></li>
+        <li><span>4. <strong>jaywcjlove/awesome-swift-macos-apps</strong> (1,800 ⭐)</span> <a href="https://github.com/jaywcjlove/awesome-swift-macos-apps/pull/229" target="_blank">View PR #229 &rarr;</a></li>
+        <li><span>5. <strong>gendotnew/macos-apps</strong> (850 ⭐)</span> <a href="https://github.com/gendotnew/macos-apps/pull/241" target="_blank">View PR #241 &rarr;</a></li>
+        <li><span>6. <strong>tonnoz/super-awesome-mac</strong> (530 ⭐)</span> <a href="https://github.com/tonnoz/super-awesome-mac/pull/25" target="_blank">View PR #25 &rarr;</a></li>
+        <li><span>7. <strong>milanaryal/awesome-macos</strong> (106 ⭐)</span> <a href="https://github.com/milanaryal/awesome-macos/pull/60" target="_blank">View PR #60 &rarr;</a></li>
+      </ul>
+    </div>
+
+    <!-- Section 2: Demo Video -->
+    <div class="card">
+      <h2>
+        <span>🎬 סרטון הדגמה מוכן להעלאה ל-Reddit / X / Product Hunt</span>
+        <a class="btn btn-green" href="show-bar-demo.mp4" download="Show-Bar-Demo.mp4">⬇️ הורד סרטון MP4 (1.7MB)</a>
+      </h2>
+      <p style="font-size: 13.5px; color: var(--muted); margin-bottom: 12px;">
+        שמרתי עותק של הסרטון גם ישירות על ה-<strong>Desktop</strong> שלך בשם <code>Show-Bar-Demo-Video.mp4</code>. פשוט תגרור אותו לפוסט ב-Reddit או ב-X!
+      </p>
+      <video src="show-bar-demo.mp4" controls autoplay loop muted playsinline style="width: 100%; border-radius: 10px; border: 1px solid var(--border);"></video>
+    </div>
+
+    <!-- Section 3: Reddit r/macapps -->
+    <div class="card">
+      <h2>
+        <span>🔥 פוסט ויראלי ל-Reddit (r/macapps &amp; r/macos)</span>
+        <a class="btn btn-green" href="https://www.reddit.com/r/macapps/submit" target="_blank">פתח r/macapps Submit &rarr;</a>
+      </h2>
+      <div class="field">
+        <div class="field-header">
+          <span>Title (בחר פוסט מסוג Images &amp; Video והעלה את הסרטון):</span>
+          <button class="btn" onclick="copyId('redditTitle', this)">העתק כותרת</button>
+        </div>
+        <div class="copy-box" id="redditTitle">I got tired of running 5 separate paid menu-bar apps on my Mac, so I built a free native all-in-one (Dock previews, Windows-style Cmd-Tab, Window Snapping, Clipboard &amp; Screenshot Shelf)</div>
+      </div>
+      <div class="field">
+        <div class="field-header">
+          <span>First Comment (תדביק כתגובה ראשונה מיד אחרי פרסום הסרטון):</span>
+          <button class="btn" onclick="copyId('redditComment', this)">העתק תגובה</button>
+        </div>
+        <pre id="redditComment">Hey r/macapps! 👋
+
+Coming to macOS, I ended up needing 5 different apps just for basic workflow stuff: an app for Dock window previews, another for a real window-level Cmd+Tab, another for window snapping, a clipboard manager, and a screenshot shelf.
+
+I wanted something single, ultra-lightweight (&lt;30MB RAM), 100% native Swift/SwiftUI, private (zero cloud/telemetry), and completely free. So I built **Show Bar**.
+
+**What it includes:**
+* **Dock Hover Previews:** Hover any Dock icon to see live window thumbnails (works across Spaces &amp; monitors).
+* **Window-level Command-Tab:** Switch between actual open windows with live previews, not just app icons.
+* **Window Snapping:** `Ctrl+Opt+Arrows` to snap halves, quarters, thirds, or maximize.
+* **Visual Clipboard History (`Ctrl+Opt+V`):** Fuzzy search through copied text, code, links, and images.
+* **Floating Screenshot Shelf &amp; Markup:** Pin captures in the corner, annotate with arrows/blur/crop, or batch-copy multiple screenshots at once.
+
+**Install via Homebrew:**
+`brew install --cask rept0rix/tap/show-bar`
+
+🔗 **Website &amp; Direct Download:** https://rept0rix.github.io/show-bar/
+🍎 **Mac App Store (Sandboxed edition):** https://apps.apple.com/app/id6818509447?ct=reddit_macapps&amp;mt=12
+💻 **GitHub:** https://github.com/rept0rix/show-bar
+
+Would love to hear your feedback or feature requests!</pre>
+      </div>
+    </div>
+
+    <!-- Section 4: App Store Connect ASO -->
+    <div class="card">
+      <h2>
+        <span>🍎 App Store Connect — שדות ASO לקפיצה בחשיפות</span>
+        <a class="btn btn-green" href="https://appstoreconnect.apple.com/apps/6818509447/distribution" target="_blank">פתח App Store Connect &rarr;</a>
+      </h2>
+      <div class="field">
+        <div class="field-header">
+          <span>Name (30/30 תווים):</span>
+          <button class="btn" onclick="copyId('asoName', this)">העתק Name</button>
+        </div>
+        <div class="copy-box" id="asoName">Show Bar: Window Manager &amp; Tab</div>
+      </div>
+      <div class="field">
+        <div class="field-header">
+          <span>Subtitle (29/30 תווים):</span>
+          <button class="btn" onclick="copyId('asoSub', this)">העתק Subtitle</button>
+        </div>
+        <div class="copy-box" id="asoSub">Dock Preview, Snap, Clipboard</div>
+      </div>
+      <div class="field">
+        <div class="field-header">
+          <span>Keywords (99/100 תווים — ללא רווחים):</span>
+          <button class="btn" onclick="copyId('asoKw', this)">העתק Keywords</button>
+        </div>
+        <div class="copy-box" id="asoKw">alttab,switcher,taskbar,magnet,split,tile,multitasking,screenshots,capture,copy,paste,history,clean</div>
+      </div>
+      <div class="field">
+        <div class="field-header">
+          <span>Promotional Text (ניתן לעדכון מיידי ללא גרסה חדשה!):</span>
+          <button class="btn" onclick="copyId('asoPromo', this)">העתק Promotional Text</button>
+        </div>
+        <div class="copy-box" id="asoPromo">5 Mac utilities in 1 free native app: Windows-style Command-Tab window switcher, live Dock hover previews, window snapping, clipboard history &amp; screenshot shelf.</div>
+      </div>
+    </div>
+
+    <!-- Section 5: Hacker News & Creator Pitch -->
+    <div class="card">
+      <h2>
+        <span>🧡 Hacker News (Show HN) + הודעה ליוטיוברים</span>
+        <a class="btn btn-green" href="https://news.ycombinator.com/submit" target="_blank">פתח Hacker News Submit &rarr;</a>
+      </h2>
+      <div class="field">
+        <div class="field-header">
+          <span>Hacker News Title:</span>
+          <button class="btn" onclick="copyId('hnTitle', this)">העתק כותרת HN</button>
+        </div>
+        <div class="copy-box" id="hnTitle">Show HN: Show Bar – Free native macOS window switcher, Dock previews and snapping</div>
+      </div>
+      <div class="field">
+        <div class="field-header">
+          <span>הודעה מוכנה ליוטיוברים ובלוגרים של מק (Snazzy Labs, 9to5Mac, MacVince, MacStories):</span>
+          <button class="btn" onclick="copyId('pitchText', this)">העתק הודעת Pitch</button>
+        </div>
+        <pre id="pitchText">Subject: Free native Mac app that replaces 5 paid utilities ($115 value) — Show Bar
+
+Hey! Huge fan of your Mac app roundups.
+
+I'm an indie Mac developer and I built Show Bar — a 100% free, open-source native Swift/SwiftUI menu-bar utility (&lt;30MB RAM) that combines 5 apps Mac users usually buy separately:
+1. Windows-style Command-Tab (switches between actual open windows with live thumbnails)
+2. Live Dock Hover Previews across Spaces &amp; monitors
+3. Keyboard Window Snapping (Ctrl+Opt+Arrows)
+4. Visual Clipboard History (Ctrl+Opt+V)
+5. Floating Screenshot Shelf &amp; Markup editor
+
+Install via Homebrew: brew install --cask rept0rix/tap/show-bar
+Website &amp; Direct DMG: https://rept0rix.github.io/show-bar/
+Mac App Store: https://apps.apple.com/app/id6818509447
+GitHub: https://github.com/rept0rix/show-bar
+
+Best,
+Naor Yanko</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function copyId(id, btn) {
+      const text = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text);
+      const old = btn.innerText;
+      btn.innerText = '✓ הועתק!';
+      setTimeout(() => { btn.innerText = old; }, 1600);
+    }
+  </script>
+</body>
+</html>
