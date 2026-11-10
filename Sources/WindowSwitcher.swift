@@ -67,14 +67,16 @@ final class WindowSwitcher {
 
         let effect = NSVisualEffectView()
         effect.material = .hudWindow
-        effect.blendingMode = .withinWindow
+        effect.blendingMode = .behindWindow
         effect.state = .active
+        effect.isEmphasized = true
         effect.wantsLayer = true
-        effect.layer?.cornerRadius = 20
+        effect.layer?.cornerRadius = 24
+        effect.layer?.cornerCurve = .continuous
         effect.layer?.masksToBounds = true
-        effect.layer?.backgroundColor = NSColor(srgbRed: 0.09, green: 0.09, blue: 0.10, alpha: 1).cgColor
-        effect.layer?.borderWidth = 1
-        effect.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        effect.layer?.backgroundColor = NSColor(srgbRed: 0.12, green: 0.15, blue: 0.24, alpha: 0.40).cgColor
+        effect.layer?.borderWidth = 1.2
+        effect.layer?.borderColor = NSColor.white.withAlphaComponent(0.32).cgColor
         panel.contentView = effect
 
         grid.translatesAutoresizingMaskIntoConstraints = false
@@ -317,6 +319,12 @@ final class WindowSwitcher {
         }
         onWillShow?()
         Telemetry.shared.track("switcher_invoked", params: ["window_count": "\(next.count)"])
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ShowBar.commandTabShown"),
+                object: nil
+            )
+        }
         cards = next
         if cards.count > 1 {
             index = backward ? (cards.count - 1) : 1

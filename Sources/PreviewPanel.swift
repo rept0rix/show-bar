@@ -40,7 +40,7 @@ enum PreviewPreferences {
 
     static var showTitles: Bool {
         get {
-            if UserDefaults.standard.object(forKey: titlesKey) == nil { return false }
+            if UserDefaults.standard.object(forKey: titlesKey) == nil { return true }
             return UserDefaults.standard.bool(forKey: titlesKey)
         }
         set {
@@ -100,12 +100,12 @@ struct PreviewClickBox {
 
     func part(at point: NSPoint) -> PreviewClickPart? {
         guard bounds.contains(point) else { return nil }
-        if snap.insetBy(dx: -4, dy: -4).contains(point) { return .snap }
-        if shot.insetBy(dx: -4, dy: -4).contains(point) { return .shot }
-        if close.insetBy(dx: -4, dy: -4).contains(point) { return .close }
-        if minimize.insetBy(dx: -4, dy: -4).contains(point) { return .minimize }
-        if quit.insetBy(dx: -6, dy: -6).contains(point) { return .quit }
-        if desktop.insetBy(dx: -6, dy: -6).contains(point) { return .desktop }
+        if !snap.isEmpty, snap.insetBy(dx: -4, dy: -4).contains(point) { return .snap }
+        if !shot.isEmpty, shot.insetBy(dx: -4, dy: -4).contains(point) { return .shot }
+        if !close.isEmpty, close.insetBy(dx: -4, dy: -4).contains(point) { return .close }
+        if !minimize.isEmpty, minimize.insetBy(dx: -4, dy: -4).contains(point) { return .minimize }
+        if !quit.isEmpty, quit.insetBy(dx: -6, dy: -6).contains(point) { return .quit }
+        if !desktop.isEmpty, desktop.insetBy(dx: -6, dy: -6).contains(point) { return .desktop }
         return .body
     }
 }
@@ -125,13 +125,14 @@ final class PreviewPanel {
     private var edge: DockEdge = .bottom
     private var cards: [WindowCard] = []
     private var appIcon: NSImage?
-    private var hideToken = UUID()
+    private var transitionTimer: Timer?
+    private var outgoing: PreviewWindow?
+    private var renderedSizeName = ""
+    private var renderedTitles = false
+    private var renderedFooter = false
     private let panel: PreviewWindow
     private let effect = PreviewBackdrop()
     private var pointerTimer: Timer?
-    private var peekToken = UUID()
-    private var peekCardID: CGWindowID?
-    private var peekLeave: DispatchWorkItem?
     private let stack = ClickStack()
     private let footer = NSButton()
     private var cardViews: [CGWindowID: PreviewCardView] = [:]
@@ -161,14 +162,16 @@ final class PreviewPanel {
         panel.appearance = NSAppearance(named: .darkAqua)
 
         effect.material = .hudWindow
-        effect.blendingMode = .withinWindow
+        effect.blendingMode = .behindWindow
         effect.state = .active
+        effect.isEmphasized = true
         effect.wantsLayer = true
-        effect.layer?.cornerRadius = 20
+        effect.layer?.cornerRadius = 22
+        effect.layer?.cornerCurve = .continuous
         effect.layer?.masksToBounds = true
-        effect.layer?.backgroundColor = NSColor(srgbRed: 0.09, green: 0.09, blue: 0.10, alpha: 1).cgColor
-        effect.layer?.borderWidth = 1
-        effect.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        effect.layer?.backgroundColor = NSColor(srgbRed: 0.12, green: 0.15, blue: 0.24, alpha: 0.38).cgColor
+        effect.layer?.borderWidth = 1.2
+        effect.layer?.borderColor = NSColor.white.withAlphaComponent(0.32).cgColor
         panel.contentView = effect
 
         stack.orientation = .vertical
@@ -207,14 +210,14 @@ final class PreviewPanel {
 
     func containsAX(_ point: CGPoint) -> Bool {
         guard isShown else { return false }
-        return frameAX.insetBy(dx: -10, dy: -10).contains(point)
+        return frameAX.insetBy(dx: -4, dy: -4).contains(point)
     }
 
     /// AppKit mouse location against the panel frame. This stays valid while the pointer is over our own window.
     func pointerInside() -> Bool {
         if menuHold && isShown { return true }
         guard isShown, panel.isVisible, panel.alphaValue > 0.2 else { return false }
-        return panel.frame.insetBy(dx: -18, dy: -18).contains(NSEvent.mouseLocation)
+        return panel.frame.insetBy(dx: -6, dy: -6).contains(NSEvent.mouseLocation)
     }
 
     /// Pointer is on the panel itself, with no slack. The slack margins overlap Dock icons when the Dock is on a side.
@@ -244,46 +247,7 @@ final class PreviewPanel {
         for card in cardViews.values {
             card.applyHover(card === hovered, dimmed: hovered != nil && card !== hovered)
         }
-        let hoveredID = cardViews.first { $0.value === hovered }?.key
-        if hoveredID == peekCardID {
-            peekLeave?.cancel()
-            peekLeave = nil
-        } else if hoveredID == nil {
-            if peekLeave == nil, peekCardID != nil {
-                let work = DispatchWorkItem { [weak self] in
-                    self?.peekLeave = nil
-                    self?.schedulePeek(nil)
-                }
-                peekLeave = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
-            }
-        } else {
-            peekLeave?.cancel()
-            peekLeave = nil
-            schedulePeek(hoveredID)
-        }
         ClickCatcher.shared.refresh(self)
-    }
-
-    private func schedulePeek(_ id: CGWindowID?) {
-        peekToken = UUID()
-        let token = peekToken
-        if peekCardID != nil {
-            WindowCatalog.endReveal(committing: nil)
-        }
-        peekCardID = id
-        guard let id else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            guard let self, self.peekToken == token, self.isShown, self.peekCardID == id,
-                  let card = self.cards.first(where: { $0.id == id }) else { return }
-            WindowCatalog.reveal(card)
-        }
-    }
-
-    private func cancelPeek() {
-        peekToken = UUID()
-        peekCardID = nil
-        WindowCatalog.endReveal(committing: nil)
     }
 
     /// The panel often never receives the click. Compare the pointer with each control's screen rectangle.
@@ -328,94 +292,155 @@ final class PreviewPanel {
     }
 
     func present(cards: [WindowCard], anchor: CGRect, edge: DockEdge, appIcon: NSImage) {
-        hideToken = UUID()
+        stopTransition()
+        let previous = snapshotWindow()
+        outgoing = previous
         self.anchor = anchor
         self.edge = edge
         self.appIcon = appIcon
         self.cards = cards
-        lockedCenter = nil
-        cancelPeek()
+        WindowCatalog.endReveal(committing: nil)
+        renderedFooter = !CGPreflightScreenCaptureAccess()
+        footer.isHidden = !renderedFooter
         rebuild(cards)
-        place()
-        let appearing = !panel.isVisible || panel.alphaValue < 0.2
-        isShown = true
-        footer.isHidden = CGPreflightScreenCaptureAccess()
-        if appearing {
-            let targetFrame = panel.frame
-            var startFrame = targetFrame
-            switch edge {
-            case .bottom: startFrame.origin.y -= 8
-            case .top: startFrame.origin.y += 8
-            case .left: startFrame.origin.x -= 8
-            case .right: startFrame.origin.x += 8
-            }
-            panel.setFrame(startFrame, display: false)
-            panel.alphaValue = 0
-            panel.orderFrontRegardless()
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.18
-                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                panel.animator().setFrame(targetFrame, display: true)
-                panel.animator().alphaValue = 1
-            }
-        } else {
-            panel.alphaValue = 1
-            panel.orderFrontRegardless()
-        }
+
+        // Lay out each image at its final size before showing it. Live window resizing
+        // squeezes the fixed-width cards and makes their thumbnails flash during a switch.
+        let target = placementFrame()
+        let start = offsetTowardDock(target, distance: previous == nil ? 8 : 5)
+        panel.alphaValue = 0
+        panel.setFrame(start, display: false)
         panel.contentView?.layoutSubtreeIfNeeded()
+        isShown = true
+        panel.orderFrontRegardless()
+        panel.invalidateShadow()
         startPointerTimer()
-        markCardUnderMouse()
+        animate(from: start, to: target, alpha: 0, targetAlpha: 1, duration: 0.20)
     }
 
     func updateAnchor(_ anchor: CGRect, edge: DockEdge) {
-        // The Dock icon frame keeps shifting while magnification animates.
-        // Following it makes the preview bounce. The position is chosen once in present().
-        _ = anchor
-        _ = edge
+        guard DockReader.isHoverable(anchor) else { return }
+        let oldScreen = Coordinates.screen(containing: Coordinates.flip(self.anchor))
+        let newScreen = Coordinates.screen(containing: Coordinates.flip(anchor))
+        let movedDisplay = oldScreen?.frame != newScreen?.frame || self.edge != edge
+        self.anchor = anchor
+        self.edge = edge
+        // Keep the panel still during Dock magnification, but keep the pointer bridge
+        // attached to the live icon and reposition when the Dock changes displays.
+        if movedDisplay, isShown, let appIcon {
+            present(cards: cards, anchor: anchor, edge: edge, appIcon: appIcon)
+        }
     }
 
     func sync(cards: [WindowCard]) {
         guard isShown else { return }
-        footer.isHidden = CGPreflightScreenCaptureAccess()
-        let idsChanged = cards.map(\.id) != self.cards.map(\.id)
-        self.cards = cards
-        if idsChanged {
-            rebuild(cards)
-        } else {
-            for card in cards {
-                cardViews[card.id]?.setTitle(card.title)
-                cardViews[card.id]?.setDesktop(DesktopSpaces.desk(for: card.id)?.title ?? "Desktop")
-            }
+        let layoutChanged = cards.map(\.id) != self.cards.map(\.id)
+            || renderedFooter != !CGPreflightScreenCaptureAccess()
+        if layoutChanged, let appIcon {
+            present(cards: cards, anchor: anchor, edge: edge, appIcon: appIcon)
+            return
         }
-        place()
+        self.cards = cards
+        for card in cards {
+            if let view = cardViews[card.id] { configure(view, for: card) }
+        }
+        // Titles and screenshots never restart or reposition the opening animation.
     }
 
     func apply(_ thumbnails: [Thumbnail]) {
+        guard isShown else { return }
         for thumbnail in thumbnails {
-            let image = NSImage(cgImage: thumbnail.image, size: NSSize(width: thumbnail.image.width, height: thumbnail.image.height))
-            cardViews[thumbnail.windowID]?.setScreenshot(image)
+            cardViews[thumbnail.windowID]?.setScreenshot(thumbnail.image)
         }
     }
 
     func hide() {
-        guard isShown || panel.isVisible else { return }
-        cancelPeek()
+        guard isShown else { return }
+        WindowCatalog.endReveal(committing: nil)
         isShown = false
-        lockedCenter = nil
         stopPointerTimer()
-        let token = UUID()
-        hideToken = token
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.12
-            panel.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
-            guard let self, self.hideToken == token else { return }
-            self.panel.orderOut(nil)
-            self.panel.alphaValue = 1
-        })
+        stopTransition()
+        let start = panel.frame
+        animate(from: start, to: offsetTowardDock(start, distance: 5),
+                alpha: panel.alphaValue, targetAlpha: 0, duration: 0.14) { [weak self] in
+            self?.panel.orderOut(nil)
+            self?.panel.alphaValue = 1
+        }
+    }
+
+    private func stopTransition() {
+        transitionTimer?.invalidate()
+        transitionTimer = nil
+        outgoing?.orderOut(nil)
+        outgoing = nil
+    }
+
+    private func offsetTowardDock(_ frame: CGRect, distance: CGFloat) -> CGRect {
+        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return frame }
+        switch edge {
+        case .left: return frame.offsetBy(dx: -distance, dy: 0)
+        case .right: return frame.offsetBy(dx: distance, dy: 0)
+        case .bottom: return frame.offsetBy(dx: 0, dy: -distance)
+        case .top: return frame.offsetBy(dx: 0, dy: distance)
+        }
+    }
+
+    /// One cancellable driver owns the window animation, including a hide interrupted by a new hover.
+    private func animate(from start: CGRect, to target: CGRect, alpha: CGFloat, targetAlpha: CGFloat,
+                         duration: TimeInterval, completion: (() -> Void)? = nil) {
+        let began = CACurrentMediaTime()
+        let outgoingAlpha = outgoing?.alphaValue ?? 0
+        let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0.10 : duration
+        // resource: active 0.017 — exists only for the 140–200ms preview transition.
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            let progress = min(1, (CACurrentMediaTime() - began) / duration)
+            let eased = CGFloat(1 - pow(1 - progress, 3))
+            let origin = CGPoint(x: start.minX + (target.minX - start.minX) * eased,
+                                 y: start.minY + (target.minY - start.minY) * eased)
+            self.panel.setFrameOrigin(origin)
+            self.panel.alphaValue = alpha + (targetAlpha - alpha) * eased
+            self.outgoing?.alphaValue = outgoingAlpha * (1 - eased)
+            if progress >= 1 {
+                self.stopTransition()
+                completion?()
+            }
+            if self.isShown { self.markCardUnderMouse() }
+        }
+        transitionTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func snapshotWindow() -> PreviewWindow? {
+        guard panel.isVisible, panel.alphaValue > 0.05,
+              let bitmap = effect.bitmapImageRepForCachingDisplay(in: effect.bounds) else { return nil }
+        effect.cacheDisplay(in: effect.bounds, to: bitmap)
+        let image = NSImage(size: effect.bounds.size)
+        image.addRepresentation(bitmap)
+        let snapshot = PreviewWindow(contentRect: panel.frame, styleMask: [.borderless, .nonactivatingPanel],
+                                     backing: .buffered, defer: false)
+        snapshot.level = panel.level
+        snapshot.isOpaque = false
+        snapshot.backgroundColor = .clear
+        snapshot.hasShadow = true
+        snapshot.hidesOnDeactivate = false
+        snapshot.ignoresMouseEvents = true
+        snapshot.collectionBehavior = panel.collectionBehavior
+        snapshot.isReleasedWhenClosed = false
+        let view = NSImageView(frame: NSRect(origin: .zero, size: panel.frame.size))
+        view.image = image
+        view.imageScaling = .scaleNone
+        snapshot.contentView = view
+        snapshot.alphaValue = panel.alphaValue
+        snapshot.orderFrontRegardless()
+        return snapshot
     }
 
     private func rebuild(_ cards: [WindowCard]) {
+        let reusable = renderedSizeName == PreviewPreferences.sizeName && renderedTitles == PreviewPreferences.showTitles
+            ? cardViews : [:]
+        renderedSizeName = PreviewPreferences.sizeName
+        renderedTitles = PreviewPreferences.showTitles
         for view in stack.arrangedSubviews {
             stack.removeArrangedSubview(view)
             view.removeFromSuperview()
@@ -433,23 +458,29 @@ final class PreviewPanel {
                 stack.addArrangedSubview(next)
                 row = next
             }
-            let view = PreviewCardView(card: card, icon: appIcon, thumb: grid.thumb)
-            view.onSelect = { [weak self] in self?.onSelect?(card) }
-            view.onClose = { [weak self] in self?.onClose?(card) }
-            view.onMinimize = { [weak self] in self?.onMinimize?(card) }
-            view.onQuit = { [weak self] in self?.onQuit?(card) }
-            view.onMove = { [weak self] space in self?.onMove?(card, space) }
-            view.onSnap = { [weak self] in self?.onSnap?(card) }
-            view.onShot = { [weak self] in self?.onShot?(card) }
-            view.onHold = { [weak self] hold in self?.holdOpen(hold) }
+            let view = reusable[card.id] ?? PreviewCardView(card: card, icon: appIcon, thumb: grid.thumb)
+            view.removeFromSuperview()
+            configure(view, for: card)
             row?.addArrangedSubview(view)
             cardViews[card.id] = view
         }
     }
 
-    private var lockedCenter: CGPoint?
+    private func configure(_ view: PreviewCardView, for card: WindowCard) {
+        view.setTitle(card.title)
+        view.setDesktop(DesktopSpaces.desk(for: card.id)?.title ?? "Desktop")
+        view.onSelect = { [weak self] in self?.onSelect?(card) }
+        view.onClose = { [weak self] in self?.onClose?(card) }
+        view.onMinimize = { [weak self] in self?.onMinimize?(card) }
+        view.onQuit = { [weak self] in self?.onQuit?(card) }
+        view.onMove = { [weak self] space in self?.onMove?(card, space) }
+        view.onSnap = { [weak self] in self?.onSnap?(card) }
+        view.onShot = { [weak self] in self?.onShot?(card) }
+        view.onHold = { [weak self] hold in self?.holdOpen(hold) }
+        view.onPointerChanged = { [weak self] in self?.markCardUnderMouse() }
+    }
 
-    private func place() {
+    private func placementFrame() -> CGRect {
         let screen = Coordinates.screen(containing: Coordinates.flip(anchor)) ?? NSScreen.main
         let showsFooter = !CGPreflightScreenCaptureAccess()
         let size = PreviewMetrics.grid(
@@ -475,61 +506,14 @@ final class PreviewPanel {
             origin.x = min(max(origin.x, visible.minX + 8), max(visible.minX + 8, visible.maxX - size.width - 8))
             origin.y = min(max(origin.y, visible.minY + 8), max(visible.minY + 8, visible.maxY - size.height - 8))
         }
-        let next = CGRect(origin: origin, size: size)
-
-        // Hysteresis deadband: if already sized and within 4 pixels, avoid animator subpixel jitter
-        if panel.frame.size.equalTo(size) &&
-           abs(panel.frame.origin.x - next.origin.x) < 4 &&
-           abs(panel.frame.origin.y - next.origin.y) < 4 {
-            return
-        }
-
-        if panel.frame.integral != next.integral {
-            if panel.isVisible && panel.alphaValue > 0.8 && !panel.frame.size.equalTo(size) {
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.12
-                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                    panel.animator().setFrame(next, display: true)
-                }
-            } else {
-                panel.setFrame(next, display: true)
-            }
-            panel.invalidateShadow()
-        }
+        return CGRect(origin: origin, size: size).integral
     }
 
-    /// The strip from the Dock icon across to the preview. Moving through it should not retarget another icon.
     func approachContains(_ quartz: CGPoint) -> Bool {
-        guard isShown, panel.screen != nil else { return false }
+        guard isShown else { return false }
         let point = NSPoint(x: quartz.x, y: Coordinates.primaryHeight - quartz.y)
-        let icon = Coordinates.flip(anchor)
-        var band = panel.frame.union(icon.insetBy(dx: -4, dy: -4))
-        if let lockedCenter {
-            band = band.union(CGRect(x: panel.frame.minX, y: lockedCenter.y - 24, width: panel.frame.width, height: 48))
-        }
-        band = band.insetBy(dx: 0, dy: -8)
-        switch edge {
-        case .left:
-            band.origin.x = icon.midX
-            band.size.width = panel.frame.maxX - icon.midX
-        case .right:
-            band.origin.x = panel.frame.minX
-            band.size.width = icon.midX - panel.frame.minX
-        case .bottom:
-            band.origin.y = icon.midY
-            band.size.height = panel.frame.maxY - icon.midY
-        case .top:
-            band.origin.y = panel.frame.minY
-            band.size.height = icon.midY - panel.frame.minY
-        }
-        return band.contains(point)
-    }
-
-    private func nearlyEqual(_ lhs: CGRect, _ rhs: CGRect) -> Bool {
-        abs(lhs.origin.x - rhs.origin.x) < 0.5
-            && abs(lhs.origin.y - rhs.origin.y) < 0.5
-            && abs(lhs.width - rhs.width) < 0.5
-            && abs(lhs.height - rhs.height) < 0.5
+        let iconFlipped = Coordinates.flip(anchor)
+        return iconFlipped.union(panel.frame).insetBy(dx: -4, dy: -4).contains(point)
     }
 }
 
@@ -555,6 +539,7 @@ final class PreviewCardView: NSView {
     var onSnap: (() -> Void)?
     var onShot: (() -> Void)?
     var onHold: ((Bool) -> Void)?
+    var onPointerChanged: (() -> Void)?
 
     private let imageView = NSImageView()
     private let iconView = NSImageView()
@@ -568,6 +553,7 @@ final class PreviewCardView: NSView {
     private let snapButton = NSButton()
     private let shotButton = NSButton()
     private let windowID: CGWindowID
+    private var screenshot: CGImage?
 
     init(card: WindowCard, icon: NSImage?, thumb: CGSize) {
         let titleBlock: CGFloat = PreviewPreferences.showTitles ? PreviewMetrics.titleGap + PreviewMetrics.titleHeight + PreviewMetrics.titleUnderline : 0
@@ -588,7 +574,7 @@ final class PreviewCardView: NSView {
         imageView.layer?.cornerRadius = 10
         imageView.layer?.masksToBounds = true
         imageView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
-        imageView.layer?.borderWidth = 1
+        imageView.layer?.borderWidth = 2
         imageView.layer?.borderColor = NSColor.white.withAlphaComponent(0.16).cgColor
         imageView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(imageView)
@@ -601,6 +587,7 @@ final class PreviewCardView: NSView {
         if let cached = ThumbnailCache.shared.get(card.id) {
             let image = NSImage(cgImage: cached, size: NSSize(width: cached.width, height: cached.height))
             imageView.image = image
+            screenshot = cached
             iconView.isHidden = true
         }
 
@@ -629,12 +616,12 @@ final class PreviewCardView: NSView {
         closeButton.bezelStyle = .circular
         closeButton.contentTintColor = .white
         closeButton.wantsLayer = true
-        closeButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.62).cgColor
-        closeButton.layer?.cornerRadius = 9
+        closeButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.65).cgColor
+        closeButton.layer?.cornerRadius = 10
         closeButton.target = self
         closeButton.action = #selector(closePressed)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
-        closeButton.alphaValue = 1
+        closeButton.alphaValue = 0
         addSubview(closeButton)
 
         minimizeButton.image = NSImage(systemSymbolName: "minus", accessibilityDescription: "Minimize")?
@@ -643,12 +630,12 @@ final class PreviewCardView: NSView {
         minimizeButton.bezelStyle = .circular
         minimizeButton.contentTintColor = .white
         minimizeButton.wantsLayer = true
-        minimizeButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.62).cgColor
-        minimizeButton.layer?.cornerRadius = 9
+        minimizeButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.65).cgColor
+        minimizeButton.layer?.cornerRadius = 10
         minimizeButton.target = self
         minimizeButton.action = #selector(minimizePressed)
         minimizeButton.translatesAutoresizingMaskIntoConstraints = false
-        minimizeButton.alphaValue = 1
+        minimizeButton.alphaValue = 0
         addSubview(minimizeButton)
 
         quitButton.title = "Quit"
@@ -661,6 +648,7 @@ final class PreviewCardView: NSView {
         quitButton.target = self
         quitButton.action = #selector(quitPressed)
         quitButton.translatesAutoresizingMaskIntoConstraints = false
+        quitButton.alphaValue = 0
         imageView.addSubview(quitButton)
 
         desktopButton.title = DesktopSpaces.desk(for: card.id)?.title ?? "Desktop"
@@ -668,11 +656,13 @@ final class PreviewCardView: NSView {
         desktopButton.isBordered = false
         desktopButton.contentTintColor = .white
         desktopButton.wantsLayer = true
-        desktopButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
+        desktopButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.65).cgColor
         desktopButton.layer?.cornerRadius = 7
         desktopButton.target = self
         desktopButton.action = #selector(desktopPressed)
         desktopButton.translatesAutoresizingMaskIntoConstraints = false
+        desktopButton.alphaValue = 0
+        desktopButton.isHidden = DesktopSpaces.desks().count <= 1
         imageView.addSubview(desktopButton)
 
         snapButton.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Snap left or right")?
@@ -681,11 +671,12 @@ final class PreviewCardView: NSView {
         snapButton.bezelStyle = .circular
         snapButton.contentTintColor = .white
         snapButton.wantsLayer = true
-        snapButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.62).cgColor
-        snapButton.layer?.cornerRadius = 13
+        snapButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.65).cgColor
+        snapButton.layer?.cornerRadius = 10
         snapButton.target = self
         snapButton.action = #selector(snapPressed)
         snapButton.translatesAutoresizingMaskIntoConstraints = false
+        snapButton.alphaValue = 0
         addSubview(snapButton)
 
         shotButton.image = NSImage(systemSymbolName: "camera", accessibilityDescription: "Copy this window")?
@@ -694,11 +685,12 @@ final class PreviewCardView: NSView {
         shotButton.bezelStyle = .circular
         shotButton.contentTintColor = .white
         shotButton.wantsLayer = true
-        shotButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.62).cgColor
-        shotButton.layer?.cornerRadius = 13
+        shotButton.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.65).cgColor
+        shotButton.layer?.cornerRadius = 10
         shotButton.target = self
         shotButton.action = #selector(shotPressed)
         shotButton.translatesAutoresizingMaskIntoConstraints = false
+        shotButton.alphaValue = 0
         addSubview(shotButton)
 
         NSLayoutConstraint.activate([
@@ -723,20 +715,20 @@ final class PreviewCardView: NSView {
             underlineWidth,
             closeButton.topAnchor.constraint(equalTo: imageView.topAnchor, constant: 6),
             closeButton.trailingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: -6),
-            closeButton.widthAnchor.constraint(equalToConstant: 18),
-            closeButton.heightAnchor.constraint(equalToConstant: 18),
+            closeButton.widthAnchor.constraint(equalToConstant: 20),
+            closeButton.heightAnchor.constraint(equalToConstant: 20),
             minimizeButton.topAnchor.constraint(equalTo: imageView.topAnchor, constant: 6),
             minimizeButton.leadingAnchor.constraint(equalTo: imageView.leadingAnchor, constant: 6),
-            minimizeButton.widthAnchor.constraint(equalToConstant: 18),
-            minimizeButton.heightAnchor.constraint(equalToConstant: 18),
+            minimizeButton.widthAnchor.constraint(equalToConstant: 20),
+            minimizeButton.heightAnchor.constraint(equalToConstant: 20),
             snapButton.topAnchor.constraint(equalTo: imageView.topAnchor, constant: 6),
-            snapButton.leadingAnchor.constraint(equalTo: minimizeButton.trailingAnchor, constant: 8),
-            snapButton.widthAnchor.constraint(equalToConstant: 26),
-            snapButton.heightAnchor.constraint(equalToConstant: 26),
+            snapButton.leadingAnchor.constraint(equalTo: minimizeButton.trailingAnchor, constant: 6),
+            snapButton.widthAnchor.constraint(equalToConstant: 20),
+            snapButton.heightAnchor.constraint(equalToConstant: 20),
             shotButton.topAnchor.constraint(equalTo: imageView.topAnchor, constant: 6),
-            shotButton.leadingAnchor.constraint(equalTo: snapButton.trailingAnchor, constant: 8),
-            shotButton.widthAnchor.constraint(equalToConstant: 26),
-            shotButton.heightAnchor.constraint(equalToConstant: 26),
+            shotButton.leadingAnchor.constraint(equalTo: snapButton.trailingAnchor, constant: 6),
+            shotButton.widthAnchor.constraint(equalToConstant: 20),
+            shotButton.heightAnchor.constraint(equalToConstant: 20),
             quitButton.trailingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: -6),
             quitButton.bottomAnchor.constraint(equalTo: imageView.bottomAnchor, constant: -6),
             quitButton.heightAnchor.constraint(equalToConstant: 16),
@@ -752,6 +744,7 @@ final class PreviewCardView: NSView {
     required init?(coder: NSCoder) { nil }
 
     func setTitle(_ title: String) {
+        guard titleField.stringValue != title else { return }
         titleField.stringValue = title
         underlineWidth.constant = underlineWidth(for: title)
     }
@@ -763,6 +756,21 @@ final class PreviewCardView: NSView {
 
     func setDesktop(_ title: String) {
         desktopButton.title = title
+    }
+
+    func setScreenshot(_ image: CGImage) {
+        guard screenshot !== image else { return }
+        screenshot = image
+        // Preserve the previous pixels until the replacement exists, then blend once.
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            let fade = CATransition()
+            fade.type = .fade
+            fade.duration = 0.14
+            fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            imageView.layer?.add(fade, forKey: "screenshot")
+        }
+        imageView.image = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+        iconView.isHidden = true
     }
 
     func setScreenshot(_ image: NSImage) {
@@ -785,11 +793,11 @@ final class PreviewCardView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        applyHover(true, dimmed: false)
+        onPointerChanged?()
     }
 
     override func mouseExited(with event: NSEvent) {
-        applyHover(false, dimmed: false)
+        onPointerChanged?()
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -804,12 +812,12 @@ final class PreviewCardView: NSView {
         PreviewClickBox(
             id: id,
             bounds: frameOf(self),
-            close: frameOf(closeButton),
-            minimize: frameOf(minimizeButton),
-            quit: frameOf(quitButton),
-            desktop: frameOf(desktopButton),
-            snap: frameOf(snapButton),
-            shot: frameOf(shotButton)
+            close: closeButton.alphaValue > 0.05 ? frameOf(closeButton) : .zero,
+            minimize: minimizeButton.alphaValue > 0.05 ? frameOf(minimizeButton) : .zero,
+            quit: quitButton.alphaValue > 0.05 && !quitButton.isHidden ? frameOf(quitButton) : .zero,
+            desktop: desktopButton.alphaValue > 0.05 && !desktopButton.isHidden ? frameOf(desktopButton) : .zero,
+            snap: snapButton.alphaValue > 0.05 ? frameOf(snapButton) : .zero,
+            shot: shotButton.alphaValue > 0.05 ? frameOf(shotButton) : .zero
         )
     }
 
@@ -843,16 +851,8 @@ final class PreviewCardView: NSView {
 
     @discardableResult
     func performAction(atScreen point: NSPoint, frameOf: (NSView) -> NSRect) -> Bool {
-        guard frameOf(self).contains(point) else { return false }
-        return runAction {
-            if frameOf(self.snapButton).insetBy(dx: -4, dy: -4).contains(point) { self.onSnap?() }
-            else if frameOf(self.shotButton).insetBy(dx: -4, dy: -4).contains(point) { self.onShot?() }
-            else if frameOf(self.closeButton).insetBy(dx: -4, dy: -4).contains(point) { self.onClose?() }
-            else if frameOf(self.minimizeButton).insetBy(dx: -4, dy: -4).contains(point) { self.onMinimize?() }
-            else if frameOf(self.quitButton).insetBy(dx: -6, dy: -6).contains(point) { self.onQuit?() }
-            else if frameOf(self.desktopButton).insetBy(dx: -6, dy: -6).contains(point) { self.desktopPressed() }
-            else { self.onSelect?() }
-        }
+        guard let part = clickBox(id: windowID, frameOf: frameOf).part(at: point) else { return false }
+        return fire(part)
     }
 
     private func runAction(_ body: () -> Void) -> Bool {
@@ -864,7 +864,8 @@ final class PreviewCardView: NSView {
     }
 
     private func hits(_ button: NSView, local: NSPoint, pad: CGFloat) -> Bool {
-        button.bounds.insetBy(dx: -pad, dy: -pad).contains(button.convert(local, from: self))
+        guard !button.isHidden, button.alphaValue > 0.05 else { return false }
+        return button.bounds.insetBy(dx: -pad, dy: -pad).contains(button.convert(local, from: self))
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -949,12 +950,27 @@ final class PreviewCardView: NSView {
         self.hovered = hovered
         self.dimmed = dimmed
         guard changed else { return }
-        alphaValue = dimmed ? 0.82 : 1
-        imageView.layer?.borderWidth = hovered ? 2 : 1
-        imageView.layer?.borderColor = NSColor.white.withAlphaComponent(hovered ? 0.92 : 0.18).cgColor
+        // Hover changes the outline and controls, never the screenshot's brightness.
+        alphaValue = 1
+        imageView.layer?.borderWidth = 2
+        imageView.layer?.borderColor = NSColor.white.withAlphaComponent(hovered ? 0.95 : 0.18).cgColor
         layer?.shadowOpacity = 0
-        titleField.textColor = hovered ? .white : NSColor.white.withAlphaComponent(0.72)
+        titleField.textColor = hovered ? .white : NSColor.white.withAlphaComponent(0.75)
         titleField.font = .systemFont(ofSize: 12, weight: .medium)
-        underline.alphaValue = hovered ? 1 : 0
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.14
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            underline.animator().alphaValue = hovered ? 1 : 0
+            let btnAlpha: CGFloat = hovered ? 1.0 : 0.0
+            closeButton.animator().alphaValue = btnAlpha
+            minimizeButton.animator().alphaValue = btnAlpha
+            snapButton.animator().alphaValue = btnAlpha
+            shotButton.animator().alphaValue = btnAlpha
+            quitButton.animator().alphaValue = btnAlpha
+            if !desktopButton.isHidden {
+                desktopButton.animator().alphaValue = btnAlpha
+            }
+        }
     }
 }

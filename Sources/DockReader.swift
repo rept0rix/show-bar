@@ -2,10 +2,6 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
-enum DockEdge {
-    case left, right, bottom, top
-}
-
 struct DockIcon: Equatable {
     let id: String
     let title: String
@@ -104,7 +100,7 @@ enum DockReader {
     static func icons() -> [DockIcon] {
         guard AXIsProcessTrusted(),
               let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first else {
-            debugSummary = AXIsProcessTrusted() ? "Dock לא רץ" : "אין נגישות"
+            debugSummary = AXIsProcessTrusted() ? "Dock not running" : "No accessibility access"
             return []
         }
 
@@ -133,7 +129,7 @@ enum DockReader {
         var seen = Set<String>()
         let unique = icons.filter { seen.insert($0.id).inserted }
         debugSummary = unique.isEmpty
-            ? (notes.isEmpty ? "אין פריטי Dock" : notes.prefix(12).joined(separator: " · "))
+            ? (notes.isEmpty ? "No Dock items" : notes.prefix(12).joined(separator: " · "))
             : "\(unique.count)"
         return unique
     }
@@ -142,15 +138,14 @@ enum DockReader {
         let screens = NSScreen.screens.map { Coordinates.flip($0.frame) }
         guard let screen = screens.first(where: { $0.intersects(frame) }) else { return false }
         let hit = frame.intersection(screen)
-        guard hit.width > 1, hit.height > 1 else { return false }
-        return hit.width >= frame.width * 0.2 && hit.height >= frame.height * 0.2
+        guard hit.width > 2, hit.height > 2 else { return false }
+        return hit.width >= frame.width * 0.4 && hit.height >= frame.height * 0.4
     }
 
-    /// Auto-hidden Dock icons sit just off the screen edge. Icons at the far end of a long Dock do too.
+    /// Auto-hidden Dock icons sit off-screen.
+    /// They should ONLY be treated as hover targets when they are actually visible on screen.
     static func isHoverable(_ frame: CGRect) -> Bool {
-        if isOnScreen(frame) { return true }
-        let pads = NSScreen.screens.map { Coordinates.flip($0.frame).insetBy(dx: -160, dy: -160) }
-        return pads.contains { $0.intersects(frame) }
+        isOnScreen(frame)
     }
 
     static func edge(for icons: [DockIcon]) -> DockEdge {
@@ -172,20 +167,20 @@ enum DockReader {
     }
 
     static func hitFrame(_ frame: CGRect, edge: DockEdge) -> CGRect {
-        var rect = frame.insetBy(dx: -8, dy: -8)
+        var rect = frame.insetBy(dx: -4, dy: -4)
         switch edge {
         case .left:
             rect.origin.x = min(rect.origin.x, 0)
-            rect.size.width = max(rect.size.width + 48, 90)
+            rect.size.width = min(max(rect.size.width + 8, frame.width + 8), 75)
         case .right:
-            rect.origin.x -= 48
-            rect.size.width += 48
+            rect.origin.x = max(rect.origin.x - 8, rect.maxX - 75)
+            rect.size.width = max(rect.size.width, 48)
         case .bottom:
-            rect.origin.y -= 48
-            rect.size.height += 48
+            rect.origin.y = max(rect.origin.y - 8, rect.maxY - 75)
+            rect.size.height = max(rect.size.height, 48)
         case .top:
             rect.origin.y = min(rect.origin.y, 0)
-            rect.size.height = max(rect.size.height + 48, 90)
+            rect.size.height = min(max(rect.size.height + 8, frame.height + 8), 75)
         }
         return rect
     }

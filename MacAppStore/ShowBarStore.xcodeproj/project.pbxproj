@@ -41,8 +41,10 @@
 		BA7158F451A85D139C2386F0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7334740FEC4AFAE12AE9E5BB /* Assets.xcassets */; };
 		C0FF9B549E782710345653AF /* BridgeProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB3E38D65E883F7DA6791BB5 /* BridgeProtocol.swift */; };
 		C488949BF5D12BACCC751C36 /* VideoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DD43A56DB468707358A8B44 /* VideoEditor.swift */; };
+		C4BFA6DF034AE962AC66F0C9 /* PreviewInteraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E09C511BABD8D6EFBC9FFCF /* PreviewInteraction.swift */; };
 		D0F97DFF332577086A64A5AF /* WindowSnap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB291E911905222A0872EF1 /* WindowSnap.swift */; };
 		D37DD3CAC9F5C88AA06A261E /* RemoteBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 924D80C6B46D76A6165C2C83 /* RemoteBridge.swift */; };
+		E5232CC287E01C4E6FDEEA95 /* PreviewInteraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E09C511BABD8D6EFBC9FFCF /* PreviewInteraction.swift */; };
 		EB3DEF5013066AAC56D0FBB0 /* DesktopSpaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A889DA16869F73E2DB884E8 /* DesktopSpaces.swift */; };
 		ECC603EF17E13E77BB34573C /* PreviewPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982797167FF4B05B085F95F9 /* PreviewPanel.swift */; };
 		F0F6E030457AC8FC8C363DF8 /* BridgeKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58062CD3EAE28BEFEBFF18D0 /* BridgeKeychain.swift */; };
@@ -53,6 +55,7 @@
 
 /* Begin PBXFileReference section */
 		193E5E84FE91580EEBFC7D13 /* ShotShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShotShelf.swift; sourceTree = "<group>"; };
+		2E09C511BABD8D6EFBC9FFCF /* PreviewInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewInteraction.swift; sourceTree = "<group>"; };
 		2EE676386D6BC306A115E6E1 /* HoverController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverController.swift; sourceTree = "<group>"; };
 		35C84B35CD7811A0E9A4ABD8 /* BridgeTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeTransport.swift; sourceTree = "<group>"; };
 		3A52B94C9D94AA4F03E75331 /* ClipboardShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardShelf.swift; sourceTree = "<group>"; };
@@ -109,6 +112,14 @@
 			);
 			sourceTree = "<group>";
 		};
+		94022FBBC3231CF18F4FD280 /* PreviewSupport */ = {
+			isa = PBXGroup;
+			children = (
+				2E09C511BABD8D6EFBC9FFCF /* PreviewInteraction.swift */,
+			);
+			path = PreviewSupport;
+			sourceTree = "<group>";
+		};
 		BA22583F10EAB8BD367EBA57 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -128,6 +139,7 @@
 				902D6F4A3A45C0E2402C103A /* WindowCatalog.swift */,
 				9FB291E911905222A0872EF1 /* WindowSnap.swift */,
 				4A2AC4FD5EA1B5D86DEBE426 /* WindowSwitcher.swift */,
+				94022FBBC3231CF18F4FD280 /* PreviewSupport */,
 			);
 			name = Sources;
 			path = ../Sources;
@@ -246,6 +258,7 @@
 				A62135C4B7C68C3A73AE5E06 /* DesktopSpaces.swift in Sources */,
 				3B80A5E46C1F8E554F0B51AB /* DockReader.swift in Sources */,
 				52CE2EB8F1DB9DEB4B27D05B /* HoverController.swift in Sources */,
+				E5232CC287E01C4E6FDEEA95 /* PreviewInteraction.swift in Sources */,
 				ECC603EF17E13E77BB34573C /* PreviewPanel.swift in Sources */,
 				A89792E1E604661DED17E84C /* RemoteBridge.swift in Sources */,
 				A19427C00348225398334FC1 /* ShotShelf.swift in Sources */,
@@ -273,6 +286,7 @@
 				EB3DEF5013066AAC56D0FBB0 /* DesktopSpaces.swift in Sources */,
 				F5FF8E6DC4B433E2EB30C8D4 /* DockReader.swift in Sources */,
 				A44AE13D6129C660D35EADEF /* HoverController.swift in Sources */,
+				C4BFA6DF034AE962AC66F0C9 /* PreviewInteraction.swift in Sources */,
 				F4619A2F563642434ACB3952 /* PreviewPanel.swift in Sources */,
 				D37DD3CAC9F5C88AA06A261E /* RemoteBridge.swift in Sources */,
 				01A514C0D45C669C5B806C24 /* ShotShelf.swift in Sources */,
@@ -368,7 +382,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = CM9QNMLQMQ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -385,7 +399,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.0.2;
+				MARKETING_VERSION = 2.0.3;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.naoryanko.showbar;
@@ -433,7 +447,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = CM9QNMLQMQ;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -456,7 +470,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.0.2;
+				MARKETING_VERSION = 2.0.3;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

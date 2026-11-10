@@ -28,7 +28,7 @@ final class ThumbnailCache: @unchecked Sendable {
     private var cache: [CGWindowID: CGImage] = [:]
     private var order: [CGWindowID] = []
     private let lock = NSLock()
-    private let capacity = 16
+    private let capacity = 32
 
     func get(_ id: CGWindowID) -> CGImage? {
         lock.lock()
@@ -125,7 +125,7 @@ enum WindowCatalog {
             }
             return PreviewPreferences.limit(cards)
         }
-        return PreviewPreferences.limit(accessibilityWindows(pids: target.pids, appName: icon.title))
+        return []
     }
 
     static func appIcon(for icon: DockIcon) -> NSImage {
@@ -218,6 +218,7 @@ enum WindowCatalog {
         guard let content = try? await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false) else {
             return (cards, [])
         }
+        guard !Task.isCancelled else { return (cards, []) }
         let wanted = Set(cards.map(\.id))
         let windows = content.windows.filter { wanted.contains($0.windowID) }
         var titled = cards
@@ -242,7 +243,7 @@ enum WindowCatalog {
                 let window = pending.removeFirst()
                 group.addTask {
                     if Task.isCancelled { return nil }
-                    guard let image = try? await capture(window) else { return nil }
+                    guard let image = try? await capture(window), !Task.isCancelled else { return nil }
                     let thumbnail = Thumbnail(windowID: window.windowID, image: image)
                     ThumbnailCache.shared.set(window.windowID, image: image)
                     onThumbnail?(thumbnail)
@@ -266,7 +267,11 @@ enum WindowCatalog {
         WindowLayer.releaseStuck()
     }
 
+    private static var focusGeneration = UUID()
+
     static func focus(_ card: WindowCard) {
+        let generation = UUID()
+        focusGeneration = generation
         endReveal(committing: card)
         WindowLayer.releaseStuck()
 
@@ -280,38 +285,49 @@ enum WindowCatalog {
             AXUIElementSetAttributeValue(matched, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
         }
 
+        // Set the chosen window before activation so macOS does not select the app's
+        // previous window (and switch back to its desktop).
+        bringForward(matched, pid: card.pid, windowID: card.id)
         if let app = NSRunningApplication(processIdentifier: card.pid) {
             app.unhide()
-            _ = app.activate()
+            _ = app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            if let url = app.bundleURL {
+                let config = NSWorkspace.OpenConfiguration()
+                config.activates = true
+                config.promptsUserIfNeeded = false
+                NSWorkspace.shared.openApplication(at: url, configuration: config, completionHandler: nil)
+            }
         }
 
-        bringForward(matched, pid: card.pid)
+        bringForward(matched, pid: card.pid, windowID: card.id)
 
-        if let app = NSRunningApplication(processIdentifier: card.pid), let url = app.bundleURL {
-            let config = NSWorkspace.OpenConfiguration()
-            config.activates = true
-            config.promptsUserIfNeeded = false
-            NSWorkspace.shared.openApplication(at: url, configuration: config, completionHandler: nil)
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-            bringForward(matched ?? match(card), pid: card.pid)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            bringForward(matched ?? match(card), pid: card.pid)
+        for delay in [0.06, 0.18, 0.35] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard focusGeneration == generation else { return }
+                if let app = NSRunningApplication(processIdentifier: card.pid), !app.isActive {
+                    _ = app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+                }
+                bringForward(matched ?? match(card), pid: card.pid, windowID: card.id)
+            }
         }
     }
 
     /// Activating an app focuses whichever window it last used. This points it at the chosen one.
-    private static func bringForward(_ element: AXUIElement?, pid: pid_t) {
-        guard let element else { return }
-        AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+    private static func bringForward(_ element: AXUIElement?, pid: pid_t, windowID: CGWindowID = 0) {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, 0.2)
-        AXUIElementSetAttributeValue(app, kAXFocusedWindowAttribute as CFString, element)
-        AXUIElementPerformAction(element, kAXRaiseAction as CFString)
-        AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
-        AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+        if let element {
+            AXUIElementSetAttributeValue(element, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+            AXUIElementSetAttributeValue(app, kAXFocusedWindowAttribute as CFString, element)
+            AXUIElementSetAttributeValue(app, kAXMainWindowAttribute as CFString, element)
+            AXUIElementPerformAction(element, kAXRaiseAction as CFString)
+            AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
+            AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        }
+        if windowID != 0 {
+            WindowLayer.orderFront(windowID)
+        }
     }
 
     /// Shows the real window above other windows without activating its app.
@@ -411,7 +427,7 @@ enum WindowCatalog {
         let filter = SCContentFilter(desktopIndependentWindow: window)
         let config = SCStreamConfiguration()
         let aspect = window.frame.width / max(window.frame.height, 1)
-        let maxPixel: CGFloat = 512
+        let maxPixel: CGFloat = 640
         var width = maxPixel
         var height = maxPixel / max(aspect, 0.15)
         if height > maxPixel {
@@ -629,6 +645,13 @@ private enum WindowLayer {
         guard let connection = connectionID(),
               let set: @convention(c) (Int32, UInt32, Int32) -> Int32 = symbol("SLSSetWindowLevel") else { return }
         _ = set(connection, windowID, level)
+    }
+
+    static func orderFront(_ windowID: CGWindowID) {
+        guard windowID != 0,
+              let connection = connectionID(),
+              let order: @convention(c) (Int32, UInt32, Int32, UInt32) -> Int32 = symbol("SLSOrderWindow") else { return }
+        _ = order(connection, windowID, 1, 0)
     }
 
     /// A window left above normal level stays painted on top of every desktop.

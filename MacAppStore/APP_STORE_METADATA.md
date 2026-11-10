@@ -83,9 +83,8 @@ Show Bar is a native local macOS utility. The reviewer can test all features wit
 
 ## What's New in This Version (Release Notes)
 
-• Brand new interactive HUD desktop tour & permission setup guide with live action detection.
-• High-contrast frosted glass aesthetics and enlarged, tactile Apple controls.
-• Enhanced stability and responsiveness for live Dock window thumbnails with hover hysteresis.
-• Custom save folder options for screenshots.
-• Streamlined window snapping shortcuts and multi-monitor display handling.
-• Privacy and diagnostics improvements to ensure smooth first-time setup.
+• Smoother Dock window previews: faster opening and switching with a crossfade, a stable card order, and no thumbnail flashing.
+• Clicking a preview brings exactly that window forward without jumping to another desktop.
+• Clipboard history redesigned as a frosted-glass panel; press Esc to close it.
+• Command-Tab switcher and screenshot shelf share the same frosted-glass look.
+• Redesigned desktop tour with illustrated steps.

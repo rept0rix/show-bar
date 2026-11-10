@@ -13,6 +13,12 @@
 </p>
 
 <p align="center">
+  <a href="https://viberank.dev/apps/Show%20Bar" target="_blank" rel="noopener noreferrer">
+    <img src="https://viberank.dev/badge?app=Show%20Bar&theme=dark" alt="Show Bar on VibeRank" height="48" />
+  </a>
+</p>
+
+<p align="center">
   <img src="docs/hero.png" alt="Show Bar. Windows on the Dock, with the window under the pointer highlighted.">
 </p>
 
@@ -29,7 +35,7 @@ Show Bar is a macOS app by Naor Yanko. Mac Command-Tab shows apps. Show Bar show
 ## Download
 
 <!-- showbar:download -->
-Show Bar is for macOS 14 or later. The install disk is [Show Bar 2.0.2](https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg). Open it and drag Show Bar into Applications.
+Show Bar is for macOS 14 or later. The install disk is [Show Bar 2.0.3](https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg). Open it and drag Show Bar into Applications.
 <!-- /showbar:download -->
 
 Or install via **Homebrew**:
@@ -40,7 +46,7 @@ brew install --cask rept0rix/tap/show-bar
 
 Show Bar is not on the Mac App Store. Accessibility, Screen Recording, and Dock hover do not fit App Store rules.
 
-This build is signed for development. It opens on the Mac it was built for. Other Macs need a notarized Developer ID build.
+This build is signed with Developer ID and notarized by Apple, so it opens on any Mac running macOS 14 or later.
 
 ## Setup
 

@@ -75,8 +75,12 @@ final class ClipboardShelf: ObservableObject {
         let panel = window ?? makeWindow()
         window = panel
         panel.center()
-        panel.orderFrontRegardless()
+        panel.makeKeyAndOrderFront(nil)
         NotificationCenter.default.post(name: NSNotification.Name("ShowBar.clipboardOpened"), object: nil)
+    }
+
+    func close() {
+        window?.orderOut(nil)
     }
 
     func paste(id: String) {
@@ -225,19 +229,48 @@ final class ClipboardShelf: ObservableObject {
     }
 
     private func makeWindow() -> NSWindow {
+        let size = NSSize(width: 440, height: 520)
         let host = NSHostingView(rootView: ClipboardView(shelf: self))
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 520),
-            styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
+        if #available(macOS 13.0, *) {
+            host.sizingOptions = []
+        }
+        host.frame = NSRect(origin: .zero, size: size)
+        host.autoresizingMask = [.width, .height]
+
+        let root = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+        root.material = .hudWindow
+        root.blendingMode = .behindWindow
+        root.state = .active
+        root.isEmphasized = true
+        root.wantsLayer = true
+        root.autoresizingMask = [.width, .height]
+        root.layer?.backgroundColor = NSColor(srgbRed: 0.12, green: 0.15, blue: 0.24, alpha: 0.34).cgColor
+        root.layer?.cornerRadius = 22
+        root.layer?.cornerCurve = .continuous
+        root.layer?.masksToBounds = true
+        root.layer?.borderWidth = 1.2
+        root.layer?.borderColor = NSColor.white.withAlphaComponent(0.34).cgColor
+        root.addSubview(host)
+
+        let panel = ClipboardPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        panel.title = "Clipboard"
-        panel.level = .floating
+        panel.minSize = size
+        panel.maxSize = size
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.isMovableByWindowBackground = true
+        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.floatingWindow)) + 4)
         panel.hidesOnDeactivate = false
         panel.isFloatingPanel = true
-        panel.becomesKeyOnlyIfNeeded = true
-        panel.contentView = host
+        panel.becomesKeyOnlyIfNeeded = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.contentView = root
         panel.isReleasedWhenClosed = false
         return panel
     }
@@ -295,6 +328,19 @@ final class ClipboardShelf: ObservableObject {
     }
 }
 
+final class ClipboardPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { // Esc
+            ClipboardShelf.shared.close()
+            return
+        }
+        super.keyDown(with: event)
+    }
+}
+
 struct ClipboardView: View {
     @ObservedObject var shelf: ClipboardShelf
     @State private var query = ""
@@ -306,44 +352,152 @@ struct ClipboardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            TextField("Search copies", text: $query)
-                .textFieldStyle(.roundedBorder)
-            if shown.isEmpty {
-                Text(shelf.clips.isEmpty ? "Nothing copied yet." : "No matches.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(shown) { clip in
-                    HStack(spacing: 10) {
-                        Button {
-                            shelf.paste(id: clip.id.uuidString)
-                        } label: {
-                            row(clip)
-                        }
-                        .buttonStyle(.plain)
-                        Button {
-                            shelf.remove(clip)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Remove")
+        VStack(alignment: .leading, spacing: 12) {
+            // Custom iOS Glass Header Bar
+            HStack(spacing: 10) {
+                HStack(spacing: 7) {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                    Text("Clipboard History")
+                        .font(.system(size: 14.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                    if !shelf.clips.isEmpty {
+                        Text("\(shelf.clips.count)")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(Color.white.opacity(0.14), in: Capsule())
                     }
+                }
+                Spacer()
+                Button {
+                    shelf.close()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.88))
+                        .frame(width: 26, height: 26)
+                        .background(
+                            Circle()
+                                .fill(Color.white.opacity(0.16))
+                                .overlay(Circle().stroke(Color.white.opacity(0.24), lineWidth: 0.8))
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Circle())
+                .help("Close Clipboard (Esc)")
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.white.opacity(0.65))
+                TextField("Search clipboard history…", text: $query)
+                    .textFieldStyle(.plain)
+                    .foregroundStyle(.white)
+                if !query.isEmpty {
+                    Button {
+                        query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.white.opacity(0.24), lineWidth: 1)
+                    )
+            )
+
+            if shown.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.white.opacity(0.45))
+                    Text(shelf.clips.isEmpty ? "Nothing copied yet." : "No matches.")
+                        .foregroundStyle(.white.opacity(0.65))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVStack(spacing: 8) {
+                        ForEach(shown) { clip in
+                            HStack(spacing: 10) {
+                                Button {
+                                    shelf.paste(id: clip.id.uuidString)
+                                } label: {
+                                    row(clip)
+                                }
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    withAnimation(.easeOut(duration: 0.15)) {
+                                        shelf.remove(clip)
+                                    }
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(.white.opacity(0.82))
+                                        .frame(width: 26, height: 26)
+                                        .background(
+                                            Circle()
+                                                .fill(Color.white.opacity(0.14))
+                                                .overlay(Circle().stroke(Color.white.opacity(0.20), lineWidth: 0.8))
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .contentShape(Circle())
+                                .help("Remove item")
+                            }
+                            .padding(10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.white.opacity(0.10))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .stroke(
+                                                LinearGradient(
+                                                    colors: [Color.white.opacity(0.32), Color.white.opacity(0.10)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1
+                                            )
+                                    )
+                            )
+                        }
+                    }
+                    .padding(.trailing, 4)
                 }
             }
             HStack {
-                Text("Control-Option-V opens this list. A click pastes into the app you were using.")
+                Text("⌃⌥V opens Clipboard · Click any item to paste")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.68))
                 Spacer()
-                Button("Clear…") { shelf.clear() }
+                Button("Clear All…") { shelf.clear() }
+                    .buttonStyle(TourGlassButtonStyle())
                     .disabled(shelf.clips.isEmpty)
             }
         }
         .padding(16)
         .frame(width: 440, height: 520)
+        .background(alignment: .top) {
+            LinearGradient(
+                colors: [Color.white.opacity(0.18), Color.clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 75)
+        }
     }
 
     private func row(_ clip: Clip) -> some View {
@@ -356,15 +510,16 @@ struct ClipboardView: View {
             } else {
                 Image(systemName: clip.kind == .link ? "link" : "doc.text")
                     .frame(width: 28)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.75))
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(clip.text)
                     .lineLimit(2)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text(clip.date.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.60))
             }
         }
         .contentShape(Rectangle())

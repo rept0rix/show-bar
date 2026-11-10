@@ -6,6 +6,8 @@ let package = Package(
     platforms: [.macOS(.v14), .iOS(.v17)],
     targets: [
         .target(name: "CompanionProtocol", path: "Shared"),
-        .testTarget(name: "CompanionProtocolTests", dependencies: ["CompanionProtocol"], path: "Tests/CompanionProtocolTests")
+        .testTarget(name: "CompanionProtocolTests", dependencies: ["CompanionProtocol"], path: "Tests/CompanionProtocolTests"),
+        .target(name: "PreviewSupport", path: "Sources/PreviewSupport"),
+        .testTarget(name: "PreviewSupportTests", dependencies: ["PreviewSupport"], path: "Tests/PreviewSupportTests")
     ]
 )

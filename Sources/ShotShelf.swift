@@ -400,15 +400,17 @@ final class ShotShelf {
 
         let root = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
         root.material = .hudWindow
-        root.blendingMode = .withinWindow
+        root.blendingMode = .behindWindow
         root.state = .active
+        root.isEmphasized = true
         root.wantsLayer = true
         root.autoresizingMask = [.width, .height]
-        root.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.24).cgColor
+        root.layer?.backgroundColor = NSColor(srgbRed: 0.12, green: 0.15, blue: 0.24, alpha: 0.38).cgColor
         root.layer?.cornerRadius = ShotShelfStyle.panelRadius
+        root.layer?.cornerCurve = .continuous
         root.layer?.masksToBounds = true
-        root.layer?.borderWidth = 1
-        root.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+        root.layer?.borderWidth = 1.2
+        root.layer?.borderColor = NSColor.white.withAlphaComponent(0.32).cgColor
         let animatedKeys = Set(newImages.map { ObjectIdentifier($0) })
         var enteringViews: [(NSView, NSRect)] = []
 

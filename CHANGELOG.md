@@ -2,6 +2,20 @@
 
 Show Bar is a macOS app. It brings Windows features to the Mac.
 
+## 2.0.3
+
+- Smoother Dock window previews:
+  - Previews open after a short 180 ms pause and switch between apps in 90 ms, with a crossfade instead of a flash.
+  - Cards keep a stable order, so windows no longer shuffle under the pointer.
+  - Thumbnails are laid out at their final size first, so they no longer flash or get squeezed while switching apps.
+  - The last good Dock geometry is kept during Dock animations, and hidden (auto-hide) Dock icons are only targeted when visible.
+  - Sharper thumbnails (up to 640 px) and a larger preview cache.
+- Clicking a preview brings exactly that window forward, without jumping back to the app's previous window or desktop.
+- Clipboard history (⌃⌥V) redesigned as a frosted-glass panel with a header, item count, Esc to close, and Clear All.
+- Command-Tab switcher and screenshot shelf use the same frosted-glass look.
+- Desktop tour redesigned with illustrated steps and one consistent glass button style.
+- New automated tests for Dock preview behavior (`scripts/test-previews.sh`, `swift test`).
+
 ## 2.0.2
 
 - Interactive Desktop Tour & Permission Setup:

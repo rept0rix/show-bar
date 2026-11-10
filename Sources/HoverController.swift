@@ -16,6 +16,8 @@ final class HoverController: @unchecked Sendable {
     private var pendingID: String?
     private var shownID: String?
     private var emptyID: String?
+    private var emptyUntil = Date.distantPast
+    private var lastIconRead = Date.distantPast
     private var hoverTask: Task<Void, Never>?
     private var hideTask: Task<Void, Never>?
     private var watchTask: Task<Void, Never>?
@@ -28,9 +30,8 @@ final class HoverController: @unchecked Sendable {
 
     init() {
         panel.onSelect = { [weak self] card in
-            WindowCatalog.endReveal(committing: card)
+            self?.hideNow()
             WindowCatalog.focus(card)
-            DispatchQueue.main.async { self?.hideNow() }
         }
         panel.onClose = { [weak self] card in
             WindowCatalog.close(card)
@@ -167,7 +168,11 @@ final class HoverController: @unchecked Sendable {
     }
 
     private func loadIcons() {
-        icons = DockReader.icons()
+        lastIconRead = Date()
+        let latest = DockReader.icons()
+        // Dock animations can briefly return no AX children. Keep the last usable geometry.
+        guard !latest.isEmpty else { return }
+        icons = latest
         edge = DockReader.edge(for: icons)
         guard panel.isShown else {
             guard sawMouse, let icon = icon(at: lastPoint) else { return }
@@ -201,6 +206,7 @@ final class HoverController: @unchecked Sendable {
         let point = quartzMouse()
         for screen in NSScreen.screens {
             let frame = Coordinates.flip(screen.frame)
+            guard frame.contains(point) else { continue }
             if point.x - frame.minX < 24 || frame.maxX - point.x < 24 || point.y - frame.minY < 24 || frame.maxY - point.y < 24 {
                 return true
             }
@@ -300,8 +306,10 @@ final class HoverController: @unchecked Sendable {
         if point == lastPoint {
             if panel.pointerInside() {
                 panel.markCardUnderMouse()
+                return
             }
-            return
+            // Recheck stationary pointers after Dock auto-hide, a Space change, or an empty app.
+            if !engaged { return }
         }
         mouseMoved(to: point)
     }
@@ -309,7 +317,8 @@ final class HoverController: @unchecked Sendable {
     private func pointerNearDock(_ point: CGPoint) -> Bool {
         if mouseNearScreenEdge() { return true }
         let hoverable = icons.filter { DockReader.isHoverable($0.frame) }
-        return hoverable.contains { laneHit($0, among: hoverable).insetBy(dx: -24, dy: -24).contains(point) }
+        guard !hoverable.isEmpty else { return false }
+        return hoverable.contains { laneHit($0, among: hoverable).insetBy(dx: -8, dy: -8).contains(point) }
     }
 
     private func watchActivation() {
@@ -355,13 +364,18 @@ final class HoverController: @unchecked Sendable {
         sawMouse = true
         if panel.pointerOnPanel(point) {
             samplePreviewPinnedUntil = nil
+            cancelPendingHover()
             cancelHide()
             panel.markCardUnderMouse()
             return
         }
+        if pointerNearDock(point), Date().timeIntervalSince(lastIconRead) >= 0.12 {
+            if leaveDockAlone() { scheduleEdgeRefresh() }
+            else { loadIcons() }
+        }
         // A Dock icon beats the panel's slack margin, or a side Dock can never switch apps.
         if let icon = icon(at: point) {
-            cancelHide()
+            if icon.id != emptyID || Date() >= emptyUntil { cancelHide() }
             if let shownID, let current = icons.first(where: { $0.id == shownID }) {
                 panel.updateAnchor(current.frame, edge: edge)
             }
@@ -370,6 +384,7 @@ final class HoverController: @unchecked Sendable {
             return
         }
         emptyID = nil
+        cancelPendingHover()
         if panel.pointerInside() || panel.containsAX(point) || panel.approachContains(point) || bridgeContains(point) {
             cancelHide()
             panel.markCardUnderMouse()
@@ -379,7 +394,7 @@ final class HoverController: @unchecked Sendable {
     }
 
     private func consider(_ icon: DockIcon) {
-        if icon.id == emptyID {
+        if icon.id == emptyID, Date() < emptyUntil {
             if shownID != nil { scheduleHide() }
             return
         }
@@ -393,27 +408,23 @@ final class HoverController: @unchecked Sendable {
         if icon.id == pendingID { return }
         pendingID = icon.id
         hoverTask?.cancel()
-        if shownID != nil {
-            let iconID = icon.id
-            hoverTask = Task { [weak self] in
-                // Dwell threshold when switching apps on the Dock to prevent rapid flickering
-                try? await Task.sleep(nanoseconds: 160_000_000)
-                guard !Task.isCancelled else { return }
-                let controller = self
-                await MainActor.run {
-                    guard controller?.pendingID == iconID else { return }
-                    controller?.commitHover(id: iconID)
-                }
-            }
-            return
-        }
+        let delay = shownID == nil ? PreviewInteraction.openDelay : PreviewInteraction.switchDelay
         let iconID = icon.id
         hoverTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 110_000_000)
+            try? await Task.sleep(nanoseconds: delay)
             guard !Task.isCancelled else { return }
             let controller = self
-            await MainActor.run { controller?.commitHover(id: iconID) }
+            await MainActor.run {
+                guard controller?.pendingID == iconID else { return }
+                controller?.commitHover(id: iconID)
+            }
         }
+    }
+
+    private func cancelPendingHover() {
+        hoverTask?.cancel()
+        hoverTask = nil
+        pendingID = nil
     }
 
     private func commitHover(id: String) {
@@ -427,23 +438,19 @@ final class HoverController: @unchecked Sendable {
     }
 
     private func show(_ icon: DockIcon) {
-        watchTask?.cancel()
-        watchGeneration += 1
-        let generation = watchGeneration
-
         let cards = WindowCatalog.windows(for: icon)
         guard !cards.isEmpty else {
             emptyID = icon.id
+            emptyUntil = Date().addingTimeInterval(0.6)
             if shownID != nil { scheduleHide() }
             return
         }
+        watchTask?.cancel()
+        watchGeneration += 1
+        let generation = watchGeneration
         cancelHide()
         emptyID = nil
         DockAutohide.pin()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            guard let self, self.isRunning, self.panel.isShown else { return }
-            self.loadIcons()
-        }
         let iconImage = WindowCatalog.appIcon(for: icon)
         panel.present(cards: cards, anchor: icon.frame, edge: edge, appIcon: iconImage)
         panel.markCardUnderMouse()
@@ -472,29 +479,31 @@ final class HoverController: @unchecked Sendable {
                     controller?.panel.apply([thumbnail])
                 }
             }
-            if Task.isCancelled { return }
-            let titled = refresh.cards
+            guard !Task.isCancelled else { return }
+            current = refresh.cards
+            let titled = current
             await MainActor.run {
                 guard self.shownID == iconID, self.watchGeneration == generation else { return }
+                // Each image was already delivered above; applying the batch again restarts its fade.
                 self.panel.sync(cards: titled)
-                self.panel.apply(refresh.thumbnails)
             }
-            try? await Task.sleep(nanoseconds: 700_000_000)
-            if Task.isCancelled { return }
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            guard !Task.isCancelled else { return }
+            let previousIDs = current.map(\.id)
             let latest: [WindowCard]? = await MainActor.run {
-                guard self.shownID == iconID, self.watchGeneration == generation, let icon = self.icons.first(where: { $0.id == iconID }) else { return nil }
-                let cards = WindowCatalog.windows(for: icon).map { card in
-                    guard let previous = titled.first(where: { $0.id == card.id }),
-                          previous.title.count > card.title.count else { return card }
-                    return WindowCard(id: card.id, pid: card.pid, title: previous.title, frame: card.frame)
-                }
-                if cards.isEmpty {
-                    if !self.panel.pointerInside() { self.hideNow() }
+                guard self.shownID == iconID, self.watchGeneration == generation,
+                      let icon = self.icons.first(where: { $0.id == iconID }) else { return nil }
+                let cards = WindowCatalog.windows(for: icon)
+                guard !cards.isEmpty else {
+                    self.hideNow()
                     return nil
                 }
-                self.panel.sync(cards: cards)
-                self.panel.updateAnchor(icon.frame, edge: self.edge)
-                return cards
+                // Window Server z-order changes must not shuffle cards under the pointer.
+                let order = PreviewInteraction.stableOrder(cards.map(\.id), previous: previousIDs)
+                let byID = Dictionary(uniqueKeysWithValues: cards.map { ($0.id, $0) })
+                let ordered = order.compactMap { byID[$0] }
+                self.panel.sync(cards: ordered)
+                return ordered
             }
             guard let latest else { return }
             current = latest
@@ -519,92 +528,24 @@ final class HoverController: @unchecked Sendable {
 
     private func icon(at point: CGPoint) -> DockIcon? {
         let hoverable = icons.filter { DockReader.isHoverable($0.frame) }
-        // Sticky hysteresis for currently shown icon to eliminate magnification jitter:
-        if let shownID, let current = hoverable.first(where: { $0.id == shownID }) {
-            let stickyBounds: CGRect
-            switch edge {
-            case .left, .right:
-                stickyBounds = current.frame.insetBy(dx: -24, dy: -14)
-            case .bottom, .top:
-                stickyBounds = current.frame.insetBy(dx: -14, dy: -24)
-            }
-            if stickyBounds.contains(point) {
-                return current
-            }
-        }
-        let hits = hoverable.filter { laneHit($0, among: hoverable).contains(point) }
-        switch edge {
-        case .left, .right:
-            return hits.min { abs($0.frame.midY - point.y) < abs($1.frame.midY - point.y) }
-        case .bottom, .top:
-            return hits.min { abs($0.frame.midX - point.x) < abs($1.frame.midX - point.x) }
-        }
+        let index = PreviewInteraction.target(
+            at: point,
+            frames: hoverable.map(\.frame),
+            lanes: hoverable.map { laneHit($0, among: hoverable) },
+            current: hoverable.firstIndex { $0.id == shownID },
+            edge: edge
+        )
+        return index.map { hoverable[$0] }
     }
 
-    /// Each icon owns the Dock up to the midpoint of its neighbors, and outer edges stay close to the icon.
     private func laneHit(_ icon: DockIcon, among icons: [DockIcon]) -> CGRect {
         let screen = Coordinates.screen(containing: Coordinates.flip(icon.frame)) ?? NSScreen.main
         let screenFrame = Coordinates.flip(screen?.frame ?? CGRect(x: 0, y: 0, width: 1440, height: 900))
-        var rect = icon.frame
-        switch edge {
-        case .left:
-            rect.origin.x = screenFrame.minX
-            rect.size.width = max(icon.frame.maxX - screenFrame.minX + 36, 90)
-
-            let above = icons.filter { $0.frame.midY < icon.frame.midY }.max(by: { $0.frame.midY < $1.frame.midY })
-            let below = icons.filter { $0.frame.midY > icon.frame.midY }.min(by: { $0.frame.midY < $1.frame.midY })
-
-            let top = above.map { ($0.frame.midY + icon.frame.midY) / 2 } ?? (icon.frame.minY - 24)
-            let bottom = below.map { ($0.frame.midY + icon.frame.midY) / 2 } ?? (icon.frame.maxY + 24)
-
-            rect.origin.y = top
-            rect.size.height = max(bottom - top, 1)
-
-        case .right:
-            rect.origin.x = min(icon.frame.minX - 36, screenFrame.maxX - 90)
-            rect.size.width = screenFrame.maxX - rect.origin.x
-
-            let above = icons.filter { $0.frame.midY < icon.frame.midY }.max(by: { $0.frame.midY < $1.frame.midY })
-            let below = icons.filter { $0.frame.midY > icon.frame.midY }.min(by: { $0.frame.midY < $1.frame.midY })
-
-            let top = above.map { ($0.frame.midY + icon.frame.midY) / 2 } ?? (icon.frame.minY - 24)
-            let bottom = below.map { ($0.frame.midY + icon.frame.midY) / 2 } ?? (icon.frame.maxY + 24)
-
-            rect.origin.y = top
-            rect.size.height = max(bottom - top, 1)
-
-        case .bottom:
-            rect.origin.y = min(icon.frame.minY - 36, screenFrame.maxY - 90)
-            rect.size.height = screenFrame.maxY - rect.origin.y
-
-            let before = icons.filter { $0.frame.midX < icon.frame.midX }.max(by: { $0.frame.midX < $1.frame.midX })
-            let after = icons.filter { $0.frame.midX > icon.frame.midX }.min(by: { $0.frame.midX < $1.frame.midX })
-
-            let left = before.map { ($0.frame.midX + icon.frame.midX) / 2 } ?? (icon.frame.minX - 24)
-            let right = after.map { ($0.frame.midX + icon.frame.midX) / 2 } ?? (icon.frame.maxX + 24)
-
-            rect.origin.x = left
-            rect.size.width = max(right - left, 1)
-
-        case .top:
-            rect.origin.y = screenFrame.minY
-            rect.size.height = max(icon.frame.maxY - screenFrame.minY + 36, 90)
-
-            let before = icons.filter { $0.frame.midX < icon.frame.midX }.max(by: { $0.frame.midX < $1.frame.midX })
-            let after = icons.filter { $0.frame.midX > icon.frame.midX }.min(by: { $0.frame.midX < $1.frame.midX })
-
-            let left = before.map { ($0.frame.midX + icon.frame.midX) / 2 } ?? (icon.frame.minX - 24)
-            let right = after.map { ($0.frame.midX + icon.frame.midX) / 2 } ?? (icon.frame.maxX + 24)
-
-            rect.origin.x = left
-            rect.size.width = max(right - left, 1)
-        }
-        return rect
+        return PreviewInteraction.lane(for: icon.frame, neighbors: icons.map(\.frame), screen: screenFrame, edge: edge)
     }
 
     private func bridgeContains(_ point: CGPoint) -> Bool {
-        guard panel.isShown, let shownID, let icon = icons.first(where: { $0.id == shownID }) else { return false }
-        return icon.frame.union(panel.frameAX).insetBy(dx: -16, dy: -16).contains(point)
+        panel.approachContains(point)
     }
 
     private func scheduleHide() {
@@ -613,7 +554,7 @@ final class HoverController: @unchecked Sendable {
             return
         }
         hideTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 420_000_000)
+            try? await Task.sleep(nanoseconds: PreviewInteraction.closeDelay)
             guard !Task.isCancelled else { return }
             let controller = self
             await MainActor.run { controller?.hideIfStillOutside() }
@@ -625,7 +566,12 @@ final class HoverController: @unchecked Sendable {
         if let until = samplePreviewPinnedUntil, Date() < until {
             return
         }
-        if panel.pointerInside() || icon(at: quartzMouse()) != nil || panel.containsAX(quartzMouse()) || bridgeContains(quartzMouse()) {
+        let mouse = quartzMouse()
+        if let target = icon(at: mouse), target.id == emptyID {
+            hideNow()
+            return
+        }
+        if panel.pointerInside() || icon(at: mouse) != nil || panel.containsAX(mouse) || bridgeContains(mouse) {
             panel.markCardUnderMouse()
             return
         }

@@ -192,123 +192,104 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         populateMenu(menu)
     }
 
+    private func menuIcon(_ symbol: String, tint: NSColor? = nil) -> NSImage? {
+        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
+        guard let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config) else {
+            return nil
+        }
+        if let tint {
+            let tinted = NSImage(size: image.size, flipped: false) { rect in
+                image.draw(in: rect)
+                tint.set()
+                rect.fill(using: .sourceAtop)
+                return true
+            }
+            tinted.isTemplate = false
+            return tinted
+        }
+        image.isTemplate = true
+        return image
+    }
+
     private func populateMenu(_ menu: NSMenu) {
         menu.removeAllItems()
         if let version = offeredUpdate {
             menu.addItem(updateButtonItem(version))
             menu.addItem(.separator())
         }
-        let version = NSMenuItem(title: "Version \(ShowBarSupport.version)", action: nil, keyEquivalent: "")
-        version.isEnabled = false
-        menu.addItem(version)
 
-        let onboardingItem = NSMenuItem(title: "Interactive Desktop Tour…", action: #selector(openOnboarding), keyEquivalent: "")
-        onboardingItem.target = self
-        menu.addItem(onboardingItem)
+        let header = NSMenuItem(title: "Show Bar  v\(ShowBarSupport.version)", action: nil, keyEquivalent: "")
+        header.image = menuIcon("sparkles.rectangle.stack")
+        header.isEnabled = false
+        menu.addItem(header)
+
+        let accessibilityOn = AXIsProcessTrusted()
+        let screenOn = CGPreflightScreenCaptureAccess()
+        if !accessibilityOn || !screenOn {
+            let permsItem = NSMenuItem(
+                title: "Grant Required Permissions…",
+                action: #selector(openPermissions),
+                keyEquivalent: ""
+            )
+            permsItem.target = self
+            permsItem.image = menuIcon("exclamationmark.shield.fill", tint: .systemOrange)
+            menu.addItem(permsItem)
+        }
         menu.addItem(.separator())
 
         let previewsItem = NSMenuItem(
-            title: previewsAreEnabled ? "Window previews" : "Window previews (off)",
+            title: "Window Previews",
             action: #selector(togglePreviews),
             keyEquivalent: ""
         )
         previewsItem.target = self
         previewsItem.state = previewsAreEnabled ? .on : .off
+        previewsItem.image = menuIcon("macwindow.on.rectangle")
         menu.addItem(previewsItem)
 
         let cmdTabItem = NSMenuItem(
-            title: commandTabIsEnabled ? "Command-Tab switcher" : "Command-Tab switcher (off)",
+            title: "Command-Tab Switcher",
             action: #selector(toggleCommandTab),
             keyEquivalent: ""
         )
         cmdTabItem.target = self
         cmdTabItem.state = commandTabIsEnabled ? .on : .off
+        cmdTabItem.image = menuIcon("command.square")
         menu.addItem(cmdTabItem)
 
-        let accessibilityOn = AXIsProcessTrusted()
-        let screenOn = CGPreflightScreenCaptureAccess()
-        addStatusItem(
-            menu,
-            title: accessibilityOn ? "Accessibility: Working" : "Accessibility: Not working",
-            ok: accessibilityOn,
-            action: #selector(fixAccessibility)
-        )
-        addStatusItem(
-            menu,
-            title: screenOn ? "Screen Recording: Working" : "Screen Recording: Not working",
-            ok: screenOn,
-            action: #selector(fixScreenRecording)
-        )
-        let ready = accessibilityOn && screenOn && hover.iconCount > 0
-        addStatusItem(
-            menu,
-            title: ready ? "Status: Ready" : "Status: Not ready",
-            ok: ready,
-            action: #selector(openPermissions)
-        )
-        if accessibilityOn {
-            let dock = NSMenuItem(title: "Dock icons: \(hover.iconCount)", action: nil, keyEquivalent: "")
-            dock.isEnabled = false
-            menu.addItem(dock)
-        }
         menu.addItem(.separator())
 
-        let tourItem = NSMenuItem(title: "Interactive Tour & Guide…", action: #selector(openOnboarding), keyEquivalent: "")
-        tourItem.target = self
-        menu.addItem(tourItem)
-
-        let settings = NSMenuItem(title: "Settings…", action: #selector(openPermissions), keyEquivalent: ",")
-        settings.target = self
-        menu.addItem(settings)
-
-        let preview = NSMenuItem(title: "Show a preview now", action: #selector(showSample), keyEquivalent: "p")
-        preview.target = self
-        menu.addItem(preview)
-
-        let resetSwitcher = NSMenuItem(title: "Reset Command-Tab", action: #selector(resetCommandTab), keyEquivalent: "")
-        resetSwitcher.target = self
-        menu.addItem(resetSwitcher)
-
-        let snap = NSMenuItem(title: "Snap window", action: nil, keyEquivalent: "")
-        let snapMenu = NSMenu()
-        for zone in SnapZone.allCases {
-            let item = NSMenuItem(title: zone.title, action: #selector(snapFront(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = zone.rawValue
-            snapMenu.addItem(item)
-        }
-        snap.submenu = snapMenu
-        menu.addItem(snap)
-
         let shot = NSMenuItem(title: "Screenshot", action: nil, keyEquivalent: "")
+        shot.image = menuIcon("camera.viewfinder")
         let shotMenu = NSMenu()
-        let thisItem = NSMenuItem(title: "Copy this screen    ⌘⇧3", action: #selector(copyThisScreen), keyEquivalent: "")
+        let thisItem = NSMenuItem(title: "Copy This Screen    ⌘⇧3", action: #selector(copyThisScreen), keyEquivalent: "")
         thisItem.target = self
+        thisItem.image = menuIcon("display")
         shotMenu.addItem(thisItem)
         if NSScreen.screens.count > 1 {
-            let allItem = NSMenuItem(title: "Copy every screen", action: #selector(copyAllScreens), keyEquivalent: "")
+            let allItem = NSMenuItem(title: "Copy Every Screen", action: #selector(copyAllScreens), keyEquivalent: "")
             allItem.target = self
+            allItem.image = menuIcon("rectangle.on.rectangle")
             shotMenu.addItem(allItem)
         }
-        let area = NSMenuItem(title: "Copy selection    ⌘⇧4", action: #selector(copySelection), keyEquivalent: "")
+        let area = NSMenuItem(title: "Copy Selection    ⌘⇧4", action: #selector(copySelection), keyEquivalent: "")
         area.target = self
+        area.image = menuIcon("rectangle.dashed")
         shotMenu.addItem(area)
         shot.submenu = shotMenu
         menu.addItem(shot)
 
-        let video = NSMenuItem(title: "Screen Recording", action: nil, keyEquivalent: "")
-        let videoMenu = NSMenu()
         let isRec = VideoRecorder.shared.isRecording
-        let recTitle = isRec ? "Stop Recording" : "Record Screen"
+        let recTitle = isRec ? "Stop Screen Recording" : "Record Screen"
         let recItem = NSMenuItem(title: recTitle, action: #selector(toggleScreenRecording), keyEquivalent: "")
         recItem.target = self
-        videoMenu.addItem(recItem)
-        video.submenu = videoMenu
-        menu.addItem(video)
+        recItem.image = menuIcon(isRec ? "stop.circle.fill" : "record.circle", tint: isRec ? .systemRed : nil)
+        menu.addItem(recItem)
 
-        let clips = NSMenuItem(title: "Clipboard", action: nil, keyEquivalent: "")
+        let clips = NSMenuItem(title: "Clipboard History", action: nil, keyEquivalent: "")
+        clips.image = menuIcon("doc.on.clipboard")
         let clipMenu = NSMenu()
-        let recent = Array(ClipboardShelf.shared.clips.prefix(8))
+        let recent = Array(ClipboardShelf.shared.clips.prefix(6))
         if recent.isEmpty {
             let empty = NSMenuItem(title: "Nothing copied yet", action: nil, keyEquivalent: "")
             empty.isEnabled = false
@@ -318,37 +299,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
                 let item = NSMenuItem(title: ClipboardShelf.shared.menuTitle(for: clip), action: #selector(pasteClip(_:)), keyEquivalent: "")
                 item.target = self
                 item.representedObject = clip.id.uuidString
+                item.image = menuIcon(clip.kind == .image ? "photo" : (clip.kind == .link ? "link" : "doc.text"))
                 clipMenu.addItem(item)
             }
         }
         clipMenu.addItem(.separator())
-        let history = NSMenuItem(title: "Show history    ⌃⌥V", action: #selector(showClipboard), keyEquivalent: "")
+        let history = NSMenuItem(title: "Open Clipboard Shelf    ⌃⌥V", action: #selector(showClipboard), keyEquivalent: "")
         history.target = self
+        history.image = menuIcon("clock.arrow.circlepath")
         clipMenu.addItem(history)
         clips.submenu = clipMenu
         menu.addItem(clips)
 
-        let donate = NSMenuItem(title: "Donate", action: #selector(openDonate), keyEquivalent: "")
-        donate.target = self
-        menu.addItem(donate)
+        let snap = NSMenuItem(title: "Snap Window", action: nil, keyEquivalent: "")
+        snap.image = menuIcon("rectangle.split.2x1")
+        let snapMenu = NSMenu()
+        for zone in SnapZone.allCases {
+            let item = NSMenuItem(title: zone.title, action: #selector(snapFront(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = zone.rawValue
+            item.image = menuIcon("macwindow")
+            snapMenu.addItem(item)
+        }
+        snap.submenu = snapMenu
+        menu.addItem(snap)
 
-        let login = NSMenuItem(title: "Launch at login", action: #selector(toggleLoginItem), keyEquivalent: "")
+        menu.addItem(.separator())
+
+        let tourItem = NSMenuItem(title: "Interactive Desktop Tour…", action: #selector(openOnboarding), keyEquivalent: "")
+        tourItem.target = self
+        tourItem.image = menuIcon("sparkles")
+        menu.addItem(tourItem)
+
+        let settings = NSMenuItem(title: "Settings…", action: #selector(openPermissions), keyEquivalent: ",")
+        settings.target = self
+        settings.image = menuIcon("gearshape")
+        menu.addItem(settings)
+
+        let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLoginItem), keyEquivalent: "")
         login.target = self
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        login.image = menuIcon("power")
         menu.addItem(login)
-
-        let dockTip = NSMenuItem(title: "Keep the Dock icon…", action: #selector(explainDockIcon), keyEquivalent: "")
-        dockTip.target = self
-        menu.addItem(dockTip)
 
         let updates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
         updates.target = self
+        updates.image = menuIcon("arrow.triangle.2.circlepath")
         menu.addItem(updates)
 
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit Show Bar", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
+        quit.image = menuIcon("xmark.circle")
         menu.addItem(quit)
         statusItem.button?.appearsDisabled = !previewsAreEnabled && !commandTabIsEnabled
     }
@@ -679,13 +682,29 @@ final class DesktopTourWindow: NSPanel {
         permissionsModel = model
 
         let screen = NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
-        let hudWidth: CGFloat = min(880, screen.visibleFrame.width - 40)
-        let hudHeight: CGFloat = 410
+        let hudWidth: CGFloat = min(860, screen.visibleFrame.width - 40)
+        let hudHeight: CGFloat = 360
         let hudX = screen.visibleFrame.minX + (screen.visibleFrame.width - hudWidth) / 2
-        let hudY = screen.visibleFrame.maxY - hudHeight - 16
+        let hudY = screen.visibleFrame.maxY - hudHeight - 18
         let windowRect = NSRect(x: hudX, y: hudY, width: hudWidth, height: hudHeight)
 
         let window = DesktopTourWindow(contentRect: windowRect)
+        window.minSize = windowRect.size
+        window.maxSize = windowRect.size
+
+        let root = NSVisualEffectView(frame: NSRect(origin: .zero, size: windowRect.size))
+        root.material = .hudWindow
+        root.blendingMode = .behindWindow
+        root.state = .active
+        root.isEmphasized = true
+        root.wantsLayer = true
+        root.autoresizingMask = [.width, .height]
+        root.layer?.backgroundColor = NSColor(srgbRed: 0.12, green: 0.15, blue: 0.24, alpha: 0.34).cgColor
+        root.layer?.cornerRadius = 24
+        root.layer?.cornerCurve = .continuous
+        root.layer?.masksToBounds = true
+        root.layer?.borderWidth = 1.2
+        root.layer?.borderColor = NSColor.white.withAlphaComponent(0.34).cgColor
 
         let hostingView = NSHostingView(rootView: DesktopTourOverlayView(
             model: model,
@@ -698,9 +717,13 @@ final class DesktopTourWindow: NSPanel {
                 self?.showPermissions()
             }
         ))
+        if #available(macOS 13.0, *) {
+            hostingView.sizingOptions = []
+        }
         hostingView.frame = NSRect(origin: .zero, size: windowRect.size)
         hostingView.autoresizingMask = [.width, .height]
-        window.contentView = hostingView
+        root.addSubview(hostingView)
+        window.contentView = root
         window.delegate = self
         onboardingWindow = window
         window.makeKeyAndOrderFront(nil)
@@ -729,20 +752,37 @@ final class DesktopTourWindow: NSPanel {
             onDonate: { AppDelegate.shared.openDonate() }
         ))
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 540, height: 600),
-            styleMask: [.titled, .closable],
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 620),
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "Show Bar Settings & Guide"
-        window.contentView = host
-        window.isReleasedWhenClosed = false
-        window.delegate = self
+        window.titlebarAppearsTransparent = true
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.isMovableByWindowBackground = true
+        window.appearance = NSAppearance(named: .darkAqua)
         host.layoutSubtreeIfNeeded()
         let fitted = host.fittingSize
         let screenHeight = (window.screen ?? NSScreen.main)?.visibleFrame.height ?? 800
-        let height = min(max(fitted.height, 580), screenHeight - 48)
-        window.setContentSize(NSSize(width: 540, height: height))
+        let height = min(max(fitted.height, 600), screenHeight - 48)
+        let size = NSSize(width: 560, height: height)
+        let root = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+        root.material = .hudWindow
+        root.blendingMode = .behindWindow
+        root.state = .active
+        root.isEmphasized = true
+        root.wantsLayer = true
+        root.autoresizingMask = [.width, .height]
+        root.layer?.backgroundColor = NSColor(srgbRed: 0.12, green: 0.15, blue: 0.24, alpha: 0.34).cgColor
+        host.frame = NSRect(origin: .zero, size: size)
+        host.autoresizingMask = [.width, .height]
+        root.addSubview(host)
+        window.contentView = root
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.setContentSize(size)
         window.center()
         permissionsWindow = window
         window.makeKeyAndOrderFront(nil)
@@ -918,7 +958,7 @@ enum ShowBarSupport {
     static let adURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
 
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.0.2" // showbar-version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.0.3" // showbar-version
     }
 }
 
@@ -1060,6 +1100,26 @@ private struct BuyCoffeeButton: View {
     }
 }
 
+struct GlassVisualEffectView: NSViewRepresentable {
+    var material: NSVisualEffectView.Material = .hudWindow
+    var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .active
+        view.isEmphasized = true
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
+        nsView.state = .active
+    }
+}
+
 struct PermissionsView: View {
     @ObservedObject var model: PermissionsModel
     var onAccessibility: () -> Void
@@ -1096,16 +1156,20 @@ struct PermissionsView: View {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .frame(width: 54, height: 54)
+                    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         Text("Show Bar")
                             .font(.title2.weight(.bold))
+                            .foregroundStyle(.white)
                         Text("v\(ShowBarSupport.version)")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.secondary.opacity(0.12), in: Capsule())
+                            .foregroundStyle(.white.opacity(0.8))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2.5)
+                            .background(Color.white.opacity(0.14), in: Capsule())
+                            .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 0.8))
                     }
                     Text(readyText)
                         .font(.subheadline.weight(.semibold))
@@ -1116,10 +1180,26 @@ struct PermissionsView: View {
                     Button("Show a preview now") {
                         previewNote = onPreview() ?? "Preview is open. Move pointer away to close."
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(TourGlassButtonStyle())
                     BuyCoffeeButton(action: onDonate)
                 }
             }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.35), Color.white.opacity(0.10)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+            )
 
             if !model.allGranted {
                 HStack(spacing: 12) {
@@ -1142,8 +1222,9 @@ struct PermissionsView: View {
                         .controlSize(.small)
                     }
                 }
-                .padding(10)
-                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .padding(12)
+                .background(Color.orange.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.orange.opacity(0.35), lineWidth: 1))
             }
 
             if !previewNote.isEmpty {
@@ -1171,10 +1252,36 @@ struct PermissionsView: View {
                 case .app: appPage
                 }
             }
+            .padding(14)
             .frame(maxWidth: .infinity, minHeight: 310, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.28), Color.white.opacity(0.08)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+            )
         }
-        .padding(22)
-        .frame(width: 540)
+        .padding(.horizontal, 22)
+        .padding(.top, 32)
+        .padding(.bottom, 22)
+        .frame(width: 560)
+        .background(alignment: .top) {
+            LinearGradient(
+                colors: [Color.white.opacity(0.18), Color.clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 85)
+        }
         .sheet(isPresented: $showRatePrompt) {
             RatePrompt(onFinish: { showRatePrompt = false })
         }
@@ -1504,8 +1611,15 @@ struct PermissionsView: View {
                     .foregroundStyle(.blue)
             }
         }
-        .padding(10)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(11)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                )
+        )
     }
 
     private var permissionsPage: some View {
@@ -1519,12 +1633,19 @@ struct PermissionsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)
-            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                    )
+            )
 
             permissionCard(
                 icon: "accessibility",
                 iconColor: .blue,
-                title: "1. Accessibility (נגישות)",
+                title: "1. Accessibility",
                 detail: model.accessibility
                     ? "Active ✓. Dock icons found: \(model.dockCount). Window hover & snapping ready."
                     : "Allows Show Bar to detect when you hover over Dock icons, snap windows, and switch apps.",
@@ -1536,7 +1657,7 @@ struct PermissionsView: View {
             permissionCard(
                 icon: "record.circle",
                 iconColor: .purple,
-                title: "2. Screen Recording (הקלטת מסך)",
+                title: "2. Screen Recording",
                 detail: model.screen
                     ? "Active ✓. Live window thumbnail previews are enabled."
                     : "Allows Show Bar to draw live thumbnail previews of windows and save screenshots to the shelf. All rendering is 100% on-device.",
@@ -1813,32 +1934,23 @@ struct KeyComboView: View {
     }
 }
 
-// MARK: - Custom Tour Button Styles
+// MARK: - Unified iOS Glass Tour Button Styles (Single Consistent Palette)
 struct TourPrimaryButtonStyle: ButtonStyle {
     var isEnabled: Bool = true
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 14.5, weight: .bold, design: .rounded))
-            .foregroundStyle(Color.white)
-            .padding(.horizontal, 20)
-            .frame(height: 40)
+            .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+            .foregroundStyle(Color.white.opacity(isEnabled ? 0.96 : 0.50))
+            .padding(.horizontal, 18)
+            .frame(height: 38)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                Capsule()
                     .fill(
-                        isEnabled ?
                         LinearGradient(
                             colors: [
-                                Color(red: 0.16, green: 0.54, blue: 1.0),
-                                Color(red: 0.06, green: 0.38, blue: 0.92)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ) :
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.18),
-                                Color.white.opacity(0.12)
+                                Color.white.opacity(configuration.isPressed ? 0.30 : 0.22),
+                                Color.white.opacity(configuration.isPressed ? 0.20 : 0.12)
                             ],
                             startPoint: .top,
                             endPoint: .bottom
@@ -1846,71 +1958,74 @@ struct TourPrimaryButtonStyle: ButtonStyle {
                     )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                Capsule()
                     .stroke(
                         LinearGradient(
-                            colors: [Color.white.opacity(0.40), Color.white.opacity(0.10)],
+                            colors: [Color.white.opacity(0.50), Color.white.opacity(0.18)],
                             startPoint: .top,
                             endPoint: .bottom
                         ),
                         lineWidth: 1
                     )
             )
-            .shadow(
-                color: isEnabled ? Color(red: 0.06, green: 0.38, blue: 0.92).opacity(0.45) : .clear,
-                radius: 8,
-                x: 0,
-                y: 3
-            )
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
     }
 }
 
 struct TourActionButtonStyle: ButtonStyle {
-    var accentColor: Color = Color.blue
+    var accentColor: Color = .white
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 14, weight: .bold))
-            .foregroundStyle(.white)
+            .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+            .foregroundStyle(Color.white.opacity(0.95))
             .padding(.horizontal, 16)
-            .frame(height: 38)
+            .frame(height: 36)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [accentColor.opacity(0.9), accentColor.opacity(0.7)],
+                            colors: [
+                                Color.white.opacity(configuration.isPressed ? 0.28 : 0.20),
+                                Color.white.opacity(configuration.isPressed ? 0.18 : 0.11)
+                            ],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.white.opacity(0.35), lineWidth: 1)
+                Capsule()
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.45), Color.white.opacity(0.16)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
             )
-            .shadow(color: accentColor.opacity(0.35), radius: 6, x: 0, y: 2)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
     }
 }
 
 struct TourGlassButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Color.white.opacity(0.90))
+            .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+            .foregroundStyle(Color.white.opacity(0.92))
             .padding(.horizontal, 14)
-            .frame(height: 34)
+            .frame(height: 32)
             .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.white.opacity(configuration.isPressed ? 0.22 : 0.14))
+                Capsule()
+                    .fill(Color.white.opacity(configuration.isPressed ? 0.24 : 0.14))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                Capsule()
+                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
             )
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
     }
 }
 
@@ -1931,8 +2046,9 @@ struct DesktopTourOverlayView: View {
     @State private var hasDockHover = false
     @State private var dockApp = ""
     @State private var samplePreviewActive = false
+    @State private var hasUsedCommandTab = false
 
-    private let totalSteps = 6
+    private let totalSteps = 7
 
     var body: some View {
         VStack(spacing: 12) {
@@ -1941,8 +2057,8 @@ struct DesktopTourOverlayView: View {
                 HStack(spacing: 6) {
                     ForEach(0..<totalSteps, id: \.self) { i in
                         Capsule()
-                            .fill(i == step ? Color(red: 0.18, green: 0.54, blue: 1.0) : (i < step ? Color.green : Color.white.opacity(0.25)))
-                            .frame(width: i == step ? 28 : 8, height: 6)
+                            .fill(i == step ? Color.white.opacity(0.95) : (i < step ? Color.white.opacity(0.55) : Color.white.opacity(0.20)))
+                            .frame(width: i == step ? 24 : 8, height: 6)
                             .animation(.spring(response: 0.3), value: step)
                     }
                 }
@@ -1950,44 +2066,46 @@ struct DesktopTourOverlayView: View {
                 Spacer()
 
                 Text(stepBadgeTitle)
-                    .font(.system(size: 14.5, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.95))
 
                 Spacer()
 
                 Button(action: onFinish) {
                     HStack(spacing: 5) {
                         Image(systemName: "xmark")
-                        Text("Exit Tour")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("Close")
                     }
                 }
                 .buttonStyle(TourGlassButtonStyle())
             }
 
-            Divider().overlay(Color.white.opacity(0.18))
+            Divider().overlay(Color.white.opacity(0.16))
 
             // Body
-            ZStack {
+            Group {
                 switch step {
                 case 0: welcomeStep
                 case 1: firstShotStep
                 case 2: multiShotStep
                 case 3: clipboardStep
                 case 4: dockPreviewsStep
-                case 5: readyStep
+                case 5: commandTabStep
+                case 6: readyStep
                 default: welcomeStep
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(width: 824, height: 224)
 
-            Divider().overlay(Color.white.opacity(0.18))
+            Divider().overlay(Color.white.opacity(0.16))
 
             // Bottom Bar
             HStack {
                 if step > 0 {
                     Button(action: {
                         AppDelegate.shared.hover.dismissPreview()
-                        withAnimation(.spring(response: 0.3)) { step -= 1 }
+                        withAnimation(.easeInOut(duration: 0.2)) { step -= 1 }
                     }) {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.left")
@@ -2003,50 +2121,15 @@ struct DesktopTourOverlayView: View {
             }
         }
         .padding(18)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            ZStack {
-                // Frosted blur
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(.ultraThinMaterial)
-
-                // Sleek deep glass gradient tint
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.10, green: 0.13, blue: 0.24).opacity(0.92),
-                                Color(red: 0.05, green: 0.07, blue: 0.16).opacity(0.96)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-
-                // Top specular gloss reflection sheen
-                VStack {
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.16), Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 70)
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    Spacer()
-                }
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.45), Color.white.opacity(0.12)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.2
-                    )
+        .frame(width: 860, height: 360)
+        .background(alignment: .top) {
+            LinearGradient(
+                colors: [Color.white.opacity(0.20), Color.clear],
+                startPoint: .top,
+                endPoint: .bottom
             )
-        )
+            .frame(height: 80)
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowBar.screenshotCaptured"))) { note in
             let count = (note.userInfo?["count"] as? Int) ?? 1
             withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
@@ -2067,581 +2150,911 @@ struct DesktopTourOverlayView: View {
                 samplePreviewActive = false
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowBar.commandTabShown"))) { _ in
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                hasUsedCommandTab = true
+            }
+        }
     }
 
     private var stepBadgeTitle: String {
         switch step {
-        case 0: return "Step 1 of 6 · macOS Permissions Guide (הגדרת הרשאות)"
-        case 1: return "Step 2 of 6 · Screenshots — Never Disappear"
-        case 2: return "Step 3 of 6 · Multi-Shot Stacking & 1-Click Copy All"
-        case 3: return "Step 4 of 6 · Multi-Copy Clipboard History"
-        case 4: return "Step 5 of 6 · Live Dock Window Previews & Snap"
-        case 5: return "Step 6 of 6 · You're a Show Bar Pro! 🎉"
-        default: return "Show Bar Tour"
+        case 0: return "Step 1 of 7 · Permissions Setup"
+        case 1: return "Step 2 of 7 · Floating Screenshot Shelf"
+        case 2: return "Step 3 of 7 · Stack Multiple Screenshots & Copy All"
+        case 3: return "Step 4 of 7 · Clipboard History"
+        case 4: return "Step 5 of 7 · Live Dock Window Previews & Snap"
+        case 5: return "Step 6 of 7 · Visual Command-Tab Switcher"
+        case 6: return "Step 7 of 7 · All Set"
+        default: return "Show Bar Guide"
         }
     }
 
     // MARK: - Step 0: Permissions Setup
     private var welcomeStep: some View {
         VStack(spacing: 12) {
-            // Header row with Icon + Title + Status
             HStack(spacing: 14) {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
-                    .frame(width: 46, height: 46)
+                    .frame(width: 44, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.3), radius: 3, y: 1.5)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Welcome to Show Bar — 2 Quick Permissions")
-                        .font(.system(size: 18.5, weight: .bold, design: .rounded))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enable Two macOS Permissions")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                    Text("Show Bar operates 100% on-device. Two macOS permissions unlock live window previews & instant screenshots:")
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.85))
+                    Text("Everything runs 100% locally on your Mac. Turn on both permissions to unlock Dock previews and screenshots:")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(.white.opacity(0.78))
                 }
 
                 Spacer()
 
                 if model.allGranted {
                     HStack(spacing: 6) {
-                        Image(systemName: "checkmark.seal.fill")
-                            .foregroundStyle(.green)
-                        Text("All Active ✅")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.green)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.green.opacity(0.2), in: Capsule())
-                    .overlay(Capsule().stroke(Color.green.opacity(0.4), lineWidth: 1))
-                }
-            }
-
-            // Two Spacious Permission Rows
-            VStack(spacing: 10) {
-                // Row 1: Accessibility (נגישות)
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
-                            .fill(LinearGradient(colors: [Color.blue.opacity(0.85), Color.blue], startPoint: .top, endPoint: .bottom))
-                            .frame(width: 42, height: 42)
-                        Image(systemName: "hand.raised.app.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.white)
-                    }
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 8) {
-                            Text("1. Accessibility (נגישות)")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(.white)
-                            if model.accessibility {
-                                Text("Active ✅")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(.green)
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2)
-                                    .background(Color.green.opacity(0.2), in: Capsule())
-                            } else {
-                                Text("Required ⚠️")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(.orange)
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2)
-                                    .background(Color.orange.opacity(0.2), in: Capsule())
-                            }
-                        }
-                        Text("Enables Dock hover detection & instant window snap.")
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(.white.opacity(0.88))
-                        HStack(spacing: 4) {
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.yellow)
-                            Text("System Settings → Privacy & Security → Accessibility")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.70))
-                        }
-                    }
-
-                    Spacer()
-
-                    if model.accessibility {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Active & Ready ✅")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.green)
-                        }
-                        .padding(.horizontal, 14)
-                        .frame(height: 38)
-                        .background(Color.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.green.opacity(0.35), lineWidth: 1))
-                    } else {
-                        Button(action: onAccessibility) {
-                            HStack(spacing: 6) {
-                                Text("Grant Accessibility Access")
-                                Image(systemName: "arrow.right.circle.fill")
-                            }
-                        }
-                        .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
-                    }
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.white.opacity(0.06))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(model.accessibility ? Color.green.opacity(0.35) : Color.blue.opacity(0.35), lineWidth: 1.2)
-                        )
-                )
-
-                // Row 2: Screen Recording (הקלטת מסך)
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
-                            .fill(LinearGradient(colors: [Color.purple.opacity(0.85), Color.indigo], startPoint: .top, endPoint: .bottom))
-                            .frame(width: 42, height: 42)
-                        Image(systemName: "camera.viewfinder")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.white)
-                    }
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 8) {
-                            Text("2. Screen Recording (הקלטת מסך)")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(.white)
-                            if model.screen {
-                                Text("Active ✅")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(.green)
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2)
-                                    .background(Color.green.opacity(0.2), in: Capsule())
-                            } else {
-                                Text("Required ⚠️")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(.orange)
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2)
-                                    .background(Color.orange.opacity(0.2), in: Capsule())
-                            }
-                        }
-                        Text("Enables generating live window thumbnails & floating screenshot shelf. 100% on-device.")
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(.white.opacity(0.88))
-                        HStack(spacing: 4) {
-                            Image(systemName: "gearshape.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.yellow)
-                            Text("System Settings → Privacy & Security → Screen Recording")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.70))
-                        }
-                    }
-
-                    Spacer()
-
-                    if model.screen {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Active & Ready ✅")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.green)
-                        }
-                        .padding(.horizontal, 14)
-                        .frame(height: 38)
-                        .background(Color.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.green.opacity(0.35), lineWidth: 1))
-                    } else {
-                        Button(action: onScreen) {
-                            HStack(spacing: 6) {
-                                Text("Grant Screen Recording Access")
-                                Image(systemName: "arrow.right.circle.fill")
-                            }
-                        }
-                        .buttonStyle(TourActionButtonStyle(accentColor: Color.purple))
-                    }
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.white.opacity(0.06))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(model.screen ? Color.green.opacity(0.35) : Color.purple.opacity(0.35), lineWidth: 1.2)
-                        )
-                )
-            }
-        }
-    }
-
-    // MARK: - Step 1: First Screenshot & Corner Shelf
-    private var firstShotStep: some View {
-        HStack(alignment: .top, spacing: 22) {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("❌ macOS Default")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.red.opacity(0.22), in: Capsule())
-                    }
-                    Text("Screenshots vanish after 4s and dump messy files on your desktop.")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("✨ Show Bar Superpower")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.green)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.green.opacity(0.22), in: Capsule())
-                    }
-                    Text("Screenshots stay in a floating shelf until YOU close them. Zero desktop clutter!")
-                        .font(.system(size: 14.5, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 12) {
-                if !hasTakenFirstShot {
-                    Text("👉 Try it now: Take your first screenshot!")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.yellow)
-
-                    VStack(alignment: .leading, spacing: 7) {
-                        KeyComboView(keys: ["⌘ Cmd", "⇧ Shift", "3"], label: "Full Screen")
-                        KeyComboView(keys: ["⌘ Cmd", "⇧ Shift", "4"], label: "Crop Area")
-                    }
-
-                    Button("📸 Click to Take Test Screenshot") {
-                        ShotShelf.shared.captureScreenUnderPointer()
-                    }
-                    .buttonStyle(TourActionButtonStyle(accentColor: Color.blue))
-                } else {
-                    HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.green)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("🎉 BOOM! Look at your bottom-right corner!")
-                                .font(.system(size: 15.5, weight: .bold))
-                                .foregroundStyle(.green)
-                            Text("The shelf stays open until YOU decide what to do. Zero clutter files on your desktop!")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.white.opacity(0.92))
-                        }
+                        Text("Permissions Ready")
+                            .font(.system(size: 12.5, weight: .semibold))
                     }
-                    .padding(14)
-                    .background(Color.green.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.green.opacity(0.35), lineWidth: 1))
-                }
-            }
-            .frame(width: 360)
-        }
-    }
-
-    // MARK: - Step 2: Multi-Shot Stacking & Copy All
-    private var multiShotStep: some View {
-        HStack(alignment: .top, spacing: 22) {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("❌ macOS Default")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.red.opacity(0.22), in: Capsule())
-                    }
-                    Text("3 screenshots = 3 separate files you have to drag one by one.")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("✨ Show Bar Superpower")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.green)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.green.opacity(0.22), in: Capsule())
-                    }
-                    Text("Multiple shots stack into a single deck with 1-click 'Copy All'!")
-                        .font(.system(size: 14.5, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 12) {
-                if shotCount < 2 {
-                    Text("👉 Try it now: Take a SECOND screenshot!")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.yellow)
-
-                    KeyComboView(keys: ["⌘ Cmd", "⇧ Shift", "4"], label: "Drag any crop box")
-
-                    Button("📸 Take 2nd Screenshot") {
-                        ShotShelf.shared.captureScreenUnderPointer()
-                    }
-                    .buttonStyle(TourActionButtonStyle(accentColor: Color.orange))
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "square.stack.3d.up.fill")
-                                .font(.system(size: 22))
-                                .foregroundStyle(.green)
-                            Text("🔥 Screenshots stacked into a deck!")
-                                .font(.system(size: 15.5, weight: .bold))
-                                .foregroundStyle(.green)
-                        }
-                        Text("• Click 'Copy All' on the shelf: copies all shots at once into 1 paste!")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.95))
-                        Text("• Click any thumbnail to markup/crop, or save to custom folder.")
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(.white.opacity(0.85))
-                    }
-                    .padding(14)
-                    .background(Color.green.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.green.opacity(0.35), lineWidth: 1))
-                }
-            }
-            .frame(width: 360)
-        }
-    }
-
-    // MARK: - Step 3: Multi-Copy Clipboard History
-    private var clipboardStep: some View {
-        HStack(alignment: .top, spacing: 22) {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("❌ macOS Default")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.red.opacity(0.22), in: Capsule())
-                    }
-                    Text("Copying something new permanently deletes whatever you copied before.")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("✨ Show Bar Superpower")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.green)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.green.opacity(0.22), in: Capsule())
-                    }
-                    Text("Complete history for copied texts, links, code, and images!")
-                        .font(.system(size: 14.5, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 12) {
-                if !hasOpenedClipboard {
-                    Text("👉 Try it now: Open Clipboard History")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.yellow)
-
-                    KeyComboView(keys: ["⌃ Ctrl", "⌥ Option", "V"], label: "Clipboard History")
-
-                    Button("📋 Open Clipboard History Now") {
-                        ClipboardShelf.shared.show()
-                    }
-                    .buttonStyle(TourActionButtonStyle(accentColor: Color.indigo))
-                } else {
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.green)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("📋 Clipboard History Active!")
-                                .font(.system(size: 15.5, weight: .bold))
-                                .foregroundStyle(.green)
-                            Text("Start typing to search past copies, use arrow keys & press Enter to paste anywhere.")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.white.opacity(0.92))
-                        }
-                    }
-                    .padding(14)
-                    .background(Color.green.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.green.opacity(0.35), lineWidth: 1))
-                }
-            }
-            .frame(width: 360)
-        }
-    }
-
-    // MARK: - Step 4: Live Dock Previews & Snap
-    private var dockPreviewsStep: some View {
-        HStack(alignment: .top, spacing: 22) {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("❌ macOS Default")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.red.opacity(0.22), in: Capsule())
-                    }
-                    Text("Hovering Dock does nothing. Clicking brings ALL windows forward.")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.85))
-                }
-
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("✨ Show Bar Superpower")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.green)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.green.opacity(0.22), in: Capsule())
-                    }
-                    Text("Hover any Dock icon for live window thumbnails & half-screen snap!")
-                        .font(.system(size: 14.5, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 12) {
-                if !hasDockHover && !samplePreviewActive {
-                    Text("👉 Try it now:")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.yellow)
-                    Text("Hover your mouse cursor over any open app icon in your Dock:")
-                        .font(.system(size: 13.5))
-                        .foregroundStyle(.white.opacity(0.92))
-
-                    Button("🪟 Show Sample Preview") {
-                        samplePreviewActive = true
-                        _ = onPreview()
-                    }
-                    .buttonStyle(TourActionButtonStyle(accentColor: Color.teal))
-                } else {
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 22))
-                                .foregroundStyle(.green)
-                            Text("🪟 Live Preview Open at Dock!")
-                                .font(.system(size: 15.5, weight: .bold))
-                                .foregroundStyle(.green)
-                        }
-                        Text("• Look down at your Dock! The preview stays open.")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.95))
-                        KeyComboView(keys: ["⌃ Ctrl", "⌥ Option", "← / →"], label: "Snap Half-Screen")
-                        Text("• Click single window to raise, or ✕ to close from Dock.")
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(.white.opacity(0.85))
-                    }
-                    .padding(14)
-                    .background(Color.green.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.green.opacity(0.35), lineWidth: 1))
-                }
-            }
-            .frame(width: 360)
-        }
-    }
-
-    // MARK: - Step 5: You're a Pro & Settings
-    private var readyStep: some View {
-        HStack(alignment: .center, spacing: 24) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.green)
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("You're a Show Bar Pro! 🎉")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
-
-                HStack(spacing: 12) {
-                    KeyComboView(keys: ["⌘", "⇧", "3 / 4"], label: "Screenshots")
-                    KeyComboView(keys: ["⌃", "⌥", "V"], label: "Clipboard")
-                    KeyComboView(keys: ["⌃", "⌥", "← / →"], label: "Snap")
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.14), in: Capsule())
+                    .overlay(Capsule().stroke(Color.white.opacity(0.28), lineWidth: 1))
                 }
+            }
 
-                HStack(spacing: 7) {
-                    Image(systemName: "folder.fill.badge.gearshape")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.yellow)
-                    Text("Custom Folder: Choose where screenshots save in Settings → Screenshots anytime!")
-                        .font(.system(size: 13.5, weight: .semibold))
-                        .foregroundStyle(.yellow)
+            VStack(spacing: 10) {
+                permissionRow(
+                    icon: "hand.raised.fill",
+                    title: "1. Accessibility",
+                    subtitle: "Detects when your pointer hovers over Dock icons and snaps windows to halves/corners.",
+                    path: "System Settings → Privacy & Security → Accessibility",
+                    granted: model.accessibility,
+                    buttonTitle: "Open Accessibility",
+                    action: onAccessibility
+                )
+
+                permissionRow(
+                    icon: "camera.viewfinder",
+                    title: "2. Screen Recording",
+                    subtitle: "Renders live window thumbnails above the Dock and captures screenshots to the corner shelf.",
+                    path: "System Settings → Privacy & Security → Screen Recording",
+                    granted: model.screen,
+                    buttonTitle: "Open Screen Recording",
+                    action: onScreen
+                )
+            }
+        }
+    }
+
+    private func permissionRow(
+        icon: String,
+        title: String,
+        subtitle: String,
+        path: String,
+        granted: Bool,
+        buttonTitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(Color.white.opacity(0.14))
+                    .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(Color.white.opacity(0.24), lineWidth: 1))
+                    .frame(width: 40, height: 40)
+                Image(systemName: icon)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 14.5, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(granted ? "Enabled" : "Required")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(.white.opacity(granted ? 0.9 : 0.7))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(granted ? 0.18 : 0.10), in: Capsule())
                 }
-
-                Text("Show Bar runs quietly in your menu bar. All superpowers are always active.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.85))
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.78))
+                Text(path)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.55))
             }
 
             Spacer()
 
-            Button("Open Settings ⚙️", action: onOpenSettings)
-                .buttonStyle(TourGlassButtonStyle())
+            if granted {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Enabled")
+                        .font(.system(size: 12.5, weight: .semibold))
+                }
+                .foregroundStyle(.white.opacity(0.92))
+                .padding(.horizontal, 14)
+                .frame(height: 34)
+                .background(Color.white.opacity(0.12), in: Capsule())
+                .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 1))
+            } else {
+                Button(action: action) {
+                    HStack(spacing: 6) {
+                        Text(buttonTitle)
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                }
+                .buttonStyle(TourActionButtonStyle())
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(granted ? 0.30 : 0.18), lineWidth: 1)
+                )
+        )
+    }
+
+    // MARK: - Step 1: First Screenshot & Corner Shelf (with Visual Illustration)
+    private var firstShotStep: some View {
+        HStack(alignment: .center, spacing: 20) {
+            // Left: Visual Diagram of the Floating Corner Shelf
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "eye")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("WHAT IT LOOKS LIKE IN YOUR BOTTOM-RIGHT CORNER")
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(.white.opacity(0.65))
+
+                VStack(spacing: 8) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(Color.white.opacity(0.10))
+                            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(Color.white.opacity(0.22), lineWidth: 1))
+
+                        VStack(spacing: 6) {
+                            HStack {
+                                Circle().fill(Color.white.opacity(0.22)).frame(width: 20, height: 20)
+                                    .overlay(Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(.white))
+                                Spacer()
+                                Circle().fill(Color.white.opacity(0.22)).frame(width: 20, height: 20)
+                                    .overlay(Image(systemName: "doc.on.clipboard").font(.system(size: 8, weight: .bold)).foregroundStyle(.white))
+                            }
+                            Image(systemName: "photo.on.rectangle.angled")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.white.opacity(0.75))
+                            HStack {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "pencil.tip")
+                                        .font(.system(size: 9, weight: .bold))
+                                    Text("Click to Markup / Crop")
+                                        .font(.system(size: 10, weight: .medium))
+                                }
+                                .foregroundStyle(.white.opacity(0.88))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Color.white.opacity(0.16), in: Capsule())
+                                Spacer()
+                            }
+                        }
+                        .padding(8)
+                    }
+                    .frame(height: 116)
+
+                    HStack {
+                        Text("1 screenshot")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.85))
+                        Spacer()
+                        Label("Copy", systemImage: "doc.on.doc.fill")
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.16), in: Capsule())
+                        Label("Save", systemImage: "square.and.arrow.down")
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.16), in: Capsule())
+                    }
+                    .foregroundStyle(.white)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.26), lineWidth: 1))
+                )
+            }
+            .frame(width: 360)
+
+            // Right: Clear Explanation + Action
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Screenshots Stay in a Floating Glass Shelf")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text("Instead of vanishing after 4 seconds or dumping files on your desktop, every screenshot sits in the bottom-right corner until you copy, edit, drag, or close it.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 12) {
+                    KeyComboView(keys: ["⌘", "⇧", "3"], label: "Full Screen")
+                    KeyComboView(keys: ["⌘", "⇧", "4"], label: "Select Area")
+                }
+
+                if !hasTakenFirstShot {
+                    Button {
+                        ShotShelf.shared.captureScreenUnderPointer()
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "camera.fill")
+                            Text("Take a Test Screenshot Now")
+                        }
+                    }
+                    .buttonStyle(TourActionButtonStyle())
+                } else {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Screenshot captured to your bottom-right corner!")
+                                .font(.system(size: 13.5, weight: .semibold))
+                            Text("Try clicking the thumbnail in the corner to annotate, or click Next below.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.75))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.28), lineWidth: 1))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    // MARK: - Next Step Button
+    // MARK: - Step 2: Multi-Shot Stacking & Copy All (with Visual Illustration)
+    private var multiShotStep: some View {
+        HStack(alignment: .center, spacing: 20) {
+            // Left: Visual Diagram of Stacked Screenshots + Copy All
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.stack.3d.up")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("MULTI-SHOT SIDE-BY-SIDE DECK")
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(.white.opacity(0.65))
+
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        ForEach(1...3, id: \.self) { idx in
+                            VStack(spacing: 6) {
+                                Image(systemName: "macwindow")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(.white.opacity(0.8))
+                                Text("Shot #\(idx)")
+                                    .font(.system(size: 10.5, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.75))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 108)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.white.opacity(0.10))
+                                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.white.opacity(0.22), lineWidth: 1))
+                            )
+                        }
+                    }
+
+                    HStack {
+                        Text("3 screenshots stacked")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.85))
+                        Spacer()
+                        HStack(spacing: 5) {
+                            Image(systemName: "doc.on.doc.fill")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("Copy All (1-Click)")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.24), in: Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(0.45), lineWidth: 1))
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.26), lineWidth: 1))
+                )
+            }
+            .frame(width: 360)
+
+            // Right: Clear Explanation + Action
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Stack Multiple Shots & Copy All at Once")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text("Take 2 or 3 screenshots in a row — they line up side by side in the same corner shelf. Click the Copy All button (doc.on.doc) to paste every screenshot together in one Cmd+V.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if shotCount < 2 {
+                    Button {
+                        ShotShelf.shared.captureScreenUnderPointer()
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "plus.rectangle.on.rectangle")
+                            Text("Take a 2nd Screenshot to Stack")
+                        }
+                    }
+                    .buttonStyle(TourActionButtonStyle())
+                } else {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(shotCount) screenshots are now stacked in your corner shelf!")
+                                .font(.system(size: 13.5, weight: .semibold))
+                            Text("Click the double-document button on the shelf anytime to copy all of them at once.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.75))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.28), lineWidth: 1))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    // MARK: - Step 3: Multi-Copy Clipboard History (with Visual Illustration)
+    private var clipboardStep: some View {
+        HStack(alignment: .center, spacing: 20) {
+            // Left: Visual Diagram of Clipboard History Window
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("CLIPBOARD HISTORY PANEL (⌃⌥V)")
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(.white.opacity(0.65))
+
+                VStack(spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.white.opacity(0.6))
+                        Text("Search copied text, links, images…")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.white.opacity(0.6))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                    clipboardMockRow(icon: "doc.text", title: "Meeting notes & project summary…", tag: "Click to paste")
+                    clipboardMockRow(icon: "link", title: "https://github.com/rept0rix/show-bar", tag: "Click to paste")
+                    clipboardMockRow(icon: "photo", title: "Captured Screenshot Image", tag: "Click to paste")
+                }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.26), lineWidth: 1))
+                )
+            }
+            .frame(width: 360)
+
+            // Right: Clear Explanation + Action
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Never Lose Anything You Copy")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text("macOS normally forgets your previous copy the moment you press Cmd+C again. Show Bar keeps a searchable history of your copied text, links, and images — click any item to paste it immediately.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                KeyComboView(keys: ["⌃ Ctrl", "⌥ Option", "V"], label: "Open Clipboard Shelf")
+
+                if !hasOpenedClipboard {
+                    Button {
+                        ClipboardShelf.shared.show()
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "doc.on.clipboard")
+                            Text("Open Clipboard History")
+                        }
+                    }
+                    .buttonStyle(TourActionButtonStyle())
+                } else {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Clipboard History is open!")
+                                .font(.system(size: 13.5, weight: .semibold))
+                            Text("Click any saved row to paste it, or click ✕ on the panel to close it.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.75))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.28), lineWidth: 1))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func clipboardMockRow(icon: String, title: String, tag: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.8))
+                .frame(width: 20)
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.9))
+                .lineLimit(1)
+            Spacer()
+            Text(tag)
+                .font(.system(size: 9.5, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.75))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.white.opacity(0.12), in: Capsule())
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+
+    // MARK: - Step 4: Live Dock Previews & Snap (with Visual Illustration)
+    private var dockPreviewsStep: some View {
+        HStack(alignment: .center, spacing: 20) {
+            // Left: Visual Diagram of Dock Hover Previews
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "macwindow.on.rectangle")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("DOCK HOVER WINDOW PREVIEWS")
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(.white.opacity(0.65))
+
+                VStack(spacing: 10) {
+                    HStack(spacing: 10) {
+                        dockPreviewMockCard(title: "Browser — Tab 1", active: true)
+                        dockPreviewMockCard(title: "Project Notes", active: false)
+                    }
+                    HStack(spacing: 12) {
+                        ForEach(["safari", "folder.fill", "terminal.fill", "gearshape.fill"], id: \.self) { sym in
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.white.opacity(sym == "safari" ? 0.28 : 0.12))
+                                .frame(width: 30, height: 30)
+                                .overlay(Image(systemName: sym).font(.system(size: 14)).foregroundStyle(.white))
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.10), in: Capsule())
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.26), lineWidth: 1))
+                )
+            }
+            .frame(width: 360)
+
+            // Right: Clear Explanation + Action
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Hover Any Dock Icon for Live Window Previews")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text("Move your pointer over any open app in the Dock to see live thumbnails of its windows. Click a card to switch straight to that window, or use the top buttons on a card to Snap (◫), Screenshot (📷), Minimize (−), or Close (✕).")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                KeyComboView(keys: ["⌃ Ctrl", "⌥ Option", "← / →"], label: "Snap Window Left / Right")
+
+                if !hasDockHover && !samplePreviewActive {
+                    Button {
+                        samplePreviewActive = true
+                        _ = onPreview()
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "macwindow.on.rectangle")
+                            Text("Show Sample Dock Preview")
+                        }
+                    }
+                    .buttonStyle(TourActionButtonStyle())
+                } else {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Live Dock Preview Active!")
+                                .font(.system(size: 13.5, weight: .semibold))
+                            Text("Hover any running app in your Dock anytime to pick, snap, or close individual windows.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.75))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.28), lineWidth: 1))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func dockPreviewMockCard(title: String, active: Bool) -> some View {
+        VStack(spacing: 5) {
+            ZStack(alignment: .top) {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.white.opacity(active ? 0.16 : 0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.white.opacity(active ? 0.65 : 0.20), lineWidth: active ? 1.5 : 1)
+                    )
+                    .frame(height: 68)
+                HStack(spacing: 4) {
+                    Image(systemName: "minus").font(.system(size: 7, weight: .bold))
+                    Image(systemName: "rectangle.split.2x1").font(.system(size: 7, weight: .bold))
+                    Image(systemName: "camera").font(.system(size: 7, weight: .bold))
+                    Spacer()
+                    Image(systemName: "xmark").font(.system(size: 7, weight: .bold))
+                }
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(6)
+            }
+            Text(title)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.white.opacity(active ? 0.95 : 0.7))
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Step 5: Visual Command-Tab Switcher (with Visual Illustration)
+    private var commandTabStep: some View {
+        HStack(alignment: .center, spacing: 20) {
+            // Left: Visual Diagram of the Command-Tab Switcher
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "command.square.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("VISUAL COMMAND-TAB WINDOW SWITCHER")
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(.white.opacity(0.65))
+
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        switcherMockCard(icon: "safari", title: "Web Browser", space: "Desktop 1", selected: false)
+                        switcherMockCard(icon: "chevron.left.forwardslash.chevron.right", title: "Show Bar Project", space: "Current", selected: true)
+                        switcherMockCard(icon: "calendar", title: "Calendar & Notes", space: "Desktop 2", selected: false)
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.left.and.right")
+                            .font(.system(size: 9))
+                        Text("Arrows or Tab to navigate · Release ⌘ to switch")
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                    }
+                    .foregroundStyle(.white.opacity(0.65))
+                    .padding(.top, 2)
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.26), lineWidth: 1))
+                )
+            }
+            .frame(width: 370)
+
+            // Right: Clear Explanation + Action
+            VStack(alignment: .leading, spacing: 12) {
+                Text("See Actual Windows Across All Desktops")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text("Standard macOS Command-Tab only shows small app icons. Show Bar shows full visual window previews and even displays windows located on Desktop 2 or Desktop 3 so you can jump straight to them.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 12) {
+                    KeyComboView(keys: ["⌘", "Tab"], label: "Next Window")
+                    KeyComboView(keys: ["⌘", "⇧", "Tab"], label: "Prev")
+                }
+
+                if !hasUsedCommandTab {
+                    HStack(spacing: 10) {
+                        Image(systemName: "hand.tap.fill")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.white.opacity(0.8))
+                        Text("Hold ⌘ and press Tab right now on your keyboard to try it!")
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.88))
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.22), lineWidth: 1))
+                } else {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Command-Tab Switcher tested!")
+                                .font(.system(size: 13.5, weight: .semibold))
+                            Text("Release ⌘ anytime to instantly bring that window to the front.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.75))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.28), lineWidth: 1))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func switcherMockCard(icon: String, title: String, space: String, selected: Bool) -> some View {
+        VStack(spacing: 5) {
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.white.opacity(selected ? 0.20 : 0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(
+                                selected ? Color.white.opacity(0.9) : Color.white.opacity(0.18),
+                                lineWidth: selected ? 1.8 : 1
+                            )
+                    )
+                    .frame(height: 80)
+
+                VStack(spacing: 5) {
+                    Image(systemName: icon)
+                        .font(.system(size: 22))
+                        .foregroundStyle(.white.opacity(selected ? 1.0 : 0.75))
+                        .padding(.top, 14)
+                    Text(title)
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundStyle(.white.opacity(selected ? 0.95 : 0.75))
+                        .lineLimit(1)
+                        .padding(.horizontal, 4)
+                }
+                .frame(maxWidth: .infinity)
+
+                if space != "Current" {
+                    Text(space)
+                        .font(.system(size: 7.5, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color.black.opacity(0.45), in: Capsule())
+                        .padding(4)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .scaleEffect(selected ? 1.04 : 1.0)
+    }
+
+    // MARK: - Step 6: You're a Pro & Settings (Clean 3-Card Summary Grid)
+    private var readyStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 14) {
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 46, height: 46)
+                    .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Show Bar is Ready")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("Show Bar runs quietly in your top menu bar. Here are your key shortcuts & tools:")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(.white.opacity(0.78))
+                }
+
+                Spacer()
+
+                Button("Open Settings", action: onOpenSettings)
+                    .buttonStyle(TourGlassButtonStyle())
+            }
+
+            HStack(spacing: 12) {
+                summaryFeatureCard(
+                    icon: "camera.viewfinder",
+                    title: "Screenshots Shelf",
+                    keys: ["⌘", "⇧", "3 / 4"],
+                    detail: "Stack shots in the corner, markup, or Copy All at once."
+                )
+                summaryFeatureCard(
+                    icon: "doc.on.clipboard",
+                    title: "Clipboard History",
+                    keys: ["⌃", "⌥", "V"],
+                    detail: "Search and paste any previously copied text, link, or image."
+                )
+                summaryFeatureCard(
+                    icon: "rectangle.split.2x1",
+                    title: "Snap & Switch",
+                    keys: ["⌃", "⌥", "← / →"],
+                    detail: "Hover Dock icons for window previews or press ⌘Tab."
+                )
+            }
+        }
+    }
+
+    private func summaryFeatureCard(icon: String, title: String, keys: [String], detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text(title)
+                    .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
+            KeyComboView(keys: keys)
+            Text(detail)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.white.opacity(0.75))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                )
+        )
+    }
+
+    // MARK: - Next Step Button (Only shown once the current step is completed)
     private var nextStepButton: some View {
         Group {
             if step == 0 {
-                Button(model.allGranted ? "Start Live Tour 🚀" : "Continue Tour →") {
-                    withAnimation(.spring(response: 0.3)) { step = 1 }
+                if model.allGranted {
+                    Button("Start Live Tour 🚀") {
+                        withAnimation(.spring(response: 0.3)) { step = 1 }
+                    }
+                    .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
+                } else {
+                    stepPendingBadge("Grant both permissions above to continue")
                 }
-                .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
             } else if step == 1 {
-                Button(hasTakenFirstShot ? "Next: Multi-Shot Stacking →" : "Next →") {
-                    withAnimation(.spring(response: 0.3)) { step = 2 }
+                if hasTakenFirstShot {
+                    Button("Next: Multi-Shot Stacking →") {
+                        withAnimation(.spring(response: 0.3)) { step = 2 }
+                    }
+                    .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
+                } else {
+                    stepPendingBadge("Take a screenshot above to unlock Next")
                 }
-                .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
             } else if step == 2 {
-                Button(shotCount >= 2 ? "Next: Clipboard History →" : "Next →") {
-                    withAnimation(.spring(response: 0.3)) { step = 3 }
+                if shotCount >= 2 {
+                    Button("Next: Clipboard History →") {
+                        withAnimation(.spring(response: 0.3)) { step = 3 }
+                    }
+                    .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
+                } else {
+                    stepPendingBadge("Take a 2nd screenshot to unlock Next")
                 }
-                .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
             } else if step == 3 {
-                Button(hasOpenedClipboard ? "Next: Dock Previews →" : "Next →") {
-                    withAnimation(.spring(response: 0.3)) { step = 4 }
+                if hasOpenedClipboard {
+                    Button("Next: Dock Previews →") {
+                        withAnimation(.spring(response: 0.3)) { step = 4 }
+                    }
+                    .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
+                } else {
+                    stepPendingBadge("Open Clipboard History to unlock Next")
                 }
-                .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
             } else if step == 4 {
-                Button("Next: Finish & Settings →") {
-                    AppDelegate.shared.hover.dismissPreview()
-                    withAnimation(.spring(response: 0.3)) { step = 5 }
+                if hasDockHover || samplePreviewActive {
+                    Button("Next: Command-Tab Switcher →") {
+                        AppDelegate.shared.hover.dismissPreview()
+                        withAnimation(.easeInOut(duration: 0.2)) { step = 5 }
+                    }
+                    .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
+                } else {
+                    stepPendingBadge("Hover a Dock icon or click Sample Preview to unlock Next")
                 }
-                .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
+            } else if step == 5 {
+                if hasUsedCommandTab {
+                    Button("Next: Finish & Settings →") {
+                        withAnimation(.easeInOut(duration: 0.2)) { step = 6 }
+                    }
+                    .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
+                } else {
+                    HStack(spacing: 8) {
+                        stepPendingBadge("Press ⌘Tab on your keyboard")
+                        Button("Skip to Finish →") {
+                            hasUsedCommandTab = true
+                            withAnimation(.easeInOut(duration: 0.2)) { step = 6 }
+                        }
+                        .buttonStyle(TourActionButtonStyle())
+                    }
+                }
             } else {
                 Button("Start Using Show Bar 🚀", action: onFinish)
                     .buttonStyle(TourPrimaryButtonStyle(isEnabled: true))
             }
         }
+    }
+
+    private func stepPendingBadge(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.75))
+            Text(text)
+                .font(.system(size: 12.5, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.78))
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 36)
+        .background(
+            Capsule()
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                )
+        )
     }
 }
 
