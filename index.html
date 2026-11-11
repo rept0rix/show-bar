@@ -21,7 +21,7 @@
   <meta name="twitter:title" content="Show Bar – Free Windows-style Command-Tab, Dock previews &amp; window snapping for Mac">
   <meta name="twitter:description" content="Show Bar is a free macOS menu-bar app: Command-Tab with window previews, Dock hover previews, window snapping, clipboard history and a screenshot shelf.">
   <meta name="twitter:image" content="https://rept0rix.github.io/show-bar/og.png">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Show Bar","operatingSystem":"macOS","applicationCategory":"UtilitiesApplication","description":"Show Bar is a free macOS menu-bar app: Command-Tab with window previews, Dock hover previews, window snapping, clipboard history and a screenshot shelf.","url":"https://rept0rix.github.io/show-bar/","downloadUrl":"https://github.com/rept0rix/show-bar/releases/latest","installUrl":"https://apps.apple.com/app/id6818509447?ct=website&mt=12","softwareVersion":"2.0.3","image":"https://rept0rix.github.io/show-bar/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Show Bar","operatingSystem":"macOS","applicationCategory":"UtilitiesApplication","description":"Show Bar is a free macOS menu-bar app: Command-Tab with window previews, Dock hover previews, window snapping, clipboard history and a screenshot shelf.","url":"https://rept0rix.github.io/show-bar/","downloadUrl":"https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg","installUrl":"https://apps.apple.com/app/id6818509447?ct=website&mt=12","softwareVersion":"2.0.2","image":"https://rept0rix.github.io/show-bar/og.png","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
   <style>
     :root {
       --bg: #090a0f;
@@ -630,6 +630,15 @@
       background: rgba(56, 189, 248, 0.15);
       border-color: #38bdf8;
     }
+    .release-soon {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 4px 12px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
     .release-notes {
       padding: 0 0 18px 52px;
       margin: 0;
@@ -791,7 +800,7 @@
       <a class="brand" href="./">
         <img src="logo.png" alt="Show Bar Icon">
         <span>Show Bar</span>
-        <span class="ver-tag">v2.0.3</span>
+        <span class="ver-tag">v2.0.2</span>
       </a>
       <div class="nav-links">
         <a href="#features">Features</a>
@@ -802,7 +811,7 @@
         <a href="https://github.com/rept0rix/show-bar" target="_blank" rel="noopener">GitHub</a>
       </div>
       <div class="nav-actions">
-        <a class="btn-nav-download" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">
+        <a class="btn-nav-download" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           Download Free
         </a>
@@ -826,9 +835,9 @@
       </p>
 
       <div class="hero-actions">
-        <a class="btn-primary" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">
+        <a class="btn-primary" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Direct Download (Full Pro Edition · v2.0.3)
+          Direct Download (Full Pro Edition)
         </a>
         <a class="btn-secondary" href="https://apps.apple.com/app/id6818509447?ct=website_hero&amp;mt=12" target="_blank" rel="noopener">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.66-.81 1.11-1.94.99-3.07-1 .04-2.16.67-2.84 1.48-.59.71-1.12 1.86-.98 2.97 1.11.08 2.19-.57 2.83-1.38z"/></svg>
@@ -857,11 +866,6 @@
         <button onclick="navigator.clipboard.writeText('brew install --cask rept0rix/tap/show-bar'); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 1500);" style="background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;">Copy</button>
       </div>
 
-      <div style="margin-top: 16px; display: flex; justify-content: center;">
-        <a href="https://viberank.dev/apps/Show%20Bar" target="_blank" rel="noopener noreferrer">
-          <img src="https://viberank.dev/badge?app=Show%20Bar&amp;theme=dark" alt="Show Bar on VibeRank" height="48" style="height: 48px; border-radius: 8px; transition: transform 0.2s ease;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'" />
-        </a>
-      </div>
 
       <!-- Hero Visual Mockup -->
       <div class="hero-showcase">
@@ -1157,7 +1161,7 @@
         <div class="step-card">
           <div class="step-num">1</div>
           <h3>Download & Open</h3>
-          <p>Click the Download button to grab <strong>Show-Bar-2.0.3.dmg</strong>. Double-click the downloaded file in your Downloads folder to mount the disk image.</p>
+          <p>Click the Download button to grab <strong>Show-Bar-2.0.2.dmg</strong>. Double-click the downloaded file in your Downloads folder to mount the disk image.</p>
         </div>
         <div class="step-card">
           <div class="step-num">2</div>
@@ -1188,7 +1192,7 @@
               <span class="release-ver">v2.0.3</span>
               <span class="release-sum">Smoother Dock previews, exact window focus & a glass clipboard history.</span>
             </div>
-            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">Download .dmg</a>
+            <span class="release-soon">Rolling out</span>
           </summary>
           <ul class="release-notes">
             <li>Dock previews open and switch faster with a crossfade, keep a stable card order, and no longer flash thumbnails.</li>
@@ -1205,7 +1209,7 @@
               <span class="release-ver">v2.0.2</span>
               <span class="release-sum">Interactive desktop tour HUD, enlarged Apple glass controls & preview stability.</span>
             </div>
-            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">Download .dmg</a>
+            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">Download .dmg</a>
           </summary>
           <ul class="release-notes">
             <li>Interactive Desktop Tour &amp; Permission Setup with high-contrast Apple frosted glass HUD and 100% reliable click response.</li>
@@ -1222,7 +1226,7 @@
               <span class="release-ver">v1.9.5</span>
               <span class="release-sum">Settings toggles for window previews on hover and Command-Tab switcher.</span>
             </div>
-            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">Download .dmg</a>
+            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">Download .dmg</a>
           </summary>
           <ul class="release-notes">
             <li>Added settings toggles to turn off window previews on hover (dock/side screens) and Command-Tab switcher independently.</li>
@@ -1238,7 +1242,7 @@
               <span class="release-ver">v1.9.4</span>
               <span class="release-sum">Full Desktop Build: fixes window switching across spaces, Dock previews & snap.</span>
             </div>
-            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">Download .dmg</a>
+            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">Download .dmg</a>
           </summary>
           <ul class="release-notes">
             <li>Fixed window switching and space transitions by packaging the direct website build outside the App Store sandbox.</li>
@@ -1255,7 +1259,7 @@
               <span class="release-ver">v1.9.2</span>
               <span class="release-sum">Apple Notarized Developer ID release & macOS Sequoia / Sonoma permission trigger fix.</span>
             </div>
-            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">Download .dmg</a>
+            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">Download .dmg</a>
           </summary>
           <ul class="release-notes">
             <li>Signed with official Apple Developer ID Application certificate and notarized by Apple Notary Service.</li>
@@ -1272,7 +1276,7 @@
               <span class="release-ver">v1.9.1</span>
               <span class="release-sum">Fixes the screenshot markup editor blank screen issue.</span>
             </div>
-            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">Download</a>
+            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">Download</a>
           </summary>
           <ul class="release-notes">
             <li>Opening a screenshot from the floating shelf opens the full markup editor properly, fixing the white blank screen issue.</li>
@@ -1286,7 +1290,7 @@
               <span class="release-ver">v1.9.0</span>
               <span class="release-sum">Command-Tab switches instantly, focuses accurately, and handles multiple Spaces.</span>
             </div>
-            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">Download</a>
+            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">Download</a>
           </summary>
           <ul class="release-notes">
             <li>Quick Command-Tab switches to the previous window immediately without sticking on screen.</li>
@@ -1303,7 +1307,7 @@
               <span class="release-ver">v1.8.0</span>
               <span class="release-sum">Command-Tab window selection accuracy & preview pre-warming.</span>
             </div>
-            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">Download</a>
+            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">Download</a>
           </summary>
           <ul class="release-notes">
             <li>Pre-warms previews on launch so window thumbnails render instantly.</li>
@@ -1318,7 +1322,7 @@
               <span class="release-ver">v1.7.0</span>
               <span class="release-sum">Dock switching speed enhancements and self-update checks.</span>
             </div>
-            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">Download</a>
+            <a class="release-get" onclick="event.stopPropagation()" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.2/Show-Bar-2.0.2.dmg">Download</a>
           </summary>
           <ul class="release-notes">
             <li>Moving along the Dock switches to the next app immediately.</li>
