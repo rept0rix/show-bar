@@ -9,7 +9,9 @@
 <p align="center">
   <a href="https://rept0rix.github.io/show-bar/"><strong>Website</strong></a>
   ·
-  <a href="https://github.com/rept0rix/show-bar/releases/latest"><strong>Download Show Bar</strong></a>
+  <a href="https://apps.apple.com/app/id6818509447?ct=github_readme&mt=12"><strong>Mac App Store</strong></a>
+  ·
+  <a href="https://github.com/rept0rix/show-bar/releases/latest"><strong>Direct Download (DMG)</strong></a>
 </p>
 
 <p align="center">
@@ -44,7 +46,7 @@ Or install via **Homebrew**:
 brew install --cask rept0rix/tap/show-bar
 ```
 
-Show Bar is not on the Mac App Store. Accessibility, Screen Recording, and Dock hover do not fit App Store rules.
+Or get it on the **[Mac App Store](https://apps.apple.com/app/id6818509447?ct=github_readme&mt=12)**.
 
 This build is signed with Developer ID and notarized by Apple, so it opens on any Mac running macOS 14 or later.
 

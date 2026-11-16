@@ -52,21 +52,35 @@ PRIVACY & PERFORMANCE BY DESIGN:
 
 ---
 
-## Apple Search Ads (Advanced) — Recommended Starter Keywords
-Use with Apple's free $100 Search Ads credit (`searchads.apple.com` -> Advanced):
-- **Exact Match (`$0.60` Max CPT):**
-  - `[window manager]`
-  - `[alt tab]`
-  - `[alttab]`
-  - `[dock preview]`
-  - `[window switcher]`
-  - `[clipboard manager]`
-  - `[clipboard history]`
-  - `[window snapping]`
-  - `[magnet]`
-  - `[ubar]`
-  - `[cleanshot]`
-  - `[pastebot]`
+## Apple Editorial Featuring Nomination (FEATURING -> Nominations)
+
+Note: Apple Ads (`ads.apple.com`) supports iOS and iPadOS only, not macOS-only apps. Use **FEATURING -> Nominations** in App Store Connect to pitch Show Bar directly to Apple's Mac App Store editorial team:
+
+- **Type:** App Launch / New Content or Enhancements
+- **Nomination Title:** `Show Bar 2.0: 5 Essential Mac Window & Productivity Tools in One Native App`
+- **Description (Why Apple Editorial should feature Show Bar):**
+  `Built 100% natively in Swift, SwiftUI, and ScreenCaptureKit (<30MB RAM), Show Bar unifies five everyday Mac productivity tools into one clean frosted-glass menu-bar app: a true window-level Command-Tab switcher, live Dock hover window previews across Spaces and displays, keyboard window snapping, visual clipboard history, and a floating screenshot markup shelf. It is completely free, works 100% offline with zero telemetry or cloud uploads, and helps users moving from Windows feel right at home on macOS.`
+
+---
+
+## Paid Ads & Campaign Links for macOS (Reddit Ads & Google Search Ads)
+
+Because Apple Search Ads does not run on the Mac App Store, use **App Store Connect Campaign Links** (`Analytics -> Acquisition -> Campaigns`) with external Mac-targeted ads:
+
+- **Campaign URLs (`?ct=<campaign>&mt=12`):**
+  - Reddit Ads: `https://apps.apple.com/app/id6818509447?ct=reddit_ads&mt=12`
+  - Reddit Organic (`r/macapps`): `https://apps.apple.com/app/id6818509447?ct=reddit_macapps&mt=12`
+  - Google Search Ads: `https://apps.apple.com/app/id6818509447?ct=google_search&mt=12`
+- **Reddit Ads Setup:**
+  - Subreddits: `r/macapps`, `r/macos`, `r/macbookpro`, `r/MacOSBeta`
+  - Device / OS Targeting: **Desktop only -> macOS** (avoid paying for Windows/mobile clicks)
+  - Format: Video ad using `Show-Bar-Demo-Video.mp4`
+- **Google Search Ads (Exact/Phrase Match, Desktop macOS only):**
+  - `[windows alt tab mac]`
+  - `[dock window preview mac]`
+  - `[window switcher mac]`
+  - `[clipboard history mac]`
+  - `[window snapping mac]`
 
 ---
 

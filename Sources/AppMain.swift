@@ -950,8 +950,8 @@ enum ShowBarSupport {
     static let ownerEmail = "na0ryank0@gmail.com"
     static let downloadURL = URL(string: "https://github.com/rept0rix/show-bar/releases/latest")!
     static let linkedInURL = URL(string: "https://www.linkedin.com/in/naoryanko")!
-    /// Mac App Store page. Leave nil until the page exists; the rating button opens this.
-    static let storeURL: URL? = nil
+    /// Mac App Store write-review page.
+    static let storeURL: URL? = URL(string: "https://apps.apple.com/app/id6818509447?action=write-review")
     static let askForRateKey = "ShowBar.askForRate"
     // Replace these with your own pages before you publish.
     static let donateURL = URL(string: "https://buymeacoffee.com/na0ryank0r")!
@@ -1840,6 +1840,12 @@ private struct RatePrompt: View {
                 ForEach(1...5, id: \.self) { value in
                     Button {
                         stars = value
+                        if let url = ShowBarSupport.storeURL {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                NSWorkspace.shared.open(url)
+                                onFinish()
+                            }
+                        }
                     } label: {
                         Image(systemName: value <= stars ? "star.fill" : "star")
                             .font(.system(size: 28))
