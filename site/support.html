@@ -4,31 +4,88 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="index,follow">
-  <title>Show Bar Support</title>
+  <meta name="description" content="Get help with Show Bar for macOS, share feedback, or report a bug.">
+  <link rel="canonical" href="https://rept0rix.github.io/show-bar/support.html">
+  <link rel="icon" href="logo.png" type="image/png">
+  <title>Support &amp; Feedback | Show Bar</title>
   <style>
-    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    body { max-width: 720px; margin: 12vh auto; padding: 0 24px; line-height: 1.65; }
-    h1 { line-height: 1.15; }
-    a { color: inherit; }
+    :root {
+      color-scheme: dark;
+      --background: #090a0f;
+      --surface: #11141e;
+      --border: #2b3445;
+      --text: #f8fafc;
+      --muted: #a7b4c8;
+      --accent: #8ac5ff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--background); color: var(--text); line-height: 1.6; }
+    .wrap { width: min(100% - 40px, 720px); margin: 0 auto; }
+    .site-header { padding: 20px 0; border-bottom: 1px solid var(--border); }
+    .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); font-weight: 600; text-decoration: none; }
+    .brand img { border-radius: 8px; }
+    main { padding: clamp(32px, 7vw, 68px) 0 56px; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { margin: 0; font-size: clamp(2rem, 7vw, 3.5rem); letter-spacing: -0.04em; }
+    h2 { margin: 0 0 12px; font-size: 1.375rem; letter-spacing: -0.02em; }
+    h3 { margin: 0; font-size: 1rem; }
+    p { margin: 0; color: var(--muted); }
+    .intro { margin: 12px 0 28px; font-size: 1.125rem; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 3px; }
+    .channels { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; }
+    .channel { padding: 18px 22px; }
+    .channel + .channel { border-top: 1px solid var(--border); }
+    .channel p { margin-top: 6px; }
+    .channel h2 { margin: 0; font-size: 1.125rem; }
+    .posting-note { margin: 12px 0 0; font-size: 0.9rem; }
+    .faq { margin-top: 40px; }
+    .answer + .answer { margin-top: 20px; }
+    .answer p { margin-top: 6px; }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Show Bar Support</h1>
-    <p>Help with the Mac App Store edition of Show Bar, including screen capture and clipboard history.</p>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="logo.png" width="32" height="32" alt=""> Show Bar</a>
+    </div>
+  </header>
+  <main class="wrap">
+    <h1>Support &amp; Feedback</h1>
+    <p class="intro">Get help with Show Bar for macOS or tell us how we can improve it.</p>
 
-    <h2>Contact support</h2>
-    <p>Email <a href="mailto:na0ryank0@gmail.com?subject=Show%20Bar%20Support">na0ryank0@gmail.com</a> with your question. To help us troubleshoot, include your macOS version, the steps you took, and any error message you saw. Please do not include private clipboard contents or screenshots unless they are needed to explain the issue.</p>
+    <div class="channels">
+      <section class="channel">
+        <h2><a href="https://github.com/rept0rix/show-bar/discussions/new">Share feedback or ask a question</a></h2>
+        <p>Suggest an improvement or <a href="https://github.com/rept0rix/show-bar/discussions">browse the Show Bar community</a>.</p>
+      </section>
+      <section class="channel">
+        <h2><a href="https://github.com/rept0rix/show-bar/issues/new?template=bug-report.yml">Report a bug</a></h2>
+        <p>Tell us what happened and include your Show Bar and macOS versions.</p>
+      </section>
+      <section class="channel">
+        <h2><a href="mailto:na0ryank0@gmail.com?subject=Show%20Bar%20Support">Email Naor</a></h2>
+        <p>Send private feedback or ask for help at <a href="mailto:na0ryank0@gmail.com?subject=Show%20Bar%20Support">na0ryank0@gmail.com</a>.</p>
+      </section>
+    </div>
+    <p class="posting-note">GitHub posts are public and require a GitHub account.</p>
 
-    <h2>Common questions</h2>
-    <h3>How do I capture a screenshot?</h3>
-    <p>Open Show Bar and choose <strong>Capture Screen</strong>. If macOS asks, allow Screen Recording access in System Settings, then return to Show Bar and try again.</p>
-
-    <h3>How do I save clipboard text?</h3>
-    <p>Copy text as usual, then choose <strong>Add Current Text</strong> in Show Bar. Text is added only when you press that button and stays in the app's local history. Choose <strong>Clear History</strong> to remove saved text.</p>
-
-    <h3>Where can I read the privacy policy?</h3>
-    <p>See the <a href="privacy.html">Show Bar Privacy Policy</a>.</p>
+    <section class="faq" aria-labelledby="common-questions">
+      <h2 id="common-questions">Common questions</h2>
+      <div class="answer">
+        <h3>How do I capture a screenshot?</h3>
+        <p>Open Show Bar and choose <strong>Capture Screen</strong>. If macOS asks, allow Screen Recording access in System Settings, then return to Show Bar and try again.</p>
+      </div>
+      <div class="answer">
+        <h3>How do I save clipboard text?</h3>
+        <p>Copy text as usual, then choose <strong>Add Current Text</strong> in Show Bar. Text is added only when you press that button and stays in the app's local history. Choose <strong>Clear History</strong> to remove saved text.</p>
+      </div>
+      <div class="answer">
+        <h3>Where can I read the privacy policy?</h3>
+        <p>See the <a href="privacy.html">Show Bar Privacy Policy</a>.</p>
+      </div>
+    </section>
   </main>
 </body>
 </html>

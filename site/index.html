@@ -126,6 +126,18 @@
       align-items: center;
       gap: 12px;
     }
+    .nav-support {
+      padding: 8px 4px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .nav-support:hover { text-decoration: underline; }
+    .nav-support:focus-visible {
+      outline: 2px solid #7dbbff;
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
     .btn-nav-download {
       background: var(--accent-grad);
       color: #fff;
@@ -790,6 +802,13 @@
         min-width: 580px;
       }
     }
+    @media (max-width: 480px) {
+      .nav-inner { padding-inline: 12px; gap: 8px; }
+      .nav-inner .brand { gap: 8px; white-space: nowrap; }
+      .nav-inner .ver-tag { display: none; }
+      .nav-actions { gap: 8px; }
+      .btn-nav-download { padding-inline: 10px; white-space: nowrap; }
+    }
   </style>
 </head>
 <body>
@@ -811,6 +830,7 @@
         <a href="https://github.com/rept0rix/show-bar" target="_blank" rel="noopener">GitHub</a>
       </div>
       <div class="nav-actions">
+        <a class="nav-support" href="support.html">Support</a>
         <a class="btn-nav-download" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           Download Free
@@ -1390,7 +1410,7 @@
         <a href="#install">Setup Guide</a>
         <a href="#changelog">Changelog</a>
         <a href="privacy.html">Privacy Policy</a>
-        <a href="support.html">Support</a>
+        <a href="support.html">Support &amp; Feedback</a>
         <a href="https://github.com/rept0rix/show-bar" target="_blank" rel="noopener">GitHub</a>
       </div>
       <div class="footer-badge">

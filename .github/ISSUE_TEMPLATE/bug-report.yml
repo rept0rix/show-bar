@@ -1,0 +1,20 @@
+name: Bug report
+description: Tell us what went wrong in Show Bar.
+body:
+  - type: markdown
+    attributes:
+      value: Bug reports are public. For private help, [email support](mailto:na0ryank0@gmail.com?subject=Show%20Bar%20Support).
+  - type: input
+    id: versions
+    attributes:
+      label: Show Bar and macOS versions
+      placeholder: Show Bar 2.0.3, macOS 15.7
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include the steps to reproduce the problem and what you expected to happen.
+    validations:
+      required: true

@@ -12,6 +12,8 @@
   <a href="https://apps.apple.com/app/id6818509447?ct=github_readme&mt=12"><strong>Mac App Store</strong></a>
   ·
   <a href="https://github.com/rept0rix/show-bar/releases/latest"><strong>Direct Download (DMG)</strong></a>
+  ·
+  <a href="https://rept0rix.github.io/show-bar/support.html"><strong>Support &amp; Feedback</strong></a>
 </p>
 
 <p align="center">
