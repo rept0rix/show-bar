@@ -126,14 +126,14 @@
       align-items: center;
       gap: 12px;
     }
-    .nav-support {
+    .nav-page-link {
       padding: 8px 4px;
       font-size: 14px;
       font-weight: 500;
       color: var(--text);
     }
-    .nav-support:hover { text-decoration: underline; }
-    .nav-support:focus-visible {
+    .nav-page-link:hover { text-decoration: underline; }
+    .nav-page-link:focus-visible {
       outline: 2px solid #7dbbff;
       outline-offset: 3px;
       border-radius: 4px;
@@ -774,6 +774,9 @@
     }
 
     /* Responsive */
+    @media (max-width: 980px) {
+      .nav-links { display: none; }
+    }
     @media (max-width: 900px) {
       .feature-row, .feature-row.reverse {
         grid-template-columns: 1fr;
@@ -791,9 +794,6 @@
       .about-card {
         grid-template-columns: 1fr;
       }
-      .nav-links {
-        display: none;
-      }
       .compare-card {
         padding: 20px 14px;
         overflow-x: auto;
@@ -807,7 +807,7 @@
       .nav-inner .brand { gap: 6px; white-space: nowrap; }
       .nav-inner .brand img { width: 28px; height: 28px; }
       .nav-inner .ver-tag { display: none; }
-      .nav-actions { gap: 6px; }
+      .nav-actions { gap: 6px; flex-wrap: wrap; }
       .btn-nav-download { padding-inline: 10px; white-space: nowrap; }
       .btn-nav-download svg { display: none; }
     }
@@ -832,7 +832,8 @@
         <a href="https://github.com/rept0rix/show-bar" target="_blank" rel="noopener">GitHub</a>
       </div>
       <div class="nav-actions">
-        <a class="nav-support" href="support.html">Support</a>
+        <a class="nav-page-link" href="support.html">Support</a>
+        <a class="nav-page-link" href="contact.html">Contact</a>
         <a class="btn-nav-download" href="https://github.com/rept0rix/show-bar/releases/download/v2.0.3/Show-Bar-2.0.3.dmg">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           Download Free
@@ -1371,8 +1372,8 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
               LinkedIn
             </a>
-            <a class="about-link" href="mailto:na0ryank0@gmail.com">
-              ✉️ na0ryank0@gmail.com
+            <a class="about-link" href="contact.html">
+              Contact Naor
             </a>
             <a class="about-link" href="https://buymeacoffee.com/na0ryank0r" target="_blank" rel="noopener">
               ☕ Buy Me a Coffee
@@ -1413,6 +1414,7 @@
         <a href="#changelog">Changelog</a>
         <a href="privacy.html">Privacy Policy</a>
         <a href="support.html">Support &amp; Feedback</a>
+        <a href="contact.html">Contact</a>
         <a href="https://github.com/rept0rix/show-bar" target="_blank" rel="noopener">GitHub</a>
       </div>
       <div class="footer-badge">

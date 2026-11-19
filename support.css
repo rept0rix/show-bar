@@ -1,0 +1,36 @@
+:root {
+  color-scheme: dark;
+  --background: #090a0f;
+  --surface: #11141e;
+  --border: #2b3445;
+  --text: #f8fafc;
+  --muted: #a7b4c8;
+  --accent: #8ac5ff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--background); color: var(--text); line-height: 1.6; }
+.wrap { width: min(100% - 40px, 720px); margin: 0 auto; }
+.site-header { padding: 20px 0; border-bottom: 1px solid var(--border); }
+.site-header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); font-weight: 600; text-decoration: none; }
+.brand img { border-radius: 8px; }
+main { padding: clamp(32px, 7vw, 68px) 0 56px; }
+h1, h2, h3 { line-height: 1.2; }
+h1 { margin: 0; font-size: clamp(2rem, 7vw, 3.5rem); letter-spacing: -0.04em; }
+h2 { margin: 0 0 12px; font-size: 1.375rem; letter-spacing: -0.02em; }
+h3 { margin: 0; font-size: 1rem; }
+p { margin: 0; color: var(--muted); }
+.intro { margin: 12px 0 28px; font-size: 1.125rem; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 3px; }
+.channels { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; }
+.channel { padding: 18px 22px; }
+.channel + .channel { border-top: 1px solid var(--border); }
+.channel p { margin-top: 6px; }
+.channel h2 { margin: 0; font-size: 1.125rem; }
+.contact-email { display: inline-block; margin-top: 8px; overflow-wrap: anywhere; }
+.posting-note { margin: 12px 0 0; font-size: 0.9rem; }
+.faq { margin-top: 40px; }
+.answer + .answer { margin-top: 20px; }
+.answer p { margin-top: 6px; }
