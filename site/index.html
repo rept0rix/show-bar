@@ -803,11 +803,13 @@
       }
     }
     @media (max-width: 480px) {
-      .nav-inner { padding-inline: 12px; gap: 8px; }
-      .nav-inner .brand { gap: 8px; white-space: nowrap; }
+      .nav-inner { padding-inline: 12px; gap: 8px; flex-wrap: wrap; }
+      .nav-inner .brand { gap: 6px; white-space: nowrap; }
+      .nav-inner .brand img { width: 28px; height: 28px; }
       .nav-inner .ver-tag { display: none; }
-      .nav-actions { gap: 8px; }
+      .nav-actions { gap: 6px; }
       .btn-nav-download { padding-inline: 10px; white-space: nowrap; }
+      .btn-nav-download svg { display: none; }
     }
   </style>
 </head>
